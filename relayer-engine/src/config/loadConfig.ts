@@ -42,7 +42,7 @@ export async function loadUntypedEnvs(
 }
 
 async function loadCommon(dir: string, mode: Mode): Promise<any> {
-  const obj = await loadFileAndParseToObject(`${dir}/common.yml`);
+  const obj = await loadFileAndParseToObject(`${dir}/common.json`);
   obj.mode = mode;
   return obj;
 }
@@ -50,7 +50,7 @@ async function loadCommon(dir: string, mode: Mode): Promise<any> {
 async function loadExecutor(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.EXECUTOR || mode == Mode.BOTH) {
     return await loadFileAndParseToObject(
-      `${dir}/${Mode.EXECUTOR.toLowerCase()}.yml`
+      `${dir}/${Mode.EXECUTOR.toLowerCase()}.json`
     );
   }
   return undefined;
@@ -59,7 +59,7 @@ async function loadExecutor(dir: string, mode: Mode): Promise<any> {
 async function loadListener(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.LISTENER || mode == Mode.BOTH) {
     return await loadFileAndParseToObject(
-      `${dir}/${Mode.LISTENER.toLowerCase()}.yml`
+      `${dir}/${Mode.LISTENER.toLowerCase()}.json`
     );
   }
   return undefined;
