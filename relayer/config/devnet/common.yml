@@ -1,0 +1,22 @@
+logLevel: debug
+# promPort: 8083
+# readinessPort: 2000
+# logDir?: undefined
+redisHost: localhost
+redisPort: 6379
+pluginURIs:
+  - dummy_plugin
+supportedChains:
+  - chainId: 1
+    chainName: Solana
+    nodeUrl: https://api.devnet.solana.com
+    nativeCurrencySymbol: SOL
+    tokenBridgeAddress: DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe
+    bridgeAddress: 3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5
+    wrappedAsset: So11111111111111111111111111111111111111112
+  - chainId: 6
+    chainName: Avalanche
+    nativeCurrencySymbol: AVAX
+    nodeUrl: https://api.avax-test.network/ext/bc/C/rpc
+    tokenBridgeAddress: "0x61E44E506Ca5659E6c0bba9b678586fA2d729756"
+    wrappedAsset: "0x1D308089a2D1Ced3f1Ce36B1FcaF815b07217be3"

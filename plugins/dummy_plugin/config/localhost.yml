@@ -1,0 +1,6 @@
+hi: hello!
+shouldSpy: true
+shouldRest: false
+spyServiceFilters:
+  - chainId: 1
+    emitterAddress: worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth

@@ -1,0 +1,8 @@
+spyServiceHost: spy:7072
+# spyServiceFilters:
+#   - chainId: 1
+#     emitterAddress: B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE
+#   - chainId: 2
+#     emitterAddress:
+# restPort?: number;
+# numSpyWorkers?: number;

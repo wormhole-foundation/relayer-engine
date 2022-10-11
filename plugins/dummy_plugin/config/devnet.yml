@@ -1,0 +1,9 @@
+hi: hello!
+shouldSpy: true
+shouldRest: false
+demoteInProgress: true
+spyServiceFilters:
+  - chainId: 1
+    emitterAddress: DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe
+  - chainId: 6
+    emitterAddress: "0x61E44E506Ca5659E6c0bba9b678586fA2d729756"

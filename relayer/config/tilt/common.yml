@@ -1,0 +1,22 @@
+logLevel: debug
+promPort: 8083
+readinessPort: 2000
+# logDir?: undefined
+redisHost: redis
+redisPort: 6379
+pluginURIs:
+  - dummy_plugin
+supportedChains:
+  - chainId: 1
+    chainName: Solana
+    nodeUrl: http://solana-devnet:8899
+    nativeCurrencySymbol: SOL
+    tokenBridgeAddress: B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE
+    bridgeAddress: Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+    wrappedAsset: So11111111111111111111111111111111111111112
+  - chainId: 2
+    chainName: Ethereum
+    nodeUrl: http://eth-devnet:8545
+    nativeCurrencySymbol: ETH
+    tokenBridgeAddress: 0x0290FB167208Af455bB137780163b7B7a9a10C16
+    wrappedAsset: 0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E

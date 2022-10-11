@@ -1,0 +1,27 @@
+{
+  "name": "dummy_plugin",
+  "version": "0.0.1",
+  "description": "dummy plugin for plugin relayer",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.6.1",
+    "plugin_interface": "file:../../relayer-plugin-interface"
+  },
+  "author": "Joe Howarth",
+  "license": "ISC",
+  "peerDependencies": {
+    "ethers": "^5",
+    "winston": "3.8.2"
+  },
+  "devDependencies": {
+    "relayer-engine": "file:../../relayer-engine",
+    "typescript": "^4.8.4",
+    "winston": "3.8.2"
+  }
+}
