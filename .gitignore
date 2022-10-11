@@ -1,6 +1,7 @@
 node_modules
 lib
 npm-debug.log
+.vscode
 .nyc
 .env
 .DS_Store
