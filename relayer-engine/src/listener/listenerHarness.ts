@@ -72,7 +72,7 @@ async function consumeEventHarness(
   try {
     const stagingArea = await storage.getStagingArea();
     const { workflowData, nextStagingArea } = await storage.plugin.consumeEvent(
-      new Uint8Array(vaa),
+      vaa,
       stagingArea,
       providers
     );

@@ -43,8 +43,8 @@ export function getScopedLogger(
 }
 
 export function initLogger(
+  logLevel: string = "debug",
   logDir?: string,
-  logLevel: string = "info"
 ): winston.Logger {
   let useConsole = true;
   let logFileName;
@@ -95,5 +95,6 @@ export function initLogger(
     ),
   };
 
-  return winston.createLogger(logConfiguration);
+  logger = winston.createLogger(logConfiguration)
+  return logger;
 }

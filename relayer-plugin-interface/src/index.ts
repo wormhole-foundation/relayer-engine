@@ -103,7 +103,7 @@ export interface Plugin<WorkflowData = any> {
   demoteInProgress?: boolean;
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
   consumeEvent( // Function to be defined in plug-in that takes as input a VAA and outputs a list of actions
-    vaa: Uint8Array,
+    vaa: Buffer,
     stagingArea: StagingArea,
     providers: Providers
   ): Promise<{ workflowData?: WorkflowData; nextStagingArea: StagingArea }>;

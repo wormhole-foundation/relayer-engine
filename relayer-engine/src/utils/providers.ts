@@ -24,12 +24,14 @@ export function providersFromChainConfig(
     [id in EVMChainId]: ethers.providers.JsonRpcProvider;
   };
 
-  const solanaUrl = chainConfigs.find(
+  let solanaUrl = chainConfigs.find(
     (info) => info.chainId === CHAIN_ID_SOLANA
   )?.nodeUrl;
   if (!solanaUrl) {
+    // todo: change me!!!!!!
+    solanaUrl = "http://localhost:8899"
     // todo: generalize this
-    throw new Error("Expected solana rpc url to be defined");
+    // throw new Error("Expected solana rpc url to be defined");
   }
   return {
     evm,

@@ -19,10 +19,10 @@ type ConfigPrivateKey = {
 
 export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
   return {
-    logLevel: nnull(raw.logLevel, "logLevel"),
-    redisHost: nnull(raw.redisHost, "redisHost"),
-    redisPort: assertInt(raw.redisPort, "redisPort"),
-    pluginURIs: assertArray(raw.pluginURIs, "pluginURIs"),
+    logLevel: raw.logLevel,
+    redisHost: raw.redisHost,
+    redisPort: raw.readinessPort && assertInt(raw.redisPort, "redisPort"),
+    pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
     envType: validateStringEnum<EnvType>(EnvType, raw.envType),
     mode: validateStringEnum<Mode>(Mode, raw.mode),
     promPort: raw.promPort && assertInt(raw.promPort, "promPort"),
@@ -40,9 +40,6 @@ export function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
   return {
     spyServiceHost: raw.spyServiceHost,
     restPort: raw.restPort ? assertInt(raw.restPort, "restPort") : undefined,
-    numSpyWorkers: raw.numSpyWorkers
-      ? assertInt(raw.numSpyWorkers, "numSpyWorkers")
-      : 1,
   };
 }
 
@@ -119,12 +116,9 @@ function createSolanaChainConfig(
       msg("nativeCurrencySymbol")
     ),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
-    tokenBridgeAddress: nnull(
-      config.tokenBridgeAddress,
-      msg("tokenBridgeAddress")
-    ),
+    tokenBridgeAddress: config.tokenBridgeAddress,
     bridgeAddress: nnull(config.bridgeAddress, msg("bridgeAddress")),
-    wrappedAsset: nnull(config.wrappedAsset, msg("wrappedAsset")),
+    wrappedAsset: config.wrappedAsset,
   };
 }
 
@@ -142,10 +136,7 @@ function createTerraChainConfig(config: any): ChainConfigInfo {
       msg("nativeCurrencySymbol")
     ),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
-    tokenBridgeAddress: nnull(
-      config.tokenBridgeAddress,
-      msg("tokenBridgeAddress")
-    ),
+    tokenBridgeAddress: config.tokenBridgeAddress,
     terraName: nnull(config.terraName, msg("terraName")),
     terraChainId: nnull(config.terraChainId, msg("terraChainId")),
     terraCoin: nnull(config.terraCoin, msg("terraCoin")),
@@ -164,11 +155,8 @@ function createEvmChainConfig(config: any): ChainConfigInfo {
       msg("nativeCurrencySymbol")
     ),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
-    tokenBridgeAddress: nnull(
-      config.tokenBridgeAddress,
-      msg("tokenBridgeAddress")
-    ),
-    wrappedAsset: nnull(config.wrappedAsset, msg("wrappedAsset")),
+    tokenBridgeAddress: config.tokenBridgeAddress,
+    wrappedAsset: config.wrappedAsset,
   };
 }
 

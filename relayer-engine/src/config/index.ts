@@ -23,13 +23,13 @@ export enum Mode {
 export type NodeURI = string;
 
 export interface CommonEnv {
-  logLevel: string;
+  logLevel?: string;
   promPort?: number;
   readinessPort?: number;
   logDir?: string;
-  redisHost: string;
-  redisPort: number;
-  pluginURIs: NodeURI[];
+  redisHost?: string;
+  redisPort?: number;
+  pluginURIs?: NodeURI[];
   envType: EnvType;
   mode: Mode;
   supportedChains: ChainConfigInfo[];
@@ -40,7 +40,6 @@ let _x: CommonPluginEnv = {} as CommonEnv;
 export type ListenerEnv = {
   spyServiceHost: string;
   restPort?: number;
-  numSpyWorkers: number;
 };
 
 export type ExecutorEnv = {
