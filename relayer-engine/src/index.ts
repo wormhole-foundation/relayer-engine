@@ -22,6 +22,7 @@ export {
   dbg,
   initLogger,
 } from "./helpers/logHelper";
+export * from 'relayer-plugin-interface'
 
 wh.setDefaultWasm("node");
 

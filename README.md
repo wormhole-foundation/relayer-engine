@@ -118,7 +118,7 @@ spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --boo
 
 On testnet:
 
-```
+```bash
 docker run \
     --platform=linux/amd64 \
     -p 7073:7073 \
@@ -129,7 +129,7 @@ spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --b
 
 With wormhole local validator
 
-``` bash
+```bash
 HOST=
 if [ "$(uname -m)" = "arm64" ]; then
    HOST="host.docker.internal"
