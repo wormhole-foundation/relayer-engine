@@ -27,7 +27,7 @@ export type ChainConfigInfo = {
   chainName: string;
   nativeCurrencySymbol: string;
   nodeUrl: string;
-  tokenBridgeAddress: string;
+  tokenBridgeAddress?: string;
   bridgeAddress?: string;
   terraName?: string;
   terraChainId?: string;
