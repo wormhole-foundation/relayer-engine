@@ -27,7 +27,6 @@ function create(
 }
 
 export interface DummyPluginConfig {
-  hi?: string;
   spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
   shouldRest: boolean;
   shouldSpy: boolean;
@@ -35,13 +34,13 @@ export interface DummyPluginConfig {
 }
 
 interface WorkflowPayload {
-  vaa: Uint8Array;
-  data: number;
+  vaa: string; // base64
+  time: number;
 }
 
-export class DummyPlugin implements Plugin {
-  shouldSpy: boolean;
-  shouldRest: boolean;
+export class DummyPlugin implements Plugin<WorkflowPayload> {
+  readonly shouldSpy: boolean;
+  readonly shouldRest: boolean;
   static readonly pluginName: string = "DummyPlugin";
   readonly pluginName = DummyPlugin.pluginName;
   readonly pluginConfig: DummyPluginConfig;
@@ -57,7 +56,6 @@ export class DummyPlugin implements Plugin {
     console.log(`Plugin Env: ${JSON.stringify(env, undefined, 2)}`);
 
     this.pluginConfig = {
-      hi: env.hi,
       spyServiceFilters:
         env.spyServiceFilters &&
         assertArray(env.spyServiceFilters, "spyServiceFilters"),
@@ -70,6 +68,32 @@ export class DummyPlugin implements Plugin {
     this.shouldRest = this.pluginConfig.shouldRest;
     this.shouldSpy = this.pluginConfig.shouldSpy;
     this.demoteInProgress = this.pluginConfig.demoteInProgress;
+  }
+
+  getFilters(): ContractFilter[] {
+    if (this.pluginConfig.spyServiceFilters) {
+      return this.pluginConfig.spyServiceFilters;
+    }
+    this.logger.error("Contract filters not specified in config");
+    throw new Error("Contract filters not specified in config");
+  }
+
+  async consumeEvent(
+    vaa: Buffer,
+    stagingArea: { counter?: number }
+  ): Promise<{ workflowData: WorkflowPayload; nextStagingArea: StagingArea }> {
+    this.logger.debug("Parsing VAA...");
+    const parsed = await this.parseVAA(vaa);
+    this.logger.debug(`Parsed VAA: ${JSON.stringify(parsed)}`);
+    return {
+      workflowData: {
+        time: new Date().getTime(),
+        vaa: vaa.toString("base64"),
+      },
+      nextStagingArea: {
+        counter: stagingArea?.counter ? stagingArea.counter + 1 : 0,
+      },
+    };
   }
 
   async handleWorkflow(
@@ -95,41 +119,10 @@ export class DummyPlugin implements Plugin {
     this.logger.info(`Result of action on solana ${pubkey}`);
   }
 
-  getFilters(): ContractFilter[] {
-    if (this.pluginConfig.spyServiceFilters) {
-      return this.pluginConfig.spyServiceFilters;
-    }
-    this.logger.error("Contract filters not specified in config");
-    throw new Error("Contract filters not specified in config");
-  }
-
-  async consumeEvent(
-    vaa: Uint8Array,
-    stagingArea: { counter?: number }
-  ): Promise<{ workflowData: Object; nextStagingArea: StagingArea }> {
-    this.logger.debug("Parsing VAA...");
-    const parsed = await this.parseVAA(vaa);
-    this.logger.info(
-      `DummyPlugin consumed an event. Staging area: ${JSON.stringify(
-        stagingArea
-      )}`
-    );
-    this.logger.debug(`Parsed VAA: ${JSON.stringify(parsed)}`);
+  parseWorkflowPayload(workflow: Workflow): { vaa: Buffer; time: number } {
     return {
-      workflowData: {
-        data: Math.random() * 1000,
-        vaa: Array.from(vaa),
-      },
-      nextStagingArea: {
-        counter: stagingArea?.counter ? stagingArea.counter + 1 : 0,
-      },
-    };
-  }
-
-  parseWorkflowPayload(workflow: Workflow): WorkflowPayload {
-    return {
-      vaa: new Uint8Array(assertArray<number>(workflow.data.vaa)),
-      data: workflow.data.data as number,
+      vaa: Buffer.from(workflow.data.vaa, "base64"),
+      time: workflow.data.time as number,
     };
   }
 

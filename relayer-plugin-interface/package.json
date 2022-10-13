@@ -4,6 +4,10 @@
   "description": "Plugin interfaces used in relayer-engine-lib",
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
+  "files": [
+    "/lib",
+    "/src"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",

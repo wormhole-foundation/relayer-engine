@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "lib",
+    "outDir": "relayer-engine/lib",
     "target": "esnext",
     "module": "CommonJS",
     "moduleResolution": "node",
@@ -19,7 +19,7 @@
     "sourceMap": true
   },
   "include": [
-    "src"
+    "relayer-engine/src"
   ],
   "exclude": [
     "node_modules",

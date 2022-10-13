@@ -15,6 +15,12 @@ import {
 export { loadFileAndParseToObject, loadUntypedEnvs } from "./loadConfig";
 export { validateStringEnum } from "./validateConfig";
 
+type RelayerEngineConfigs = {
+  commonEnv: CommonEnv;
+  listenerEnv?: ListenerEnv;
+  executorEnv?: ExecutorEnv;
+};
+
 export enum Mode {
   LISTENER = "LISTENER",
   EXECUTOR = "EXECUTOR",
@@ -84,6 +90,14 @@ export function getListenerEnv(): ListenerEnv {
   return listenerEnv;
 }
 
+export function loadRelayerEngineConfig(
+  dir: string,
+  mode: Mode,
+  envType: EnvType
+): Promise<RelayerEngineConfigs> {
+  return loadUntypedEnvs(dir, mode, envType).then(validateEnvs);
+}
+
 export function transforEnvs({
   mode,
   rawCommonEnv,
@@ -111,12 +125,15 @@ export function validateEnvs(input: {
   rawCommonEnv: any;
   rawListenerEnv: any;
   rawExecutorEnv: any;
-}) {
+}): {
+  commonEnv: CommonEnv;
+  listenerEnv?: ListenerEnv;
+  executorEnv?: ExecutorEnv;
+} {
   console.log("Validating envs...");
   try {
     input = transforEnvs(input);
-  } catch (e) {
-  }
+  } catch (e) {}
   commonEnv = validateCommonEnv(input.rawCommonEnv);
   if (input.rawExecutorEnv) {
     executorEnv = validateExecutorEnv(input.rawExecutorEnv);
@@ -125,4 +142,9 @@ export function validateEnvs(input: {
     listenerEnv = validateListenerEnv(input.rawListenerEnv);
   }
   console.log("Validated envs");
+  return {
+    executorEnv,
+    listenerEnv,
+    commonEnv,
+  };
 }

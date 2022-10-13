@@ -9,10 +9,10 @@ export async function loadPluginConfig(
   envType: EnvType
 ): Promise<Record<string, any>> {
   const overrides = loadFileAndParseToObject(
-    `${dir}/plugins/${pluginName}.yml`
+    `${dir}/plugins/${pluginName}.json`
   );
   const defaultConfig = loadFileAndParseToObject(
-    `./node_modules/${pluginURI}/config/${envTypeToPath(envType)}.yml`
+    `./node_modules/${pluginURI}/config/${envTypeToPath(envType)}.json`
   );
   return { ...(await defaultConfig), ...(await overrides) };
 }
