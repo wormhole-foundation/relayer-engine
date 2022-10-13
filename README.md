@@ -66,7 +66,7 @@ Add relayer-engine as a dependency by pointing at the github repo
     "relayer-engine": "wormhole-foundation/relayer-engine",
 ```
 
-Define a plugin similar to AttestationPlugin or DummyPlugin, or check out the messenger example at https://github.com/wormhole-foundation/xdapp-book/pull/22
+Define a plugin similar to AttestationPlugin or DummyPlugin, or check out the messenger example at https://github.com/wormhole-foundation/xdapp-book/blob/main/projects/messenger/src/plugin.ts
 
 Define an entry point that calls `run` with something like the following:
 
