@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.6.1",
-    "plugin_interface": "file:../../relayer-plugin-interface"
+    "relayer-engine": "file:../.."
   },
   "author": "Joe Howarth",
   "license": "ISC",
@@ -20,7 +20,6 @@
     "winston": "3.8.2"
   },
   "devDependencies": {
-    "relayer-engine": "file:../../relayer-engine",
     "typescript": "^4.8.4",
     "winston": "3.8.2"
   }
