@@ -8,7 +8,7 @@
     "build": "tsc ",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "postinstall": "tsc --outDir ./build",
+    "postinstall": "tsc",
     "spy_relay": "node lib/main.js",
     "localhost": "ENV_TYPE=LOCALHOST MODE=both ts-node src/main.ts",
     "localhost_listener": "ENV_TYPE=LOCALHOST MODE=listener ts-node src/main.ts",
