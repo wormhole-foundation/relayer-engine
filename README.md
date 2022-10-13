@@ -60,25 +60,10 @@ The key interfaces to provide in a plug-in can be found [here](./relayer-plugin-
 
 ## Quick start
 
-This repo is in beta state, so we recommend cloning the repository and pointing your project's package.json at the files within the cloned repo.
-This will be on NPM soon!
-
-```bash
-git clone git@github.com:wormhole-foundation/relayer-engine.git
-cd relayer-engine/relayer-plugin-interface
-npm ci
-npm run build
-cd relayer-engine/relayer-engine
-npm ci
-npm run build
-cd ..
-```
-
-Modify your package.json dependencies section with these lines:
+Add relayer-engine as a dependency by pointing at the github repo
 
 ```json
-    "relayer-engine": "file:./relayer-engine/relayer-engine",
-    "relayer-plugin-interface": "file:./relayer-engine/relayer-plugin-interface",
+    "relayer-engine": "wormhole-foundation/relayer-engine",
 ```
 
 Define a plugin similar to AttestationPlugin or DummyPlugin, or check out the messenger example at https://github.com/wormhole-foundation/xdapp-book/pull/22
