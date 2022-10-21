@@ -1,5 +1,5 @@
 {
-  "name": "relayer",
+  "name": "@wormhole-foundation/relayer",
   "version": "0.1.0",
   "description": "Relayer engine app",
   "main": "main.js",

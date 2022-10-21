@@ -1,5 +1,5 @@
 {
-  "name": "relayer-engine",
+  "name": "@wormhole-foundation/relayer-engine",
   "version": "0.1.0",
   "description": "Relayer Engine",
   "main": "relayer-engine/lib/index.js",
@@ -52,12 +52,12 @@
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
     "ethers": "^5.7.0",
-    "express": "^4.17.1",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
     "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.5",
-    "relayer-plugin-interface": "file:./relayer-plugin-interface",
     "prom-client": "^14.0.1",
     "redis": "^4.0.1",
+    "relayer-plugin-interface": "file:./relayer-plugin-interface",
     "winston": "3.8.2"
   }
 }

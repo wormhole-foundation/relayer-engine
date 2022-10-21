@@ -1,5 +1,5 @@
 {
-  "name": "dummy_plugin",
+  "name": "@wormhole-foundation/dummy_plugin",
   "version": "0.0.1",
   "description": "dummy plugin for plugin relayer",
   "main": "lib/index.js",

@@ -1,5 +1,5 @@
 {
-  "name": "@certusone/relayer-plugin-interface",
+  "name": "@wormhole-foundation/relayer-plugin-interface",
   "version": "0.1.0",
   "description": "Plugin interfaces used in relayer-engine-lib",
   "types": "lib/index.d.ts",
