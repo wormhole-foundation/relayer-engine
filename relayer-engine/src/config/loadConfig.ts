@@ -9,7 +9,7 @@
 // export {};
 
 import * as yaml from "js-yaml";
-import * as fs from "fs/promises";
+import * as fs from "fs";
 import * as nodePath from "path";
 import { EnvType as EnvType } from "relayer-plugin-interface";
 import { Mode } from ".";
@@ -70,7 +70,7 @@ export async function loadFileAndParseToObject(
   path: string
 ): Promise<Record<string, any>> {
   console.log("About to read contents of : " + path);
-  const fileContent = await fs.readFile(path, { encoding: "utf-8" });
+  const fileContent = fs.readFileSync(path, { encoding: "utf-8" });
   console.log("Successfully read file contents");
   const ext = nodePath.extname(path);
   switch (ext) {
