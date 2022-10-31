@@ -71,7 +71,7 @@ export type StagingArea = Object; // Next action to be executed
  * Wallets and Providers
  */
 
-export type EVMWallet = ethers.Signer & { address: string };
+export type EVMWallet = ethers.Wallet 
 export type Wallet = EVMWallet | SolanaWallet | CosmWallet;
 
 export interface WalletToolBox<T extends Wallet> extends Providers {

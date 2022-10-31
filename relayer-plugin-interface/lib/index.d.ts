@@ -46,9 +46,7 @@ export interface Action<T, W extends Wallet> {
 export declare type ActionId = number;
 export declare type WorkflowId = number;
 export declare type StagingArea = Object;
-export declare type EVMWallet = ethers.Signer & {
-    address: string;
-};
+export declare type EVMWallet = ethers.Wallet;
 export declare type Wallet = EVMWallet | SolanaWallet | CosmWallet;
 export interface WalletToolBox<T extends Wallet> extends Providers {
     wallet: T;
