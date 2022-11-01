@@ -1,4 +1,7 @@
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, VAA } from "@certusone/wormhole-sdk";
+import { ParsedVAA } from "@certusone/wormhole-sdk/lib/cjs/algorand";
+import * as BN from "bn.js";
+import * as ethers from 'ethers'
 
 export const chainIDStrings: { [key in ChainId]: string } = {
   0: "Unset",
@@ -20,7 +23,6 @@ export const chainIDStrings: { [key in ChainId]: string } = {
   16: "Moonbeam",
   17: "Neon",
   18: "Terra2",
-  10001: "Ropsten",
 
   // TODO: fixme
   19: "",
@@ -31,5 +33,6 @@ export const chainIDStrings: { [key in ChainId]: string } = {
   24: "",
   25: "",
   26: "",
-  3104: ""
+  3104: "",
+  28: ""
 };

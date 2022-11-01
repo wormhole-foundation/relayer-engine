@@ -102,7 +102,7 @@ export interface Plugin<WorkflowData = any> {
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
   demoteInProgress?: boolean;
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
-  consumeEvent( // Function to be defined in plug-in that takes as input a VAA and outputs a list of actions
+  consumeEvent( // Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: Buffer,
     stagingArea: StagingArea,
     providers: Providers

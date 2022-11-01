@@ -69,7 +69,7 @@ export interface Plugin<WorkflowData = any> {
     shouldRest: boolean;
     demoteInProgress?: boolean;
     getFilters(): ContractFilter[];
-    consumeEvent(// Function to be defined in plug-in that takes as input a VAA and outputs a list of actions
+    consumeEvent(// Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: Buffer, stagingArea: StagingArea, providers: Providers): Promise<{
         workflowData?: WorkflowData;
         nextStagingArea: StagingArea;
