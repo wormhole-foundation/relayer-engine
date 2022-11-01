@@ -8,16 +8,9 @@ import {
 import { sleep } from "../utils/utils";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
 import { PluginStorage, Storage } from "../storage";
-import {
-  ChainId,
-  CHAIN_ID_SOLANA,
-  getEmitterAddressEth,
-  isEVMChain,
-  getEmitterAddressSolana,
-  getEmitterAddressTerra,
-  isTerraChain,
-} from "@certusone/wormhole-sdk";
+import * as wormholeSdk from "@certusone/wormhole-sdk";
 import { providersFromChainConfig } from "../utils/providers";
+import LRUCache = require("lru-cache");
 
 const logger = () => getScopedLogger(["listenerHarness"], getLogger());
 
@@ -100,17 +93,17 @@ async function transformEmitterFilter(
 }
 
 async function encodeEmitterAddress(
-  myChainId: ChainId,
+  myChainId: wormholeSdk.ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  if (myChainId === CHAIN_ID_SOLANA) {
-    return await getEmitterAddressSolana(emitterAddressStr);
+  if (myChainId === wormholeSdk.CHAIN_ID_SOLANA) {
+    return await wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
   }
-  if (isTerraChain(myChainId)) {
-    return await getEmitterAddressTerra(emitterAddressStr);
+  if (wormholeSdk.isTerraChain(myChainId)) {
+    return await wormholeSdk.getEmitterAddressTerra(emitterAddressStr);
   }
-  if (isEVMChain(myChainId)) {
-    return getEmitterAddressEth(emitterAddressStr);
+  if (wormholeSdk.isEVMChain(myChainId)) {
+    return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
   }
   throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
 }
@@ -121,6 +114,9 @@ async function runPluginSpyListener(
   client: SpyRPCServiceClient,
   providers: Providers
 ) {
+  const vaaHashCache = new LRUCache({
+    max: 10000,
+  });
   const plugin = pluginStorage.plugin;
   while (true) {
     let stream: any;
@@ -147,9 +143,15 @@ async function runPluginSpyListener(
         filters,
       });
 
-      stream.on("data", (vaa: { vaaBytes: Buffer }) =>
-        consumeEventHarness(vaa.vaaBytes, pluginStorage, providers)
-      );
+      stream.on("data", (vaa: { vaaBytes: Buffer }) => {
+        const hash = wormholeSdk.parseVaa(vaa.vaaBytes).hash.toString("base64");
+        if (vaaHashCache.get(hash)) {
+          logger().debug(`Duplicate founds for hash ${hash}`);
+          return;
+        }
+        vaaHashCache.set(hash, true);
+        consumeEventHarness(vaa.vaaBytes, pluginStorage, providers);
+      });
 
       let connected = true;
       stream.on("error", (err: any) => {

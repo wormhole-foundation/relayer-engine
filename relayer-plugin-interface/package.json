@@ -17,7 +17,7 @@
   "author": "Joe Howarth",
   "license": "ISC",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.6.1",
+    "@certusone/wormhole-sdk": "^0.9.0",
     "prom-client": "^14.1.0"
   },
   "devDependencies": {

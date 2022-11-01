@@ -1,6 +1,6 @@
 import {
   CHAIN_ID_TERRA2,
-  isNativeTerra,
+  isHexNativeTerra,
   TerraChainId,
 } from "@certusone/wormhole-sdk";
 
@@ -12,7 +12,7 @@ export const formatNativeDenom = (
   chainId: TerraChainId
 ): string => {
   const unit = denom.slice(1).toUpperCase();
-  const isValidTerra = isNativeTerra(denom);
+  const isValidTerra = isHexNativeTerra(denom);
   return denom === "uluna"
     ? chainId === CHAIN_ID_TERRA2
       ? LUNA_SYMBOL

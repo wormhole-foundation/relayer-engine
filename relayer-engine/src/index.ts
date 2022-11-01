@@ -24,8 +24,6 @@ export {
 } from "./helpers/logHelper";
 export * from 'relayer-plugin-interface'
 
-wh.setDefaultWasm("node");
-
 export interface RunArgs {
   // for configs, provide file path or config objects
   configs:
