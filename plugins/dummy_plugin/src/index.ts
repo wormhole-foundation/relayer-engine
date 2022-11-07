@@ -2,21 +2,16 @@ import {
   ActionExecutor,
   CommonPluginEnv,
   ContractFilter,
-  CosmWallet,
-  EVMWallet,
   Plugin,
   PluginFactory,
   Providers,
-  SolanaWallet,
   StagingArea,
   Workflow,
-} from "plugin_interface";
+} from "relayer-plugin-interface";
 import * as wh from "@certusone/wormhole-sdk";
-import { Logger, loggers } from "winston";
+import { Logger } from "winston";
 
 // todo: do we need this in the plugin or just the relayer??
-wh.setDefaultWasm("node");
-
 function create(
   commonConfig: CommonPluginEnv,
   pluginConfig: any,
@@ -83,7 +78,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     stagingArea: { counter?: number }
   ): Promise<{ workflowData: WorkflowPayload; nextStagingArea: StagingArea }> {
     this.logger.debug("Parsing VAA...");
-    const parsed = await this.parseVAA(vaa);
+    const parsed = wh.parseVaa(vaa);
     this.logger.debug(`Parsed VAA: ${JSON.stringify(parsed)}`);
     return {
       workflowData: {
@@ -105,7 +100,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     this.logger.debug(JSON.stringify(workflow, undefined, 2));
 
     const payload = this.parseWorkflowPayload(workflow);
-    const parsed = await this.parseVAA(payload.vaa);
+    const parsed = wh.parseVaa(payload.vaa);
 
     const pubkey = await execute.onSolana(async (wallet, chainId) => {
       const pubkey = wallet.wallet.payer.publicKey.toBase58();
@@ -124,16 +119,6 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
       vaa: Buffer.from(workflow.data.vaa, "base64"),
       time: workflow.data.time as number,
     };
-  }
-
-  async parseVAA(vaa: number[] | Uint8Array): Promise<BaseVAA> {
-    try {
-      const { parse_vaa } = await wh.importCoreWasm();
-      return parse_vaa(new Uint8Array(vaa)) as BaseVAA;
-    } catch (e) {
-      this.logger.error("Failed to parse vaa");
-      throw e;
-    }
   }
 }
 

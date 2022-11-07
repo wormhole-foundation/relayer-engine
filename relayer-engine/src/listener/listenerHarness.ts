@@ -88,7 +88,9 @@ async function transformEmitterFilter(
 ): Promise<ContractFilter> {
   return {
     chainId: x.chainId,
-    emitterAddress: await encodeEmitterAddress(x.chainId, x.emitterAddress),
+    emitterAddress:
+      "0xf8cd23c2ab91237730770bbea08d61005cdda0984348f3f6eecb559638c0bba0",
+    // await encodeEmitterAddress(x.chainId, x.emitterAddress),
   };
 }
 
@@ -96,7 +98,10 @@ async function encodeEmitterAddress(
   myChainId: wormholeSdk.ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  if (myChainId === wormholeSdk.CHAIN_ID_SOLANA) {
+  if (
+    myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
+    myChainId === wormholeSdk.CHAIN_ID_PYTHNET
+  ) {
     return await wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
   }
   if (wormholeSdk.isTerraChain(myChainId)) {

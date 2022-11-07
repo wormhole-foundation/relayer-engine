@@ -1,3 +1,4 @@
+import * as dotenv from "dotenv";
 import * as wh from "@certusone/wormhole-sdk";
 import { EnvType, Plugin } from "relayer-plugin-interface";
 import {
@@ -7,6 +8,7 @@ import {
   ListenerEnv,
   loadUntypedEnvs,
   Mode,
+  PrivateKeys,
   validateEnvs,
 } from "./config";
 import { getLogger } from "./helpers/logHelper";
@@ -22,19 +24,21 @@ export {
   dbg,
   initLogger,
 } from "./helpers/logHelper";
-export * from 'relayer-plugin-interface'
+export * from "relayer-plugin-interface";
 
+dotenv.config();
+
+export type CommonEnvRun = Omit<Omit<CommonEnv, "envType">, "mode">;
 export interface RunArgs {
   // for configs, provide file path or config objects
   configs:
     | string
     | {
-        commonEnv: CommonEnv;
+        commonEnv: CommonEnvRun;
         executorEnv?: ExecutorEnv;
         listenerEnv?: ListenerEnv;
       };
   mode: Mode;
-  envType: EnvType;
   plugins: Plugin[];
   store?: Store;
 }
@@ -75,21 +79,19 @@ export async function run(args: RunArgs): Promise<void> {
 async function readAndValidateEnv({
   configs,
   mode,
-  envType,
 }: {
   configs:
     | string
     | {
-        commonEnv: CommonEnv;
+        commonEnv: CommonEnvRun;
         executorEnv?: ExecutorEnv;
         listenerEnv?: ListenerEnv;
       };
 
   mode: Mode;
-  envType: EnvType;
 }) {
   if (typeof configs === "string") {
-    await loadUntypedEnvs(configs, mode, envType).then(validateEnvs);
+    await loadUntypedEnvs(configs, mode).then(validateEnvs);
     return;
   }
   validateEnvs({

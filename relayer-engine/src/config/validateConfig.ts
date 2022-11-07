@@ -21,9 +21,8 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
   return {
     logLevel: raw.logLevel,
     redisHost: raw.redisHost,
-    redisPort: raw.readinessPort && assertInt(raw.redisPort, "redisPort"),
+    redisPort: raw.redisPort && assertInt(raw.redisPort, "redisPort"),
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
-    envType: validateStringEnum<EnvType>(EnvType, raw.envType),
     mode: validateStringEnum<Mode>(Mode, raw.mode),
     promPort: raw.promPort && assertInt(raw.promPort, "promPort"),
     readinessPort:
@@ -111,10 +110,6 @@ function createSolanaChainConfig(
   return {
     chainId: nnull(config.chainId, msg("chainId")),
     chainName: nnull(config.chainName, msg("chainName")),
-    nativeCurrencySymbol: nnull(
-      config.nativeCurrencySymbol,
-      msg("nativeCurrencySymbol")
-    ),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
     tokenBridgeAddress: config.tokenBridgeAddress,
     bridgeAddress: nnull(config.bridgeAddress, msg("bridgeAddress")),
@@ -128,19 +123,10 @@ function createTerraChainConfig(config: any): ChainConfigInfo {
   let walletPrivateKey: string[];
 
   return {
-    isTerraClassic: config.isTerraClassic || false,
     chainId: nnull(config.chainId, msg("chainId")),
     chainName: nnull(config.chainName, msg("chainName")),
-    nativeCurrencySymbol: nnull(
-      config.nativeCurrencySymbol,
-      msg("nativeCurrencySymbol")
-    ),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
     tokenBridgeAddress: config.tokenBridgeAddress,
-    terraName: nnull(config.terraName, msg("terraName")),
-    terraChainId: nnull(config.terraChainId, msg("terraChainId")),
-    terraCoin: nnull(config.terraCoin, msg("terraCoin")),
-    terraGasPriceUrl: nnull(config.terraGasPriceUrl, msg("terraGasPriceUrl")),
   };
 }
 
@@ -150,10 +136,6 @@ function createEvmChainConfig(config: any): ChainConfigInfo {
   return {
     chainId: nnull(config.chainId, msg("chainId")),
     chainName: nnull(config.chainName, msg("chainName")),
-    nativeCurrencySymbol: nnull(
-      config.nativeCurrencySymbol,
-      msg("nativeCurrencySymbol")
-    ),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
     tokenBridgeAddress: config.tokenBridgeAddress,
     wrappedAsset: config.wrappedAsset,

@@ -1,11 +1,10 @@
 {
   "shouldSpy": true,
   "shouldRest": false,
-  "demoteInProgress": true,
   "spyServiceFilters": [
     {
       "chainId": 26,
-      "emitterAddress": "EUrRARh92Cdc54xrDn6qzaqjA77NRrCcfbr8kPwoTL4z"
+      "emitterAddress": "Bca8V1z69142rGcoxEo5j3xrVT1QYZewwX57tkamqgLQ"
     }
   ]
 }

@@ -4,7 +4,6 @@ import * as solana from "@solana/web3.js";
 import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
 import * as winston from "winston";
 export interface CommonPluginEnv {
-    envType: EnvType;
     supportedChains: ChainConfigInfo[];
 }
 export declare enum EnvType {
@@ -14,20 +13,14 @@ export declare enum EnvType {
     LOCALHOST = "LOCALHOST",
     OTHER = "OTHER"
 }
-export declare type ChainConfigInfo = {
+export interface ChainConfigInfo {
     chainId: ChainId;
     chainName: string;
-    nativeCurrencySymbol: string;
     nodeUrl: string;
     tokenBridgeAddress?: string;
     bridgeAddress?: string;
-    terraName?: string;
-    terraChainId?: string;
-    terraCoin?: string;
-    terraGasPriceUrl?: string;
     wrappedAsset?: string | null;
-    isTerraClassic?: boolean;
-};
+}
 export interface Workflow<D = any> {
     id: ActionId;
     pluginName: string;

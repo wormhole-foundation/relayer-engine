@@ -1,22 +1,21 @@
 import * as relayerEngine from "relayer-engine";
-import { EnvType } from "plugin_interface";
+import { EnvType } from "relayer-plugin-interface";
 import { DummyPlugin, DummyPluginConfig } from "./index";
 
 async function main() {
   // load relayer engine configs
   const relayerConfigs = await relayerEngine.loadRelayerEngineConfig(
     "./relayer-engine-config",
-    relayerEngine.Mode.BOTH,
-    EnvType.LOCALHOST
+    relayerEngine.Mode.BOTH
   );
   const { commonEnv } = relayerConfigs;
-  
+
   // init the logger used by the relayer engine so we can pass it to the plugin
-  await relayerEngine.initLogger(commonEnv.logLevel, commonEnv.logDir);
+  relayerEngine.initLogger(commonEnv.logLevel, commonEnv.logDir);
 
   // initialize the plugin
   const pluginConfig = (await relayerEngine.loadFileAndParseToObject(
-    `./config/${commonEnv.envType.toLowerCase()}.json`
+    `./config/${relayerEngine.EnvType.MAINNET}.json`
   )) as DummyPluginConfig;
   const dummy = new DummyPlugin(
     commonEnv,
@@ -25,11 +24,10 @@ async function main() {
   );
 
   // run relayer engine
-  relayerEngine.run({
+  await relayerEngine.run({
     configs: relayerConfigs,
     plugins: [dummy],
     mode: relayerEngine.Mode.BOTH,
-    envType: EnvType.LOCALHOST,
   });
 }
 

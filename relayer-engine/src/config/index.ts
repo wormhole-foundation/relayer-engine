@@ -36,7 +36,6 @@ export interface CommonEnv {
   redisHost?: string;
   redisPort?: number;
   pluginURIs?: NodeURI[];
-  envType: EnvType;
   mode: Mode;
   supportedChains: ChainConfigInfo[];
 }
@@ -48,8 +47,9 @@ export type ListenerEnv = {
   restPort?: number;
 };
 
+export type PrivateKeys = { [id in ChainId]: string[] };
 export type ExecutorEnv = {
-  privateKeys: { [id in ChainId]: string[] };
+  privateKeys: PrivateKeys;
   actionInterval?: number; // milliseconds between attempting to process actions
 };
 
@@ -93,9 +93,8 @@ export function getListenerEnv(): ListenerEnv {
 export function loadRelayerEngineConfig(
   dir: string,
   mode: Mode,
-  envType: EnvType
 ): Promise<RelayerEngineConfigs> {
-  return loadUntypedEnvs(dir, mode, envType).then(validateEnvs);
+  return loadUntypedEnvs(dir, mode).then(validateEnvs);
 }
 
 export function transforEnvs({

@@ -2,15 +2,13 @@ import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
 import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
 import * as winston from "winston";
+
 /*
  *  Config
  */
 
-// todo: Should these really be in this package? Probably shouldn't since plugins shouldn't depend on all these
-
 // subset of common env that plugins should have access to
 export interface CommonPluginEnv {
-  envType: EnvType;
   supportedChains: ChainConfigInfo[];
 }
 
@@ -22,20 +20,14 @@ export enum EnvType {
   OTHER = "OTHER",
 }
 
-export type ChainConfigInfo = {
+export interface ChainConfigInfo {
   chainId: ChainId;
   chainName: string;
-  nativeCurrencySymbol: string;
   nodeUrl: string;
   tokenBridgeAddress?: string;
   bridgeAddress?: string;
-  terraName?: string;
-  terraChainId?: string;
-  terraCoin?: string;
-  terraGasPriceUrl?: string;
   wrappedAsset?: string | null;
-  isTerraClassic?: boolean;
-};
+}
 
 /*
  * Storage
@@ -71,7 +63,7 @@ export type StagingArea = Object; // Next action to be executed
  * Wallets and Providers
  */
 
-export type EVMWallet = ethers.Wallet 
+export type EVMWallet = ethers.Wallet;
 export type Wallet = EVMWallet | SolanaWallet | CosmWallet;
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
