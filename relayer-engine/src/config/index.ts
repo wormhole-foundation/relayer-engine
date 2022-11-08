@@ -12,7 +12,11 @@ import {
   validateListenerEnv,
 } from "./validateConfig";
 
-export { loadFileAndParseToObject, loadUntypedEnvs } from "./loadConfig";
+export {
+  loadFileAndParseToObject,
+  loadUntypedEnvs,
+  privateKeyEnvVarLoader,
+} from "./loadConfig";
 export { validateStringEnum } from "./validateConfig";
 
 type RelayerEngineConfigs = {
@@ -93,8 +97,9 @@ export function getListenerEnv(): ListenerEnv {
 export function loadRelayerEngineConfig(
   dir: string,
   mode: Mode,
+  { privateKeyEnv }: { privateKeyEnv?: boolean } 
 ): Promise<RelayerEngineConfigs> {
-  return loadUntypedEnvs(dir, mode).then(validateEnvs);
+  return loadUntypedEnvs(dir, mode, { privateKeyEnv }).then(validateEnvs);
 }
 
 export function transforEnvs({

@@ -142,7 +142,7 @@ function createEvmChainConfig(config: any): ChainConfigInfo {
   };
 }
 
-type Keys<T> = { [k in keyof T]: any };
+export type Keys<T> = { [k in keyof T]: any };
 export function validateStringEnum<B>(
   enumObj: Object,
   value: string | undefined

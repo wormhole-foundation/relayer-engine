@@ -5,12 +5,14 @@
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import * as nodePath from "path";
-import { Mode, PrivateKeys } from ".";
+import { CommonEnv, ExecutorEnv, Mode, PrivateKeys } from ".";
 import { ChainId } from "@certusone/wormhole-sdk";
+import { Keys } from "./validateConfig";
 
 export async function loadUntypedEnvs(
   dir: string,
-  mode: Mode
+  mode: Mode,
+  { privateKeyEnv }: { privateKeyEnv?: boolean } = { privateKeyEnv: false }
 ): Promise<{
   mode: Mode;
   rawCommonEnv: any;
@@ -23,10 +25,15 @@ export async function loadUntypedEnvs(
 
   const rawListenerEnv = await loadListener(dir, mode);
   const rawExecutorEnv = await loadExecutor(dir, mode);
+  if (privateKeyEnv) {
+    (rawExecutorEnv as ExecutorEnv).privateKeys = await privateKeyEnvVarLoader(
+      (rawCommonEnv as CommonEnv).supportedChains.map((c) => c.chainId)
+    );
+  }
   console.log("Successfully loaded the mode config file.");
 
   return {
-    rawCommonEnv: rawCommonEnv,
+    rawCommonEnv,
     rawListenerEnv,
     rawExecutorEnv,
     mode,
