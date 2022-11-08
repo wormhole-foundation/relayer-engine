@@ -17,7 +17,6 @@ export interface DummyPluginConfig {
   spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
   shouldRest: boolean;
   shouldSpy: boolean;
-  demoteInProgress: boolean;
 }
 
 interface WorkflowPayload {
@@ -31,7 +30,6 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   static readonly pluginName: string = "DummyPlugin";
   readonly pluginName = DummyPlugin.pluginName;
   readonly pluginConfig: DummyPluginConfig;
-  readonly demoteInProgress;
 
   constructor(
     readonly config: CommonPluginEnv,
@@ -47,13 +45,9 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
         assertArray(env.spyServiceFilters, "spyServiceFilters"),
       shouldRest: assertBool(env.shouldRest, "shouldRest"),
       shouldSpy: assertBool(env.shouldSpy, "shouldSpy"),
-      demoteInProgress:
-        env.demoteInProgress &&
-        assertBool(env.demoteInProgress, "demoteInProgress"),
     };
     this.shouldRest = this.pluginConfig.shouldRest;
     this.shouldSpy = this.pluginConfig.shouldSpy;
-    this.demoteInProgress = this.pluginConfig.demoteInProgress;
   }
 
   getFilters(): ContractFilter[] {
