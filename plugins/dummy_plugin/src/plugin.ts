@@ -79,7 +79,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   ): Promise<{ workflowData: WorkflowPayload; nextStagingArea: StagingArea }> {
     this.logger.debug("Parsing VAA...");
     const parsed = wh.parseVaa(vaa);
-    this.logger.debug(`Parsed VAA: ${JSON.stringify(parsed)}`);
+    this.logger.debug(`Parsed VAA: ${parsed && parsed.hash}`);
     return {
       workflowData: {
         time: new Date().getTime(),

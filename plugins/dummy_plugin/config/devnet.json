@@ -4,8 +4,8 @@
   "demoteInProgress": true,
   "spyServiceFilters": [
     {
-      "chainId": 26,
-      "emitterAddress": "EUrRARh92Cdc54xrDn6qzaqjA77NRrCcfbr8kPwoTL4z"
+      "chainId": 2,
+      "emitterAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16"
     }
   ]
 }

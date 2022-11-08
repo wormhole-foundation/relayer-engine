@@ -79,6 +79,7 @@ async function consumeEventHarness(
       `Encountered error consumingEvent for plugin ${storage.plugin.pluginName}`
     );
     l.error(e);
+    l.error(JSON.stringify(e));
     // metric onError
   }
 }
@@ -88,9 +89,7 @@ async function transformEmitterFilter(
 ): Promise<ContractFilter> {
   return {
     chainId: x.chainId,
-    emitterAddress:
-      "0xf8cd23c2ab91237730770bbea08d61005cdda0984348f3f6eecb559638c0bba0",
-    // await encodeEmitterAddress(x.chainId, x.emitterAddress),
+    emitterAddress: await encodeEmitterAddress(x.chainId, x.emitterAddress),
   };
 }
 
