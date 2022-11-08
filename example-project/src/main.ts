@@ -1,5 +1,5 @@
 import * as relayerEngine from "relayer-engine";
-import DummyPluginFactory, {
+import dummyPluginDef, {
   DummyPluginConfig,
 } from "../plugins/dummy_plugin/src/plugin";
 
@@ -12,7 +12,7 @@ async function main() {
   // run relayer engine
   await relayerEngine.run({
     configs: "./relayer-engine-config",
-    plugins: [new DummyPluginFactory(pluginConfig)],
+    plugins: [dummyPluginDef.init(pluginConfig)],
     mode: relayerEngine.Mode.BOTH,
   });
 }

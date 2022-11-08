@@ -1,6 +1,8 @@
 import * as dotenv from "dotenv";
-import * as wh from "@certusone/wormhole-sdk";
-import { EnvType, Plugin, PluginFactory } from "relayer-plugin-interface";
+import {
+  EngineInitFn,
+  Plugin,
+} from "relayer-plugin-interface";
 import {
   CommonEnv,
   ExecutorEnv,
@@ -8,7 +10,6 @@ import {
   ListenerEnv,
   loadUntypedEnvs,
   Mode,
-  PrivateKeys,
   validateEnvs,
 } from "./config";
 import { getLogger, getScopedLogger } from "./helpers/logHelper";
@@ -18,6 +19,7 @@ export * from "./utils/utils";
 export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
+import winston = require("winston");
 export {
   getLogger,
   getScopedLogger,
@@ -39,7 +41,7 @@ export interface RunArgs {
         listenerEnv?: ListenerEnv;
       };
   mode: Mode;
-  plugins: PluginFactory[];
+  plugins: EngineInitFn<Plugin>[];
   store?: Store;
 }
 
@@ -48,7 +50,7 @@ export async function run(args: RunArgs): Promise<void> {
   await readAndValidateEnv(args);
   const commonEnv = getCommonEnv();
   const plugins = args.plugins.map((p) =>
-    p.init(commonEnv, getScopedLogger([p.pluginName]))
+    p(commonEnv, getScopedLogger(["plugin"]))
   );
   const storage = await createStorage(
     args.store ? args.store : new InMemoryStore(),

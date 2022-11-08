@@ -88,6 +88,11 @@ export interface Providers {
  *  Plugin interfaces
  */
 
+export type ContractFilter = {
+  emitterAddress: string; // Emitter contract address to filter for
+  chainId: ChainId; // Wormhole ChainID to filter for
+};
+
 export interface Plugin<WorkflowData = any> {
   pluginName: string; // String identifier for plug-in
   pluginConfig: any; // Configuration settings for plug-in
@@ -107,15 +112,16 @@ export interface Plugin<WorkflowData = any> {
   ): Promise<void>;
 }
 
-export interface PluginFactory {
-  // relayer engine calls this to provide logger and engine config
-  init(config: CommonPluginEnv, logger: winston.Logger): Plugin;
-
-  // plugin name
-  pluginName: string;
+export interface PluginDefinition<
+  PluginConfig,
+  PluginType extends Plugin<WorkflowData>,
+  WorkflowData = any
+> {
+  defaultConfig: (env: CommonPluginEnv) => PluginConfig;
+  init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
 }
 
-export type ContractFilter = {
-  emitterAddress: string; // Emitter contract address to filter for
-  chainId: ChainId; // Wormhole ChainID to filter for
-};
+export type EngineInitFn<PluginType extends Plugin> = (
+  engineConfig: any,
+  logger: winston.Logger
+) => PluginType;

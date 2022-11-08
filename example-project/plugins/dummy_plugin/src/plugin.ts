@@ -1,10 +1,12 @@
 import {
   ActionExecutor,
   assertArray,
+  CommonEnv,
   CommonPluginEnv,
   ContractFilter,
+  nnull,
   Plugin,
-  PluginFactory,
+  PluginDefinition,
   Providers,
   StagingArea,
   Workflow,
@@ -12,7 +14,8 @@ import {
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { assertBool } from "./utils";
-import {ChainId} from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
+import { DumpOptions } from "js-yaml";
 
 export interface DummyPluginConfig {
   spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -30,22 +33,36 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   readonly shouldRest: boolean;
   static readonly pluginName: string = "DummyPlugin";
   readonly pluginName = DummyPlugin.pluginName;
-  readonly pluginConfig: DummyPluginConfig;
+  private static pluginConfig: DummyPluginConfig | undefined;
+  pluginConfig: DummyPluginConfig;
+
+  static init(
+    pluginConfig: any
+  ): (env: CommonEnv, logger: Logger) => DummyPlugin {
+    const pluginConfigParsed: DummyPluginConfig = {
+      spyServiceFilters:
+        pluginConfig.spyServiceFilters &&
+        assertArray(pluginConfig.spyServiceFilters, "spyServiceFilters"),
+      shouldRest: assertBool(pluginConfig.shouldRest, "shouldRest"),
+      shouldSpy: assertBool(pluginConfig.shouldSpy, "shouldSpy"),
+    };
+    return (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger);
+  }
 
   constructor(
-    readonly config: CommonPluginEnv,
-    env: Record<string, any>,
+    readonly engineConfig: CommonPluginEnv,
+    pluginConfigRaw: Record<string, any>,
     readonly logger: Logger
   ) {
-    console.log(`Config: ${JSON.stringify(config, undefined, 2)}`);
-    console.log(`Plugin Env: ${JSON.stringify(env, undefined, 2)}`);
+    console.log(`Config: ${JSON.stringify(engineConfig, undefined, 2)}`);
+    console.log(`Plugin Env: ${JSON.stringify(pluginConfigRaw, undefined, 2)}`);
 
     this.pluginConfig = {
       spyServiceFilters:
-        env.spyServiceFilters &&
-        assertArray(env.spyServiceFilters, "spyServiceFilters"),
-      shouldRest: assertBool(env.shouldRest, "shouldRest"),
-      shouldSpy: assertBool(env.shouldSpy, "shouldSpy"),
+        pluginConfigRaw.spyServiceFilters &&
+        assertArray(pluginConfigRaw.spyServiceFilters, "spyServiceFilters"),
+      shouldRest: assertBool(pluginConfigRaw.shouldRest, "shouldRest"),
+      shouldSpy: assertBool(pluginConfigRaw.shouldSpy, "shouldSpy"),
     };
     this.shouldRest = this.pluginConfig.shouldRest;
     this.shouldSpy = this.pluginConfig.shouldSpy;
@@ -88,14 +105,17 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     const payload = this.parseWorkflowPayload(workflow);
     const parsed = wh.parseVaa(payload.vaa);
 
-    const pubkey = await execute.onEVM({chainId: 2 as ChainId, f: async (wallet, chainId) => {
+    const pubkey = await execute.onEVM({
+      chainId: 2 as ChainId,
+      f: async (wallet, chainId) => {
         const pubkey = wallet.wallet.address;
         this.logger.info(
-            `We got dat wallet pubkey ${pubkey} on chain ${chainId}`
+          `We got dat wallet pubkey ${pubkey} on chain ${chainId}`
         );
         this.logger.info(`Also have parsed vaa. seq: ${parsed.sequence}`);
         return pubkey;
-      }});
+      },
+    });
 
     this.logger.info(`Result of action on solana ${pubkey}`);
   }
@@ -108,11 +128,26 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   }
 }
 
-export default class DummyPluginFactory implements PluginFactory {
-  pluginName: string = DummyPlugin.pluginName;
-  constructor(readonly pluginConfig: DummyPluginConfig) {}
-
-  init(config: CommonPluginEnv, logger: Logger): DummyPlugin {
-    return new DummyPlugin(config, this.pluginConfig, logger);
+class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
+  defaultConfig(env: CommonPluginEnv): DummyPluginConfig {
+    return 1 as any;
+  }
+  init(pluginConfig?: any): (engineConfig: any, logger: Logger) => DummyPlugin {
+    if (!pluginConfig) {
+      return (env, logger) => {
+        const defaultPluginConfig = this.defaultConfig(env);
+        return new DummyPlugin(env, pluginConfigParsed, logger);
+      };
+    }
+    const pluginConfigParsed: DummyPluginConfig = {
+      spyServiceFilters:
+        pluginConfig.spyServiceFilters &&
+        assertArray(pluginConfig.spyServiceFilters, "spyServiceFilters"),
+      shouldRest: assertBool(pluginConfig.shouldRest, "shouldRest"),
+      shouldSpy: assertBool(pluginConfig.shouldSpy, "shouldSpy"),
+    };
+    return (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger);
   }
 }
+
+export default new Definition();
