@@ -3,8 +3,8 @@
   "shouldRest": false,
   "spyServiceFilters": [
     {
-      "chainId": 2,
-      "emitterAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+      "chainId": 6,
+      "emitterAddress": "0x61e44e506ca5659e6c0bba9b678586fa2d729756"
     }
   ]
 }

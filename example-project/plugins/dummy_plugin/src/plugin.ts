@@ -12,6 +12,7 @@ import {
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { assertBool } from "./utils";
+import {ChainId} from "@certusone/wormhole-sdk";
 
 export interface DummyPluginConfig {
   spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -87,14 +88,14 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     const payload = this.parseWorkflowPayload(workflow);
     const parsed = wh.parseVaa(payload.vaa);
 
-    const pubkey = await execute.onSolana(async (wallet, chainId) => {
-      const pubkey = wallet.wallet.payer.publicKey.toBase58();
-      this.logger.info(
-        `We got dat wallet pubkey ${pubkey} on chain ${chainId}`
-      );
-      this.logger.info(`Also have parsed vaa. seq: ${parsed.sequence}`);
-      return pubkey;
-    });
+    const pubkey = await execute.onEVM({chainId: 2 as ChainId, f: async (wallet, chainId) => {
+        const pubkey = wallet.wallet.address;
+        this.logger.info(
+            `We got dat wallet pubkey ${pubkey} on chain ${chainId}`
+        );
+        this.logger.info(`Also have parsed vaa. seq: ${parsed.sequence}`);
+        return pubkey;
+      }});
 
     this.logger.info(`Result of action on solana ${pubkey}`);
   }
