@@ -1,0 +1,27 @@
+{
+  "name": "@wormhole-foundation/example-relayer-project",
+  "version": "0.0.1",
+  "description": "Example project using relayer-engine",
+  "main": "lib/main.js",
+  "types": "lib/main.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "ts-node src/main.ts"
+  },
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.0",
+    "relayer-engine": "file:../"
+  },
+  "author": "Joe Howarth",
+  "license": "ISC",
+  "peerDependencies": {
+    "ethers": "^5",
+    "winston": "3.8.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.4",
+    "winston": "3.8.2"
+  }
+}

@@ -2,18 +2,15 @@
   "name": "@wormhole-foundation/dummy_plugin",
   "version": "0.0.1",
   "description": "dummy plugin for plugin relayer",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "lib/plugin.js",
+  "types": "lib/plugin.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "watch": "tsc --watch",
-    "start": "ts-node src/main.ts"
+    "watch": "tsc --watch"
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.9.0",
-    "relayer-engine": "file:../..",
-    "relayer-plugin-interface": "file:../../relayer-plugin-interface"
+    "relayer-engine": "file:../../../.."
   },
   "author": "Joe Howarth",
   "license": "ISC",

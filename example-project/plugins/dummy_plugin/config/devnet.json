@@ -1,7 +1,6 @@
 {
   "shouldSpy": true,
   "shouldRest": false,
-  "demoteInProgress": true,
   "spyServiceFilters": [
     {
       "chainId": 2,

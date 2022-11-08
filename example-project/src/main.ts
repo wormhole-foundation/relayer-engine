@@ -1,6 +1,8 @@
 import * as relayerEngine from "relayer-engine";
-import { EnvType } from "relayer-plugin-interface";
-import { DummyPlugin, DummyPluginConfig } from "./plugin";
+import {
+  DummyPlugin,
+  DummyPluginConfig,
+} from "../plugins/dummy_plugin/src/plugin";
 
 async function main() {
   // load relayer engine configs
@@ -16,7 +18,7 @@ async function main() {
 
   // initialize the plugin
   const pluginConfig = (await relayerEngine.loadFileAndParseToObject(
-    `./config/${relayerEngine.EnvType.DEVNET}.json`.toLowerCase()
+    `./plugins/dummy_plugin/config/${relayerEngine.EnvType.DEVNET.toLowerCase()}.json`
   )) as DummyPluginConfig;
   const dummy = new DummyPlugin(
     commonEnv,
