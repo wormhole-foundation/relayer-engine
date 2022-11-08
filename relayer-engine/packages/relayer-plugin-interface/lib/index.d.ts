@@ -70,7 +70,7 @@ export interface Plugin<WorkflowData = any> {
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }
 export interface PluginFactory {
-    create(config: CommonPluginEnv, pluginEnv: Record<string, any>, logger: winston.Logger): Plugin;
+    init(config: CommonPluginEnv, logger: winston.Logger): Plugin;
     pluginName: string;
 }
 export declare type ContractFilter = {

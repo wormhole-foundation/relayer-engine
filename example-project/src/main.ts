@@ -1,35 +1,18 @@
 import * as relayerEngine from "relayer-engine";
-import {
-  DummyPlugin,
+import DummyPluginFactory, {
   DummyPluginConfig,
 } from "../plugins/dummy_plugin/src/plugin";
 
 async function main() {
-  // load relayer engine configs
-  const relayerConfigs = await relayerEngine.loadRelayerEngineConfig(
-    "./relayer-engine-config",
-    relayerEngine.Mode.BOTH,
-    { privateKeyEnv: false }
-  );
-  const { commonEnv } = relayerConfigs;
-
-  // init the logger used by the relayer engine so we can pass it to the plugin
-  relayerEngine.initLogger(commonEnv.logLevel, commonEnv.logDir);
-
-  // initialize the plugin
+  // load plugin config
   const pluginConfig = (await relayerEngine.loadFileAndParseToObject(
     `./plugins/dummy_plugin/config/${relayerEngine.EnvType.DEVNET.toLowerCase()}.json`
   )) as DummyPluginConfig;
-  const dummy = new DummyPlugin(
-    commonEnv,
-    pluginConfig,
-    relayerEngine.getScopedLogger([DummyPlugin.pluginName])
-  );
 
   // run relayer engine
   await relayerEngine.run({
-    configs: relayerConfigs,
-    plugins: [dummy],
+    configs: "./relayer-engine-config",
+    plugins: [new DummyPluginFactory(pluginConfig)],
     mode: relayerEngine.Mode.BOTH,
   });
 }

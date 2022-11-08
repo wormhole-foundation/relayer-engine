@@ -2,6 +2,7 @@ import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
 import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
 import * as winston from "winston";
+import { WormholeInstruction } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/coder";
 
 /*
  *  Config
@@ -107,12 +108,9 @@ export interface Plugin<WorkflowData = any> {
 }
 
 export interface PluginFactory {
-  // validate untyped config and exception out if invalid
-  create(
-    config: CommonPluginEnv,
-    pluginEnv: Record<string, any>,
-    logger: winston.Logger
-  ): Plugin;
+  // relayer engine calls this to provide logger and engine config
+  init(config: CommonPluginEnv, logger: winston.Logger): Plugin;
+
   // plugin name
   pluginName: string;
 }

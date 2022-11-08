@@ -13,16 +13,6 @@ import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { assertBool } from "./utils";
 
-// todo: do we need this in the plugin or just the relayer??
-function create(
-  commonConfig: CommonPluginEnv,
-  pluginConfig: any,
-  logger: Logger
-): Plugin {
-  console.log("Creating da plugin...");
-  return new DummyPlugin(commonConfig, pluginConfig, logger);
-}
-
 export interface DummyPluginConfig {
   spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
   shouldRest: boolean;
@@ -123,7 +113,11 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   }
 }
 
-const factory: PluginFactory = { create, pluginName: DummyPlugin.pluginName };
-console.log(factory.pluginName);
+export default class DummyPluginFactory implements PluginFactory {
+  pluginName: string = DummyPlugin.pluginName;
+  constructor(readonly pluginConfig: DummyPluginConfig) {}
 
-export default factory;
+  init(config: CommonPluginEnv, logger: Logger): DummyPlugin {
+    return new DummyPlugin(config, this.pluginConfig, logger);
+  }
+}

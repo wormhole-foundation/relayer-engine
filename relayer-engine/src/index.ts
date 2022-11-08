@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 import * as wh from "@certusone/wormhole-sdk";
-import { EnvType, Plugin } from "relayer-plugin-interface";
+import { EnvType, Plugin, PluginFactory } from "relayer-plugin-interface";
 import {
   CommonEnv,
   ExecutorEnv,
@@ -11,7 +11,7 @@ import {
   PrivateKeys,
   validateEnvs,
 } from "./config";
-import { getLogger } from "./helpers/logHelper";
+import { getLogger, getScopedLogger } from "./helpers/logHelper";
 import { createStorage, InMemoryStore, Store } from "./storage";
 export * from "./config";
 export * from "./utils/utils";
@@ -39,33 +39,36 @@ export interface RunArgs {
         listenerEnv?: ListenerEnv;
       };
   mode: Mode;
-  plugins: Plugin[];
+  plugins: PluginFactory[];
   store?: Store;
 }
 
 export async function run(args: RunArgs): Promise<void> {
   const logger = getLogger();
+  await readAndValidateEnv(args);
+  const commonEnv = getCommonEnv();
+  const plugins = args.plugins.map((p) =>
+    p.init(commonEnv, getScopedLogger([p.pluginName]))
+  );
   const storage = await createStorage(
     args.store ? args.store : new InMemoryStore(),
-    args.plugins
+    plugins
   );
-  await readAndValidateEnv(args);
 
-  const commonEnv = getCommonEnv();
   switch (commonEnv.mode) {
     case Mode.LISTENER:
       logger.info("Running in listener mode");
-      await listenerHarness.run(args.plugins, storage);
+      await listenerHarness.run(plugins, storage);
       return;
     case Mode.EXECUTOR:
       logger.info("Running in executor mode");
-      await executorHarness.run(args.plugins, storage);
+      await executorHarness.run(plugins, storage);
       return;
     case Mode.BOTH:
       logger.info("Running as both executor and listener");
       await Promise.all([
-        executorHarness.run(args.plugins, storage),
-        listenerHarness.run(args.plugins, storage),
+        executorHarness.run(plugins, storage),
+        listenerHarness.run(plugins, storage),
       ]);
       return;
     default:
