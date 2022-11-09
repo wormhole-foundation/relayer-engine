@@ -88,10 +88,23 @@ export interface Providers {
  *  Plugin interfaces
  */
 
-export type ContractFilter = {
-  emitterAddress: string; // Emitter contract address to filter for
-  chainId: ChainId; // Wormhole ChainID to filter for
-};
+// Must be the default export for the plugin package
+export interface PluginDefinition<
+  PluginConfig,
+  PluginType extends Plugin<WorkflowData>,
+  WorkflowData = any
+> {
+  defaultConfig?: (env: CommonPluginEnv) => PluginConfig;
+  init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
+  pluginName: string
+}
+
+// Function signature passed to the relayer-engine's `run` function
+// The engine will provide the config and a scoped logger
+export type EngineInitFn<PluginType extends Plugin> = (
+  engineConfig: CommonPluginEnv,
+  logger: winston.Logger
+) => PluginType;
 
 export interface Plugin<WorkflowData = any> {
   pluginName: string; // String identifier for plug-in
@@ -112,16 +125,7 @@ export interface Plugin<WorkflowData = any> {
   ): Promise<void>;
 }
 
-export interface PluginDefinition<
-  PluginConfig,
-  PluginType extends Plugin<WorkflowData>,
-  WorkflowData = any
-> {
-  defaultConfig: (env: CommonPluginEnv) => PluginConfig;
-  init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
-}
-
-export type EngineInitFn<PluginType extends Plugin> = (
-  engineConfig: any,
-  logger: winston.Logger
-) => PluginType;
+export type ContractFilter = {
+  emitterAddress: string; // Emitter contract address to filter for
+  chainId: ChainId; // Wormhole ChainID to filter for
+};

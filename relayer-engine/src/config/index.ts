@@ -97,7 +97,7 @@ export function getListenerEnv(): ListenerEnv {
 export function loadRelayerEngineConfig(
   dir: string,
   mode: Mode,
-  { privateKeyEnv }: { privateKeyEnv?: boolean } 
+  { privateKeyEnv }: { privateKeyEnv?: boolean }
 ): Promise<RelayerEngineConfigs> {
   return loadUntypedEnvs(dir, mode, { privateKeyEnv }).then(validateEnvs);
 }
@@ -137,11 +137,13 @@ export function validateEnvs(input: {
   console.log("Validating envs...");
   try {
     input = transformEnvs(input);
-  } catch (e) {
-  }
+  } catch (e) {}
   commonEnv = validateCommonEnv(input.rawCommonEnv);
   if (input.rawExecutorEnv) {
-    executorEnv = validateExecutorEnv(input.rawExecutorEnv);
+    executorEnv = validateExecutorEnv(
+      input.rawExecutorEnv,
+      commonEnv.supportedChains.map((c) => c.chainId)
+    );
   }
   if (input.rawListenerEnv) {
     listenerEnv = validateListenerEnv(input.rawListenerEnv);

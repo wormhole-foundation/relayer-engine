@@ -4,7 +4,6 @@ import {
   CommonEnv,
   CommonPluginEnv,
   ContractFilter,
-  nnull,
   Plugin,
   PluginDefinition,
   Providers,
@@ -15,7 +14,6 @@ import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { assertBool } from "./utils";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { DumpOptions } from "js-yaml";
 
 export interface DummyPluginConfig {
   spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -129,10 +127,17 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
 }
 
 class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
+  pluginName: string = DummyPlugin.pluginName;
+
   defaultConfig(env: CommonPluginEnv): DummyPluginConfig {
-    return 1 as any;
+    return {
+      shouldRest: false,
+      shouldSpy: true,
+      spyServiceFilters: [],
+    };
   }
-  init(pluginConfig?: any): (engineConfig: any, logger: Logger) => DummyPlugin {
+
+  init(pluginConfig?: any): (engineConfig: CommonPluginEnv, logger: Logger) => DummyPlugin {
     if (!pluginConfig) {
       return (env, logger) => {
         const defaultPluginConfig = this.defaultConfig(env);

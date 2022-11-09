@@ -12,7 +12,7 @@ import * as wormholeSdk from "@certusone/wormhole-sdk";
 import { providersFromChainConfig } from "../utils/providers";
 import LRUCache = require("lru-cache");
 
-const logger = () => getScopedLogger(["listenerHarness"], getLogger());
+const logger = () => getScopedLogger(["listenerHarness"]);
 
 export async function run(plugins: Plugin[], storage: Storage) {
   const listnerEnv = getListenerEnv();

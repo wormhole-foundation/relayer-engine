@@ -55,10 +55,12 @@ export interface Providers {
     };
     solana: solana.Connection;
 }
-export declare type ContractFilter = {
-    emitterAddress: string;
-    chainId: ChainId;
-};
+export interface PluginDefinition<PluginConfig, PluginType extends Plugin<WorkflowData>, WorkflowData = any> {
+    defaultConfig?: (env: CommonPluginEnv) => PluginConfig;
+    init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
+    pluginName: string;
+}
+export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
 export interface Plugin<WorkflowData = any> {
     pluginName: string;
     pluginConfig: any;
@@ -73,8 +75,7 @@ export interface Plugin<WorkflowData = any> {
     }>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }
-export interface PluginDefinition<PluginConfig, PluginType extends Plugin<WorkflowData>, WorkflowData = any> {
-    defaultConfig: (env: CommonPluginEnv) => PluginConfig;
-    init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
-}
-export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: any, logger: winston.Logger) => PluginType;
+export declare type ContractFilter = {
+    emitterAddress: string;
+    chainId: ChainId;
+};

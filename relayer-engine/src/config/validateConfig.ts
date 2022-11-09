@@ -43,10 +43,11 @@ export function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
 }
 
 export function validateExecutorEnv(
-  raw: Keys<ExecutorEnv & { privateKeys: ConfigPrivateKey[] }>
+  raw: Keys<ExecutorEnv & { privateKeys: ConfigPrivateKey[] }>,
+  chainIds: number[]
 ): ExecutorEnv {
   return {
-    privateKeys: validatePrivateKeys(raw.privateKeys),
+    privateKeys: validatePrivateKeys(raw.privateKeys, chainIds),
     actionInterval:
       raw.actionInterval && assertInt(raw.actionInterval, "actionInterval"),
   };
@@ -85,10 +86,17 @@ export function transformPrivateKeys(privateKeys: any): {
   );
 }
 
-function validatePrivateKeys(privateKeys: any): {
+function validatePrivateKeys(
+  privateKeys: any,
+  chainIds: number[]
+): {
   [chainId in ChainId]: string[];
 } {
+  const set = new Set(chainIds);
   Object.entries(privateKeys).forEach(([chainId, pKeys]) => {
+    if (!set.has(Number(chainId))) {
+      throw new Error("privateKeys includes key for unsupported chain");
+    }
     assertInt(chainId, "chainId");
     assertArray(pKeys, "privateKeys").forEach((key: any) => {
       if (typeof key !== "string") {
@@ -98,6 +106,9 @@ function validatePrivateKeys(privateKeys: any): {
       }
     });
   });
+  if (!chainIds.every((c) => privateKeys[c])) {
+    throw new Error("privateKeys missing key from supported chains");
+  }
   return privateKeys;
 }
 
@@ -138,6 +149,7 @@ function createEvmChainConfig(config: any): ChainConfigInfo {
     chainName: nnull(config.chainName, msg("chainName")),
     nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
     tokenBridgeAddress: config.tokenBridgeAddress,
+    bridgeAddress: config.bridgeAddress,
     wrappedAsset: config.wrappedAsset,
   };
 }
