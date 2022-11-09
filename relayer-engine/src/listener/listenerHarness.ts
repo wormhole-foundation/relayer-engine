@@ -79,6 +79,7 @@ async function consumeEventHarness(
       `Encountered error consumingEvent for plugin ${storage.plugin.pluginName}`
     );
     l.error(e);
+    l.error(JSON.stringify(e));
     // metric onError
   }
 }
@@ -96,7 +97,10 @@ async function encodeEmitterAddress(
   myChainId: wormholeSdk.ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  if (myChainId === wormholeSdk.CHAIN_ID_SOLANA) {
+  if (
+    myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
+    myChainId === wormholeSdk.CHAIN_ID_PYTHNET
+  ) {
     return await wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
   }
   if (wormholeSdk.isTerraChain(myChainId)) {

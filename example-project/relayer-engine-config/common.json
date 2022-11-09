@@ -1,0 +1,14 @@
+{
+  "mode": "BOTH",
+  "logLevel": "debug",
+  "readinessPort": 2000,
+  "supportedChains": [
+    {
+      "chainId": 2,
+      "chainName": "Ethereum",
+      "nodeUrl": "http://localhost:8545",
+      "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+      "wrappedAsset": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+    }
+  ]
+}

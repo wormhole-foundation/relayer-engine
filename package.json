@@ -5,20 +5,10 @@
   "main": "relayer-engine/lib/index.js",
   "types": "relayer-engine/lib/index.d.ts",
   "scripts": {
-    "build": "tsc ",
+    "build": "tsc",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "postinstall": "tsc",
-    "spy_relay": "node lib/main.js",
-    "localhost": "ENV_TYPE=LOCALHOST MODE=both ts-node src/main.ts",
-    "localhost_listener": "ENV_TYPE=LOCALHOST MODE=listener ts-node src/main.ts",
-    "localhost_executor": "ENV_TYPE=LOCALHOST MODE=executor ts-node src/main.ts",
-    "devnet": "ENV_TYPE=DEVNET MODE=both ts-node src/main.ts",
-    "devnet_listener": "ENV_TYPE=DEVNET MODE=listener ts-node src/main.ts",
-    "devnet_executor": "ENV_TYPE=DEVNET MODE=executor ts-node src/main.ts",
-    "tilt_listener": "ENV_TYPE=tilt MODE=listener ts-node src/main.ts",
-    "tilt_executor": "ENV_TYPE=tilt MODE=executor ts-node src/main.ts",
-    "test": "jest --config jestconfig.json --verbose"
+    "postinstall": "tsc"
   },
   "author": "",
   "license": "Apache-2.0",
@@ -61,7 +51,7 @@
     "lru-cache": "^7.14.0",
     "prom-client": "^14.0.1",
     "redis": "^4.0.1",
-    "relayer-plugin-interface": "file:./relayer-plugin-interface",
+    "relayer-plugin-interface": "file:./relayer-engine/packages/relayer-plugin-interface",
     "winston": "3.8.2"
   }
 }

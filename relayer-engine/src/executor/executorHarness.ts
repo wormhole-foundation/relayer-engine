@@ -23,6 +23,8 @@ import { Queue } from "@datastructures-js/queue";
 import { createWalletToolbox } from "./walletToolBox";
 import { providersFromChainConfig } from "../utils/providers";
 import { nnull, sleep } from "../utils/utils";
+import { WormholeInstruction } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/coder";
+import { Logger } from "winston";
 
 // todo: add to config
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
@@ -125,7 +127,7 @@ async function spawnWorkflow(
     `Starting workflow ${workflow.id} for plugin ${workflow.pluginName}`
   );
   activeWorkflows.set(workflow.id, workflow);
-  const execute = makeExecuteFunc(actionQueues, plugin.pluginName);
+  const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
   plugin
     .handleWorkflow(workflow, providers, execute)
     .then(() => activeWorkflows.delete(workflow.id))
@@ -138,12 +140,18 @@ async function spawnWorkflow(
 
 function makeExecuteFunc(
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
-  pluginName: string
+  pluginName: string,
+  logger: Logger
 ): ActionExecutor {
   // push action onto actionQueue and have worker reject or resolve promise
   const func = <T, W extends Wallet>(action: Action<T, W>): Promise<T> => {
     return new Promise((resolve, reject) => {
-      actionQueues.get(action.chainId)?.enqueue({
+      const maybeQueue = actionQueues.get(action.chainId)
+      if (!maybeQueue) {
+        logger.error("Chain not supported: " + action.chainId)
+        return reject("Chain not supported")
+      }
+      maybeQueue.enqueue({
         action,
         pluginName,
         resolve,

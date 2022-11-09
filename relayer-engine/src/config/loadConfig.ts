@@ -1,23 +1,18 @@
 /*
  * Loads config files and env vars, resolves them into untyped objects
  */
-// const configFile: string = process.env.SPY_RELAY_CONFIG
-//   ? process.env.SPY_RELAY_CONFIG
-//   : ".env.sample";
-// console.log("loading config file [%s]", configFile);
-// config({ path: configFile });
-// export {};
 
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import * as nodePath from "path";
-import { EnvType as EnvType } from "relayer-plugin-interface";
-import { Mode } from ".";
+import { CommonEnv, ExecutorEnv, Mode, PrivateKeys } from ".";
+import { ChainId } from "@certusone/wormhole-sdk";
+import { Keys } from "./validateConfig";
 
 export async function loadUntypedEnvs(
   dir: string,
   mode: Mode,
-  envType: EnvType
+  { privateKeyEnv }: { privateKeyEnv?: boolean } = { privateKeyEnv: false }
 ): Promise<{
   mode: Mode;
   rawCommonEnv: any;
@@ -25,16 +20,20 @@ export async function loadUntypedEnvs(
   rawExecutorEnv: any;
 }> {
   const rawCommonEnv = await loadCommon(dir, mode);
-  rawCommonEnv.envType = envType;
   rawCommonEnv.mode = mode;
   console.log("Successfully loaded the common config file.");
 
   const rawListenerEnv = await loadListener(dir, mode);
   const rawExecutorEnv = await loadExecutor(dir, mode);
+  if (privateKeyEnv) {
+    (rawExecutorEnv as ExecutorEnv).privateKeys = await privateKeyEnvVarLoader(
+      (rawCommonEnv as CommonEnv).supportedChains.map((c) => c.chainId)
+    );
+  }
   console.log("Successfully loaded the mode config file.");
 
   return {
-    rawCommonEnv: rawCommonEnv,
+    rawCommonEnv,
     rawListenerEnv,
     rawExecutorEnv,
     mode,
@@ -90,4 +89,19 @@ export async function loadFileAndParseToObject(
       err.path = path;
       throw err;
   }
+}
+
+// Helper to parse private keys from env vars.
+// For Solana format is PRIVATE_KEYS_CHAIN_1 => [ 14, 173, 153, ... ]
+// For ETH format is PRIVATE_KEYS_CHAIN_2 =>  ["0x4f3 ..."]
+export function privateKeyEnvVarLoader(chains: ChainId[]): PrivateKeys {
+  const pkeys = {} as PrivateKeys;
+  for (const chain of chains) {
+    const str = process.env[`PRIVATE_KEYS_CHAIN_${chain}`];
+    if (!str) {
+      throw new Error(`Missing PRIVATE_KEYS_CHAIN_${chain} env var`);
+    }
+    pkeys[chain] = JSON.parse(str);
+  }
+  return pkeys;
 }

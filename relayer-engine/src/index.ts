@@ -1,5 +1,8 @@
-import * as wh from "@certusone/wormhole-sdk";
-import { EnvType, Plugin } from "relayer-plugin-interface";
+import * as dotenv from "dotenv";
+import {
+  EngineInitFn,
+  Plugin,
+} from "relayer-plugin-interface";
 import {
   CommonEnv,
   ExecutorEnv,
@@ -9,59 +12,65 @@ import {
   Mode,
   validateEnvs,
 } from "./config";
-import { getLogger } from "./helpers/logHelper";
+import { getLogger, getScopedLogger } from "./helpers/logHelper";
 import { createStorage, InMemoryStore, Store } from "./storage";
 export * from "./config";
 export * from "./utils/utils";
 export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
+import winston = require("winston");
 export {
   getLogger,
   getScopedLogger,
   dbg,
   initLogger,
 } from "./helpers/logHelper";
-export * from 'relayer-plugin-interface'
+export * from "relayer-plugin-interface";
 
+dotenv.config();
+
+export type CommonEnvRun = Omit<Omit<CommonEnv, "envType">, "mode">;
 export interface RunArgs {
   // for configs, provide file path or config objects
   configs:
     | string
     | {
-        commonEnv: CommonEnv;
+        commonEnv: CommonEnvRun;
         executorEnv?: ExecutorEnv;
         listenerEnv?: ListenerEnv;
       };
   mode: Mode;
-  envType: EnvType;
-  plugins: Plugin[];
+  plugins: EngineInitFn<Plugin>[];
   store?: Store;
 }
 
 export async function run(args: RunArgs): Promise<void> {
   const logger = getLogger();
+  await readAndValidateEnv(args);
+  const commonEnv = getCommonEnv();
+  const plugins = args.plugins.map((p) =>
+    p(commonEnv, getScopedLogger(["plugin"]))
+  );
   const storage = await createStorage(
     args.store ? args.store : new InMemoryStore(),
-    args.plugins
+    plugins
   );
-  await readAndValidateEnv(args);
 
-  const commonEnv = getCommonEnv();
   switch (commonEnv.mode) {
     case Mode.LISTENER:
       logger.info("Running in listener mode");
-      await listenerHarness.run(args.plugins, storage);
+      await listenerHarness.run(plugins, storage);
       return;
     case Mode.EXECUTOR:
       logger.info("Running in executor mode");
-      await executorHarness.run(args.plugins, storage);
+      await executorHarness.run(plugins, storage);
       return;
     case Mode.BOTH:
       logger.info("Running as both executor and listener");
       await Promise.all([
-        executorHarness.run(args.plugins, storage),
-        listenerHarness.run(args.plugins, storage),
+        executorHarness.run(plugins, storage),
+        listenerHarness.run(plugins, storage),
       ]);
       return;
     default:
@@ -75,21 +84,19 @@ export async function run(args: RunArgs): Promise<void> {
 async function readAndValidateEnv({
   configs,
   mode,
-  envType,
 }: {
   configs:
     | string
     | {
-        commonEnv: CommonEnv;
+        commonEnv: CommonEnvRun;
         executorEnv?: ExecutorEnv;
         listenerEnv?: ListenerEnv;
       };
 
   mode: Mode;
-  envType: EnvType;
 }) {
   if (typeof configs === "string") {
-    await loadUntypedEnvs(configs, mode, envType).then(validateEnvs);
+    await loadUntypedEnvs(configs, mode).then(validateEnvs);
     return;
   }
   validateEnvs({

@@ -2,21 +2,8 @@ import { Mutex } from "async-mutex";
 import { createClient } from "redis";
 import { CommonEnv, getCommonEnv } from "../config";
 import { getScopedLogger } from "../helpers/logHelper";
-import { PromHelper } from "../helpers/promHelpers";
 
 const logger = () => getScopedLogger(["redisHelper"]);
-let promHelper: PromHelper;
-
-export function init(
-  ph: PromHelper,
-  { redisHost, redisPort }: CommonEnv
-): boolean {
-  logger().info(
-    "will connect to redis at [" + redisHost + ":" + redisPort + "]"
-  );
-  promHelper = ph;
-  return true;
-}
 
 // TODO
 interface RedisConnectionConfig {}
