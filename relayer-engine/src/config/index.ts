@@ -102,7 +102,7 @@ export function loadRelayerEngineConfig(
   return loadUntypedEnvs(dir, mode, { privateKeyEnv }).then(validateEnvs);
 }
 
-export function transforEnvs({
+export function transformEnvs({
   mode,
   rawCommonEnv,
   rawListenerEnv,
@@ -136,8 +136,9 @@ export function validateEnvs(input: {
 } {
   console.log("Validating envs...");
   try {
-    input = transforEnvs(input);
-  } catch (e) {}
+    input = transformEnvs(input);
+  } catch (e) {
+  }
   commonEnv = validateCommonEnv(input.rawCommonEnv);
   if (input.rawExecutorEnv) {
     executorEnv = validateExecutorEnv(input.rawExecutorEnv);
