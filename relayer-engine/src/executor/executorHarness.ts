@@ -146,10 +146,10 @@ function makeExecuteFunc(
   // push action onto actionQueue and have worker reject or resolve promise
   const func = <T, W extends Wallet>(action: Action<T, W>): Promise<T> => {
     return new Promise((resolve, reject) => {
-      const maybeQueue = actionQueues.get(action.chainId)
+      const maybeQueue = actionQueues.get(action.chainId);
       if (!maybeQueue) {
-        logger.error("Chain not supported: " + action.chainId)
-        return reject("Chain not supported")
+        logger.error("Chain not supported: " + action.chainId);
+        return reject("Chain not supported");
       }
       maybeQueue.enqueue({
         action,
