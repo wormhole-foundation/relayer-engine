@@ -57,7 +57,10 @@ export interface Providers {
 }
 export interface PluginDefinition<PluginConfig, PluginType extends Plugin<WorkflowData>, WorkflowData = any> {
     defaultConfig?: (env: CommonPluginEnv) => PluginConfig;
-    init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
+    init(pluginConfig?: any | PluginConfig): {
+        fn: EngineInitFn<PluginType>;
+        pluginName: string;
+    };
     pluginName: string;
 }
 export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;

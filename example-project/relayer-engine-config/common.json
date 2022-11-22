@@ -4,11 +4,20 @@
   "readinessPort": 2000,
   "supportedChains": [
     {
-      "chainId": 2,
-      "chainName": "Ethereum",
+      "chainId": 1,
+      "chainName": "Solana",
+      "nodeUrl": "https://api.devnet.solana.com",
+      "tokenBridgeAddress": "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
+      "bridgeAddress": "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5",
+      "wrappedAsset": "So11111111111111111111111111111111111111112"
+    },
+    {
+      "chainId": 6,
+      "chainName": "Fuji",
       "nodeUrl": "http://localhost:8545",
-      "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
-      "wrappedAsset": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
+      "tokenBridgeAddress": "0x61E44E506Ca5659E6c0bba9b678586fA2d729756",
+      "bridgeAddress": "0x7bbcE28e64B3F8b84d876Ab298393c38ad7aac4C",
+      "wrappedAsset": "0x1D308089a2D1Ced3f1Ce36B1FcaF815b07217be3"
     }
   ]
 }

@@ -1,8 +1,5 @@
 import * as dotenv from "dotenv";
-import {
-  EngineInitFn,
-  Plugin,
-} from "relayer-plugin-interface";
+import { EngineInitFn, Plugin } from "relayer-plugin-interface";
 import {
   CommonEnv,
   ExecutorEnv,
@@ -19,7 +16,6 @@ export * from "./utils/utils";
 export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
-import winston = require("winston");
 export {
   getLogger,
   getScopedLogger,
@@ -41,7 +37,7 @@ export interface RunArgs {
         listenerEnv?: ListenerEnv;
       };
   mode: Mode;
-  plugins: EngineInitFn<Plugin>[];
+  plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
   store?: Store;
 }
 
@@ -49,8 +45,8 @@ export async function run(args: RunArgs): Promise<void> {
   const logger = getLogger();
   await readAndValidateEnv(args);
   const commonEnv = getCommonEnv();
-  const plugins = args.plugins.map((p) =>
-    p(commonEnv, getScopedLogger(["plugin"]))
+  const plugins = args.plugins.map(({ fn, pluginName }) =>
+    fn(commonEnv, getScopedLogger([pluginName]))
   );
   const storage = await createStorage(
     args.store ? args.store : new InMemoryStore(),

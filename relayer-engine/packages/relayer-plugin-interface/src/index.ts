@@ -95,8 +95,11 @@ export interface PluginDefinition<
   WorkflowData = any
 > {
   defaultConfig?: (env: CommonPluginEnv) => PluginConfig;
-  init(pluginConfig?: any | PluginConfig): EngineInitFn<PluginType>;
-  pluginName: string
+  init(pluginConfig?: any | PluginConfig): {
+    fn: EngineInitFn<PluginType>;
+    pluginName: string;
+  };
+  pluginName: string;
 }
 
 // Function signature passed to the relayer-engine's `run` function
