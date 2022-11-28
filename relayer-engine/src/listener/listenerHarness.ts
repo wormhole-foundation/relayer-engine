@@ -13,6 +13,9 @@ import { providersFromChainConfig } from "../utils/providers";
 import LRUCache = require("lru-cache");
 
 const logger = () => getScopedLogger(["listenerHarness"]);
+// TODO: get from config or sdk etc.
+const NUM_GUARDIANS = 19;
+const REQUIRED_SIGNATURES = 13;
 
 export async function run(plugins: Plugin[], storage: Storage) {
   const listnerEnv = getListenerEnv();
@@ -148,7 +151,14 @@ async function runPluginSpyListener(
       });
 
       stream.on("data", (vaa: { vaaBytes: Buffer }) => {
-        const hash = wormholeSdk.parseVaa(vaa.vaaBytes).hash.toString("base64");
+        const parsed = wormholeSdk.parseVaa(vaa.vaaBytes);
+        const hash = parsed.hash.toString("base64");
+        if (parsed.guardianSignatures.length < REQUIRED_SIGNATURES) {
+          logger().debug(
+            `Encountered VAA without enough signatures: ${parsed.guardianSignatures.length}, ${hash}`
+          );
+          return;
+        }
         if (vaaHashCache.get(hash)) {
           logger().debug(`Duplicate founds for hash ${hash}`);
           return;

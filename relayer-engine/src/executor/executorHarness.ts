@@ -135,7 +135,13 @@ async function spawnWorkflow(
       logger.info(
         `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`
       )
-    );
+    )
+    .catch((e) => {
+      logger.warn(
+        `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`
+      );
+      logger.error(e);
+    });
 }
 
 function makeExecuteFunc(
@@ -215,20 +221,22 @@ async function spawnWalletWorker(
       );
 
       try {
-        await actionWithCont.action
-          .f(walletToolBox, workerInfo.targetChainId)
-          .then(actionWithCont.resolve);
+        const result = await actionWithCont.action.f(
+          walletToolBox,
+          workerInfo.targetChainId
+        );
         logger.info(`Action ${actionWithCont.id} completed`);
+        actionWithCont.resolve(result);
       } catch (e) {
         logger.error(e);
         logger.warn(
-          "Unexpected error while executing chain action. Id: " +
-            actionWithCont.id
+          `Unexpected error while executing chain action. Id: ${actionWithCont.id}:`
         );
         actionWithCont.reject(e);
       }
     } catch (e) {
       logger.error(e);
+      // wait longer between loop iterations on error
       await sleep(DEFAULT_WORKER_RESTART_MS);
     }
   }
