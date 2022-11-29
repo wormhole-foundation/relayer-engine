@@ -15,7 +15,6 @@ import LRUCache = require("lru-cache");
 const logger = () => getScopedLogger(["listenerHarness"]);
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
-const REQUIRED_SIGNATURES = 13;
 
 export async function run(plugins: Plugin[], storage: Storage) {
   const listnerEnv = getListenerEnv();
@@ -36,7 +35,8 @@ export async function run(plugins: Plugin[], storage: Storage) {
         runPluginSpyListener(
           storage.getPluginStorage(plugin),
           spyClient,
-          providers
+          providers,
+          commonEnv.numGuardians || NUM_GUARDIANS
         );
       }
     });
@@ -119,7 +119,8 @@ async function encodeEmitterAddress(
 async function runPluginSpyListener(
   pluginStorage: PluginStorage,
   client: SpyRPCServiceClient,
-  providers: Providers
+  providers: Providers,
+  numGuardians: number
 ) {
   const vaaHashCache = new LRUCache({
     max: 10000,
@@ -153,7 +154,10 @@ async function runPluginSpyListener(
       stream.on("data", (vaa: { vaaBytes: Buffer }) => {
         const parsed = wormholeSdk.parseVaa(vaa.vaaBytes);
         const hash = parsed.hash.toString("base64");
-        if (parsed.guardianSignatures.length < REQUIRED_SIGNATURES) {
+
+        if (
+          parsed.guardianSignatures.length < Math.ceil((numGuardians * 2) / 3)
+        ) {
           logger().debug(
             `Encountered VAA without enough signatures: ${parsed.guardianSignatures.length}, ${hash}`
           );

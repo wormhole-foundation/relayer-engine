@@ -205,7 +205,6 @@ async function spawnWalletWorker(
     workerInfo.walletPrivateKey,
     workerInfo.targetChainId
   );
-  // todo: add metrics
   while (true) {
     // always sleep between loop iterations
     await sleep(workerIntervalMS);

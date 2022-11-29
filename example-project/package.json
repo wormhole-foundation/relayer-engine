@@ -10,7 +10,7 @@
     "start": "ts-node src/main.ts"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.9.0",
+    "@certusone/wormhole-sdk": "^0.9.3",
     "@solana/spl-token": "^0.3.6",
     "relayer-engine": "file:../"
   },
