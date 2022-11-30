@@ -2,7 +2,7 @@ import * as wh from "@certusone/wormhole-sdk";
 import * as web3 from "@solana/web3.js";
 import { Socket } from "dgram";
 import * as relayerEngine from "relayer-engine";
-import { nnull } from "relayer-engine";
+import { nnull, sleep } from "relayer-engine";
 import {
   createMint,
   mintTo,
@@ -15,6 +15,7 @@ import {
 } from "@solana/spl-token";
 
 async function main() {
+  console.log(process.argv);
   const configs = await relayerEngine.loadRelayerEngineConfig(
     "./relayer-engine-config",
     relayerEngine.Mode.BOTH,
@@ -42,16 +43,7 @@ async function main() {
 
   conn
     .requestAirdrop(payer.publicKey, 2_000_000_000)
-    .then((e) => console.error(e));
-
-  const ata = await getOrCreateAssociatedTokenAccount(
-    conn,
-    payer,
-    new web3.PublicKey(wh.WSOL_ADDRESS),
-    payer.publicKey
-  );
-  createAssociatedTokenAccount();
-  syncNative();
+    .catch((e) => console.error(e));
 
   const tx = await wh.transferNativeSol(
     conn,
@@ -64,15 +56,51 @@ async function main() {
   );
   tx.partialSign(payer);
 
-  console.log(tx.instructions.map((ix) => ix.keys));
-
-  const txSiq = await web3.sendAndConfirmRawTransaction(conn, tx.serialize(), {
+  const txSig = await web3.sendAndConfirmRawTransaction(conn, tx.serialize(), {
     skipPreflight: true,
   });
-
-  const rx = nnull(await conn.getTransaction(txSiq));
+  console.log(txSig);
+  const rx = nnull(await conn.getTransaction(txSig));
   const seq = wh.parseSequenceFromLogSolana(rx);
   console.log(seq);
+
+  let times = Number(process.argv[2]);
+  if (times > 1) {
+    console.log(`Sending ${times} messages`);
+    for (let i = 1; i < times; i++) {
+      const tx = await wh.transferNativeSol(
+        conn,
+        nnull(solanaConfig.bridgeAddress),
+        nnull(solanaConfig.tokenBridgeAddress),
+        payer.publicKey,
+        BigInt(100_000_000),
+        wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
+        fujiConfig.chainId
+      );
+      tx.partialSign(payer);
+
+      web3.sendAndConfirmRawTransaction(conn, tx.serialize(), {
+        skipPreflight: true,
+      });
+    }
+  }
+
+  for (let i = 0; i < 15; i++) {
+    try {
+      const vaa = await wh.getSignedVAA(
+        "https://wormhole-v2-testnet-api.certus.one",
+        "solana",
+        await wh.getEmitterAddressSolana(
+          nnull(solanaConfig.tokenBridgeAddress)
+        ),
+        seq
+      );
+      console.log(vaa);
+    } catch (e) {
+      console.error(i);
+    }
+    await sleep(1_000);
+  }
 }
 
 main().catch((e) => {

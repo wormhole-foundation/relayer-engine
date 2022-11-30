@@ -4,9 +4,11 @@ import {
   CommonEnv,
   CommonPluginEnv,
   ContractFilter,
+  EngineInitFn,
   Plugin,
   PluginDefinition,
   Providers,
+  sleep,
   StagingArea,
   Workflow,
 } from "relayer-engine";
@@ -104,18 +106,19 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     const parsed = wh.parseVaa(payload.vaa);
 
     const pubkey = await execute.onEVM({
-      chainId: 2 as ChainId,
+      chainId: 6,
       f: async (wallet, chainId) => {
         const pubkey = wallet.wallet.address;
         this.logger.info(
-          `We got dat wallet pubkey ${pubkey} on chain ${chainId}`
+          `Inside action, have wallet pubkey ${pubkey} on chain ${chainId}`
         );
         this.logger.info(`Also have parsed vaa. seq: ${parsed.sequence}`);
+        await sleep(500)
         return pubkey;
       },
     });
 
-    this.logger.info(`Result of action on solana ${pubkey}`);
+    this.logger.info(`Result of action on fuji ${pubkey}`);
   }
 
   parseWorkflowPayload(workflow: Workflow): { vaa: Buffer; time: number } {
@@ -137,11 +140,17 @@ class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
     };
   }
 
-  init(pluginConfig?: any): (engineConfig: CommonPluginEnv, logger: Logger) => DummyPlugin {
+  init(pluginConfig?: any): {
+    fn: EngineInitFn<DummyPlugin>;
+    pluginName: string;
+  } {
     if (!pluginConfig) {
-      return (env, logger) => {
-        const defaultPluginConfig = this.defaultConfig(env);
-        return new DummyPlugin(env, pluginConfigParsed, logger);
+      return {
+        fn: (env, logger) => {
+          const defaultPluginConfig = this.defaultConfig(env);
+          return new DummyPlugin(env, pluginConfigParsed, logger);
+        },
+        pluginName: DummyPlugin.pluginName,
       };
     }
     const pluginConfigParsed: DummyPluginConfig = {
@@ -151,7 +160,10 @@ class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
       shouldRest: assertBool(pluginConfig.shouldRest, "shouldRest"),
       shouldSpy: assertBool(pluginConfig.shouldSpy, "shouldSpy"),
     };
-    return (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger);
+    return {
+      fn: (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger),
+      pluginName: DummyPlugin.pluginName,
+    };
   }
 }
 

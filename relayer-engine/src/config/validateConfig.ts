@@ -32,6 +32,8 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
       raw.supportedChains,
       "supportedChains"
     ).map(validateChainConfig),
+    numGuardians:
+      raw.numGuardians && assertInt(raw.numGuardians, "numGuardians"),
   };
 }
 

@@ -40,6 +40,7 @@ export interface CommonEnv {
   redisHost?: string;
   redisPort?: number;
   pluginURIs?: NodeURI[];
+  numGuardians?: number
   mode: Mode;
   supportedChains: ChainConfigInfo[];
 }
