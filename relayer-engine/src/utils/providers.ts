@@ -29,7 +29,7 @@ export function providersFromChainConfig(
   )?.nodeUrl;
   if (!solanaUrl) {
     // todo: change me!!!!!!
-    solanaUrl = "http://localhost:8899"
+    solanaUrl = "http://localhost:8899";
     // todo: generalize this
     // throw new Error("Expected solana rpc url to be defined");
   }
