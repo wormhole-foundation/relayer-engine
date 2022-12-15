@@ -19,19 +19,17 @@ async function main() {
   const configs = await relayerEngine.loadRelayerEngineConfig(
     "./relayer-engine-config",
     relayerEngine.Mode.BOTH,
-    {}
+    {},
   );
   console.log("NOTE: only works for testnet/devnet");
 
   const solanaConfig = nnull(
     configs.commonEnv.supportedChains.find(
-      (c) => c.chainId === wh.CHAIN_ID_SOLANA
-    )
+      c => c.chainId === wh.CHAIN_ID_SOLANA,
+    ),
   );
   const fujiConfig = nnull(
-    configs.commonEnv.supportedChains.find(
-      (c) => c.chainId === wh.CHAIN_ID_AVAX
-    )
+    configs.commonEnv.supportedChains.find(c => c.chainId === wh.CHAIN_ID_AVAX),
   );
 
   const keypairRaw = JSON.parse(nnull(configs.executorEnv?.privateKeys[1][0]));
@@ -41,9 +39,11 @@ async function main() {
     commitment: <web3.Commitment>"confirmed",
   });
 
+  console.log("Payer: " + payer.publicKey.toBase58());
+
   conn
     .requestAirdrop(payer.publicKey, 2_000_000_000)
-    .catch((e) => console.error(e));
+    .catch(e => console.error(e));
 
   const tx = await wh.transferNativeSol(
     conn,
@@ -52,7 +52,7 @@ async function main() {
     payer.publicKey,
     BigInt(100_000_000),
     wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
-    fujiConfig.chainId
+    fujiConfig.chainId,
   );
   tx.partialSign(payer);
 
@@ -64,24 +64,54 @@ async function main() {
   const seq = wh.parseSequenceFromLogSolana(rx);
   console.log(seq);
 
-  let times = Number(process.argv[2]);
-  if (times > 1) {
-    console.log(`Sending ${times} messages`);
-    for (let i = 1; i < times; i++) {
-      const tx = await wh.transferNativeSol(
-        conn,
-        nnull(solanaConfig.bridgeAddress),
-        nnull(solanaConfig.tokenBridgeAddress),
-        payer.publicKey,
-        BigInt(100_000_000),
-        wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
-        fujiConfig.chainId
-      );
-      tx.partialSign(payer);
+  if (process.argv[2] == "loop") {
+    while (true) {
+      await sleep(10_000);
+      console.log("sending...");
+      try {
+        const tx = await wh.transferNativeSol(
+          conn,
+          nnull(solanaConfig.bridgeAddress),
+          nnull(solanaConfig.tokenBridgeAddress),
+          payer.publicKey,
+          BigInt(100_000_000),
+          wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
+          fujiConfig.chainId,
+        );
+        tx.partialSign(payer);
 
-      web3.sendAndConfirmRawTransaction(conn, tx.serialize(), {
-        skipPreflight: true,
-      });
+        web3
+          .sendAndConfirmRawTransaction(conn, tx.serialize(), {
+            skipPreflight: true,
+          })
+          .catch(() => {});
+
+        conn.requestAirdrop(payer.publicKey, 2_000_000_000).catch(() => {});
+      } catch (e) {
+        console.log("error");
+        console.log(e);
+      }
+    }
+  } else {
+    let times = Number(process.argv[2]);
+    if (times > 1) {
+      console.log(`Sending ${times} messages`);
+      for (let i = 1; i < times; i++) {
+        const tx = await wh.transferNativeSol(
+          conn,
+          nnull(solanaConfig.bridgeAddress),
+          nnull(solanaConfig.tokenBridgeAddress),
+          payer.publicKey,
+          BigInt(100_000_000),
+          wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
+          fujiConfig.chainId,
+        );
+        tx.partialSign(payer);
+
+        web3.sendAndConfirmRawTransaction(conn, tx.serialize(), {
+          skipPreflight: true,
+        });
+      }
     }
   }
 
@@ -91,9 +121,9 @@ async function main() {
         "https://wormhole-v2-testnet-api.certus.one",
         "solana",
         await wh.getEmitterAddressSolana(
-          nnull(solanaConfig.tokenBridgeAddress)
+          nnull(solanaConfig.tokenBridgeAddress),
         ),
-        seq
+        seq,
       );
       console.log(vaa);
     } catch (e) {
@@ -103,7 +133,7 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+main().catch(e => {
   console.error(e);
   process.exit(1);
 });

@@ -6,12 +6,8 @@ import {
   Plugin,
   Providers,
   SolanaWallet,
-  WalletToolBox,
   ActionExecutor,
-  Workflow,
-  WorkflowId,
   Wallet,
-  ActionId,
   ActionFunc,
 } from "relayer-plugin-interface";
 import * as solana from "@solana/web3.js";
@@ -23,7 +19,6 @@ import { Queue } from "@datastructures-js/queue";
 import { createWalletToolbox } from "./walletToolBox";
 import { providersFromChainConfig } from "../utils/providers";
 import { nnull, sleep } from "../utils/utils";
-import { WormholeInstruction } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/coder";
 import { Logger } from "winston";
 
 // todo: add to config
@@ -31,8 +26,6 @@ const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
 const DEFAULT_WORKER_INTERVAL_MS = 500;
 const MAX_ACTIVE_WORKFLOWS = 10;
 const SPAWN_WORKFLOW_INTERNAL = 500;
-
-let actionIdCounter = 0;
 
 export interface WorkerInfo {
   id: number;
@@ -44,7 +37,6 @@ export interface WorkerInfo {
 export interface ActionWithCont<T, W extends Wallet> {
   action: Action<T, W>;
   pluginName: string;
-  id: ActionId;
   resolve: (t: T) => void;
   reject: (reason: any) => void;
 }
@@ -86,20 +78,12 @@ async function spawnExecutor(
   logger: ScopedLogger
 ): Promise<void> {
   const actionQueues = spawnWalletWorkers(providers, workerInfoMap);
-  const activeWorkflows = new Map<WorkflowId, Workflow>();
 
   while (true) {
     await sleep(SPAWN_WORKFLOW_INTERNAL);
     try {
-      if (activeWorkflows.size < MAX_ACTIVE_WORKFLOWS) {
-        await spawnWorkflow(
-          storage,
-          plugins,
-          providers,
-          activeWorkflows,
-          actionQueues,
-          logger
-        );
+      if ((await storage.numActiveWorkflows()) < MAX_ACTIVE_WORKFLOWS) {
+        await spawnWorkflow(storage, plugins, providers, actionQueues, logger);
       }
     } catch (e) {
       getLogger().error("Workflow failed to spawn");
@@ -113,7 +97,6 @@ async function spawnWorkflow(
   storage: Storage,
   plugins: Plugin[],
   providers: Providers,
-  activeWorkflows: Map<WorkflowId, Workflow>,
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
   logger: ScopedLogger
 ): Promise<void> {
@@ -126,21 +109,21 @@ async function spawnWorkflow(
   logger.info(
     `Starting workflow ${workflow.id} for plugin ${workflow.pluginName}`
   );
-  activeWorkflows.set(workflow.id, workflow);
   const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
   plugin
     .handleWorkflow(workflow, providers, execute)
-    .then(() => activeWorkflows.delete(workflow.id))
+    .then(() => storage.completeWorkflow(workflow))
     .then(() =>
       logger.info(
         `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`
       )
     )
-    .catch((e) => {
+    .catch(async (e) => {
       logger.warn(
         `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`
       );
       logger.error(e);
+      await storage.requeueWorkflow(workflow);
     });
 }
 
@@ -162,7 +145,6 @@ function makeExecuteFunc(
         pluginName,
         resolve,
         reject,
-        id: actionIdCounter++,
       });
     });
   };
@@ -215,22 +197,18 @@ async function spawnWalletWorker(
         continue;
       }
       const actionWithCont = actionQueue.dequeue();
-      logger.info(
-        `Relaying action ${actionWithCont.id} with plugin ${actionWithCont.pluginName}...`
-      );
+      logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`);
 
       try {
         const result = await actionWithCont.action.f(
           walletToolBox,
           workerInfo.targetChainId
         );
-        logger.info(`Action ${actionWithCont.id} completed`);
+        logger.info(`Action ${actionWithCont.pluginName} completed`);
         actionWithCont.resolve(result);
       } catch (e) {
         logger.error(e);
-        logger.warn(
-          `Unexpected error while executing chain action. Id: ${actionWithCont.id}:`
-        );
+        logger.warn(`Unexpected error while executing chain action:`);
         actionWithCont.reject(e);
       }
     } catch (e) {

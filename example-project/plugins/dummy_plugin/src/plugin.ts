@@ -4,28 +4,37 @@ import {
   CommonEnv,
   CommonPluginEnv,
   ContractFilter,
+  dbg,
   EngineInitFn,
+  ParsedVaaWithBytes,
   Plugin,
   PluginDefinition,
   Providers,
   sleep,
   StagingArea,
+  StagingAreaKeyLock,
   Workflow,
 } from "relayer-engine";
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { assertBool } from "./utils";
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
+import { stringify } from "querystring";
 
 export interface DummyPluginConfig {
-  spyServiceFilters?: { chainId: wh.ChainId; emitterAddress: string }[];
+  spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
   shouldRest: boolean;
   shouldSpy: boolean;
 }
 
 interface WorkflowPayload {
   vaa: string; // base64
-  time: number;
+  count: number;
+}
+
+interface WorkflwoPayloadDeserialized {
+  vaa: ParsedVaaWithBytes;
+  count: number;
 }
 
 export class DummyPlugin implements Plugin<WorkflowPayload> {
@@ -36,60 +45,60 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   private static pluginConfig: DummyPluginConfig | undefined;
   pluginConfig: DummyPluginConfig;
 
-  static init(
-    pluginConfig: any
-  ): (env: CommonEnv, logger: Logger) => DummyPlugin {
-    const pluginConfigParsed: DummyPluginConfig = {
-      spyServiceFilters:
-        pluginConfig.spyServiceFilters &&
-        assertArray(pluginConfig.spyServiceFilters, "spyServiceFilters"),
-      shouldRest: assertBool(pluginConfig.shouldRest, "shouldRest"),
-      shouldSpy: assertBool(pluginConfig.shouldSpy, "shouldSpy"),
-    };
-    return (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger);
-  }
-
   constructor(
     readonly engineConfig: CommonPluginEnv,
     pluginConfigRaw: Record<string, any>,
-    readonly logger: Logger
+    readonly logger: Logger,
   ) {
     console.log(`Config: ${JSON.stringify(engineConfig, undefined, 2)}`);
     console.log(`Plugin Env: ${JSON.stringify(pluginConfigRaw, undefined, 2)}`);
 
-    this.pluginConfig = {
+    this.pluginConfig = DummyPlugin.validateConfig(pluginConfigRaw);
+    this.shouldRest = this.pluginConfig.shouldRest;
+    this.shouldSpy = this.pluginConfig.shouldSpy;
+  }
+
+  static validateConfig(
+    pluginConfigRaw: Record<string, any>,
+  ): DummyPluginConfig {
+    return {
       spyServiceFilters:
         pluginConfigRaw.spyServiceFilters &&
         assertArray(pluginConfigRaw.spyServiceFilters, "spyServiceFilters"),
       shouldRest: assertBool(pluginConfigRaw.shouldRest, "shouldRest"),
       shouldSpy: assertBool(pluginConfigRaw.shouldSpy, "shouldSpy"),
     };
-    this.shouldRest = this.pluginConfig.shouldRest;
-    this.shouldSpy = this.pluginConfig.shouldSpy;
   }
 
   getFilters(): ContractFilter[] {
-    if (this.pluginConfig.spyServiceFilters) {
-      return this.pluginConfig.spyServiceFilters;
-    }
-    this.logger.error("Contract filters not specified in config");
-    throw new Error("Contract filters not specified in config");
+    return this.pluginConfig.spyServiceFilters;
   }
 
   async consumeEvent(
-    vaa: Buffer,
-    stagingArea: { counter?: number }
-  ): Promise<{ workflowData: WorkflowPayload; nextStagingArea: StagingArea }> {
+    vaa: ParsedVaaWithBytes,
+    stagingArea: StagingAreaKeyLock,
+  ): Promise<{ workflowData: WorkflowPayload }> {
     this.logger.debug("Parsing VAA...");
-    const parsed = wh.parseVaa(vaa);
-    this.logger.debug(`Parsed VAA: ${parsed && parsed.hash}`);
+    this.logger.debug(`Parsed VAA: ${vaa.hash.toString("base64")}`);
+
+    // example of reading and updating a key exclusively
+    const count = await stagingArea.withKey(
+      ["counter"],
+      async ({ counter }) => {
+        dbg(counter, "original")
+        counter = (counter ? counter : 0) + 1;
+        dbg(counter, "after plugin update")
+        return {
+          newKV: { counter },
+          val: counter,
+        };
+      },
+    );
+
     return {
       workflowData: {
-        time: new Date().getTime(),
-        vaa: vaa.toString("base64"),
-      },
-      nextStagingArea: {
-        counter: stagingArea?.counter ? stagingArea.counter + 1 : 0,
+        count,
+        vaa: vaa.bytes.toString("base64"),
       },
     };
   }
@@ -97,34 +106,36 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   async handleWorkflow(
     workflow: Workflow,
     providers: Providers,
-    execute: ActionExecutor
+    execute: ActionExecutor,
   ): Promise<void> {
     this.logger.info("Got workflow");
     this.logger.debug(JSON.stringify(workflow, undefined, 2));
 
-    const payload = this.parseWorkflowPayload(workflow);
-    const parsed = wh.parseVaa(payload.vaa);
+    const { vaa, count } = this.parseWorkflowPayload(workflow);
 
     const pubkey = await execute.onEVM({
       chainId: 6,
       f: async (wallet, chainId) => {
         const pubkey = wallet.wallet.address;
         this.logger.info(
-          `Inside action, have wallet pubkey ${pubkey} on chain ${chainId}`
+          `Inside action, have wallet pubkey ${pubkey} on chain ${chainId}`,
         );
-        this.logger.info(`Also have parsed vaa. seq: ${parsed.sequence}`);
-        await sleep(500)
+        this.logger.info(`Also have parsed vaa. seq: ${vaa.sequence}`);
+        await sleep(500);
         return pubkey;
       },
     });
 
-    this.logger.info(`Result of action on fuji ${pubkey}`);
+    this.logger.info(`Result of action on fuji ${pubkey}, Count: ${count}`);
   }
 
-  parseWorkflowPayload(workflow: Workflow): { vaa: Buffer; time: number } {
+  parseWorkflowPayload(workflow: Workflow): WorkflwoPayloadDeserialized {
+    const bytes = Buffer.from(workflow.data.vaa, "base64");
+    const vaa = parseVaa(bytes) as ParsedVaaWithBytes;
+    vaa.bytes = bytes;
     return {
-      vaa: Buffer.from(workflow.data.vaa, "base64"),
-      time: workflow.data.time as number,
+      vaa,
+      count: workflow.data.count as number,
     };
   }
 }
@@ -132,34 +143,12 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
 class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
   pluginName: string = DummyPlugin.pluginName;
 
-  defaultConfig(env: CommonPluginEnv): DummyPluginConfig {
-    return {
-      shouldRest: false,
-      shouldSpy: true,
-      spyServiceFilters: [],
-    };
-  }
-
-  init(pluginConfig?: any): {
+  init(pluginConfig: any): {
     fn: EngineInitFn<DummyPlugin>;
     pluginName: string;
   } {
-    if (!pluginConfig) {
-      return {
-        fn: (env, logger) => {
-          const defaultPluginConfig = this.defaultConfig(env);
-          return new DummyPlugin(env, pluginConfigParsed, logger);
-        },
-        pluginName: DummyPlugin.pluginName,
-      };
-    }
-    const pluginConfigParsed: DummyPluginConfig = {
-      spyServiceFilters:
-        pluginConfig.spyServiceFilters &&
-        assertArray(pluginConfig.spyServiceFilters, "spyServiceFilters"),
-      shouldRest: assertBool(pluginConfig.shouldRest, "shouldRest"),
-      shouldSpy: assertBool(pluginConfig.shouldSpy, "shouldSpy"),
-    };
+    const pluginConfigParsed: DummyPluginConfig =
+      DummyPlugin.validateConfig(pluginConfig);
     return {
       fn: (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger),
       pluginName: DummyPlugin.pluginName,

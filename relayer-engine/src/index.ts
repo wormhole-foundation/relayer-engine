@@ -10,7 +10,7 @@ import {
   validateEnvs,
 } from "./config";
 import { getLogger, getScopedLogger } from "./helpers/logHelper";
-import { createStorage, InMemoryStore, Store } from "./storage";
+import { createStorage, InMemory, IRedis, RedisWrapper } from "./storage";
 export * from "./config";
 export * from "./utils/utils";
 export * from "./storage";
@@ -38,19 +38,19 @@ export interface RunArgs {
       };
   mode: Mode;
   plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
-  store?: Store;
+  store?: RedisWrapper;
 }
 
 export async function run(args: RunArgs): Promise<void> {
-  const logger = getLogger();
   await readAndValidateEnv(args);
   const commonEnv = getCommonEnv();
+  const logger = getLogger(commonEnv);
   const plugins = args.plugins.map(({ fn, pluginName }) =>
-    fn(commonEnv, getScopedLogger([pluginName]))
+    fn(commonEnv, getScopedLogger([pluginName])),
   );
   const storage = await createStorage(
-    args.store ? args.store : new InMemoryStore(),
-    plugins
+    args.store ? args.store : new InMemory(),
+    plugins,
   );
 
   switch (commonEnv.mode) {
@@ -72,7 +72,7 @@ export async function run(args: RunArgs): Promise<void> {
     default:
       throw new Error(
         "Expected MODE env var to be listener or executor, instead got: " +
-          process.env.MODE
+          process.env.MODE,
       );
   }
 }

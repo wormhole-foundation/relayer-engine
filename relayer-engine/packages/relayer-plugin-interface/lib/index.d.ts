@@ -1,7 +1,6 @@
-/// <reference types="node" />
 import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
-import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
+import { ChainId, EVMChainId, ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 import * as winston from "winston";
 export interface CommonPluginEnv {
     supportedChains: ChainConfigInfo[];
@@ -22,7 +21,7 @@ export interface ChainConfigInfo {
     wrappedAsset?: string | null;
 }
 export interface Workflow<D = any> {
-    id: ActionId;
+    id: WorkflowId;
     pluginName: string;
     data: D;
 }
@@ -36,8 +35,7 @@ export interface Action<T, W extends Wallet> {
     chainId: ChainId;
     f: ActionFunc<T, W>;
 }
-export declare type ActionId = number;
-export declare type WorkflowId = number;
+export declare type WorkflowId = string;
 export declare type StagingArea = Object;
 export declare type EVMWallet = ethers.Wallet;
 export declare type Wallet = EVMWallet | SolanaWallet | CosmWallet;
@@ -55,9 +53,11 @@ export interface Providers {
     };
     solana: solana.Connection;
 }
+export interface ParsedVaaWithBytes extends ParsedVaa {
+    bytes: SignedVaa;
+}
 export interface PluginDefinition<PluginConfig, PluginType extends Plugin<WorkflowData>, WorkflowData = any> {
-    defaultConfig?: (env: CommonPluginEnv) => PluginConfig;
-    init(pluginConfig?: any | PluginConfig): {
+    init(pluginConfig: any | PluginConfig): {
         fn: EngineInitFn<PluginType>;
         pluginName: string;
     };
@@ -72,9 +72,8 @@ export interface Plugin<WorkflowData = any> {
     demoteInProgress?: boolean;
     getFilters(): ContractFilter[];
     consumeEvent(// Function to be defined in plug-in that takes as input a VAA outputs a list of actions
-    vaa: Buffer, stagingArea: StagingArea, providers: Providers): Promise<{
+    vaa: ParsedVaaWithBytes, stagingArea: StagingAreaKeyLock, providers: Providers): Promise<{
         workflowData?: WorkflowData;
-        nextStagingArea: StagingArea;
     }>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }
@@ -82,3 +81,10 @@ export declare type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
 };
+export interface StagingAreaKeyLock {
+    withKey<T>(keys: string[], f: (kv: Record<string, any>) => Promise<{
+        newKV: Record<string, any>;
+        val: T;
+    }>): Promise<T>;
+    getKeys(keys: string[]): Promise<Record<string, any>>;
+}
