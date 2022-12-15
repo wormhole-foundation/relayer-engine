@@ -1,12 +1,11 @@
 import { Queue } from "@datastructures-js/queue";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
-import { Mutex } from "async-mutex";
 import { WatchError } from "redis";
 import { IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
 import { dbg } from "../helpers/logHelper";
 
 export class InMemory implements IRedis, RedisWrapper {
-  locks: Record<string, string | null> = {};
+  locks: Record<string, { val: string | null }> = {};
   kv: Record<string, string> = {};
   hsets: Record<string, Map<string, string> | undefined> = {};
   lists: Record<string, Queue<string> | undefined> = {};
@@ -33,7 +32,7 @@ export class InMemory implements IRedis, RedisWrapper {
       if (val) {
         throw new Error("Watching already watched key");
       }
-      this.locks[key] = this.kv[key];
+      this.locks[key] = { val: this.kv[key] || null };
     }
     return "OK";
   }
@@ -103,7 +102,7 @@ class InMemoryMulti implements Multi {
     return this.new(async () => {
       if (
         this.store.locks[key] &&
-        this.store.locks[key] !== (await this.store.get(key))
+        this.store.locks[key].val !== (await this.store.get(key))
       ) {
         throw new WatchError();
       }

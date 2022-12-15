@@ -19,11 +19,12 @@ const WORKFLOW_QUEUE = "__workflowQ";
 const COMPLETE = "__complete";
 const ACTIVE = "1";
 
-export async function createStorage(
+export function createStorage(
   store: RedisWrapper,
   plugins: Plugin[],
-): Promise<Storage> {
-  return new DefaultStorage(store, plugins);
+  logger?: Logger,
+): Storage {
+  return new DefaultStorage(store, plugins, logger || getLogger());
 }
 
 function sanitize(dirtyString: string): string {
@@ -34,8 +35,12 @@ export class DefaultStorage implements Storage {
   private readonly plugins: Map<string, Plugin>;
   private readonly logger;
 
-  constructor(private readonly store: RedisWrapper, plugins: Plugin[]) {
-    this.logger = getScopedLogger([`GlobalStorage`], getLogger());
+  constructor(
+    private readonly store: RedisWrapper,
+    plugins: Plugin[],
+    logger: Logger,
+  ) {
+    this.logger = getScopedLogger([`GlobalStorage`], logger);
     this.plugins = new Map(plugins.map(p => [p.pluginName, p]));
   }
 
@@ -93,7 +98,7 @@ export class DefaultStorage implements Storage {
         return null;
       }
       await redis.hSet(ACTIVE_WORKFLOWS_KEY, key, ACTIVE);
-      const raw = dbg(nnull(await redis.get(key)), "workflow to add");
+      const raw = nnull(await redis.get(key));
       const workflow = JSON.parse(raw);
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
     });
@@ -181,8 +186,8 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
   ): Promise<Record<string, any>> {
     return Promise.all(
       keys.map(async k => {
-        const val = await redis.get(k);
-        return [k, val ? JSON.parse(val) : undefined];
+        const val = await redis.get(`${this.stagingAreaKey}/${k}`);
+        return [k, val !== null ? JSON.parse(val) : undefined];
       }),
     ).then(Object.fromEntries);
   }
@@ -193,29 +198,25 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
       kvs: Record<string, any>,
     ) => Promise<{ newKV: Record<string, any>; val: T }>,
   ): Promise<T> {
-    this.logger.debug("top of with key");
     try {
       return await this.store.withRedis(async redis => {
-        this.logger.debug("inside withRedis");
+        // watch keys so that no other listners can alter
         await redis.watch(keys.map(key => `${this.stagingAreaKey}/${key}`));
-        this.logger.debug("after watch");
+
         const kvs = await this.getKeysInternal(redis, keys);
         const original = Object.assign({}, kvs);
-        this.logger.debug("got keys");
+
         const { newKV, val } = await f(kvs);
-        this.logger.debug("after f(kvs)");
+
+        // update only those keys that returned and were different than before
         let multi = redis.multi();
-        this.logger.debug("begin multi");
         for (const [k, v] of Object.entries(newKV)) {
-          dbg(`${k}, ${v}, ${original[k]}`);
           if (v !== original[k]) {
             multi = multi.set(`${this.stagingAreaKey}/${k}`, JSON.stringify(v));
-            this.logger.debug("updating multi");
           }
         }
         await multi.exec(true);
-        this.logger.debug("after multi");
-        this.logger.debug(val);
+
         return val;
       });
     } catch (e) {

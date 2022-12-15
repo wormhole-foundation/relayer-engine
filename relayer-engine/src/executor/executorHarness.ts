@@ -100,7 +100,7 @@ async function spawnWorkflow(
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
   logger: ScopedLogger
 ): Promise<void> {
-  const res = await storage.getNextWorkflow(plugins);
+  const res = await storage.getNextWorkflow();
   if (!res) {
     logger.debug("No new workflows found");
     return;

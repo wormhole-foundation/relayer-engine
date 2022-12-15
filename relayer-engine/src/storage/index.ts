@@ -15,9 +15,7 @@ export { createStorage } from "./storage";
 // Idea is we could have multiple implementations backed by different types of storage
 // i.e. RedisStorage, PostgresStorage, MemoryStorage etc.
 export interface Storage {
-  getNextWorkflow(
-    plugins: Plugin[],
-  ): Promise<null | { plugin: Plugin; workflow: Workflow }>;
+  getNextWorkflow(): Promise<null | { plugin: Plugin; workflow: Workflow }>;
   requeueWorkflow(workflow: Workflow): Promise<void>;
   handleStorageStartupConfig(plugins: Plugin[]): Promise<void>;
   numActiveWorkflows(): Promise<number>;
