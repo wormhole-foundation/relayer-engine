@@ -81,13 +81,14 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     this.logger.debug("Parsing VAA...");
     this.logger.debug(`Parsed VAA: ${vaa.hash.toString("base64")}`);
 
-    // example of reading and updating a key exclusively
+    // Example of reading and updating a key exclusively
+    // This allows multiple listeners to run in separate processes safely
     const count = await stagingArea.withKey(
       ["counter"],
       async ({ counter }) => {
-        dbg(counter, "original")
+        this.logger.debug(`Original counter value ${counter}`);
         counter = (counter ? counter : 0) + 1;
-        dbg(counter, "after plugin update")
+        this.logger.debug(`Counter value after update ${counter}`);
         return {
           newKV: { counter },
           val: counter,
