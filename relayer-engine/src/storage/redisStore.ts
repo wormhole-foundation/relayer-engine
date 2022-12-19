@@ -40,7 +40,7 @@ export class DefaultRedisWrapper implements RedisWrapper {
     await this.mutex.runExclusive(async () => {
       for (let i = 0; i < this.backlog.length; ++i) {
         try {
-          await this.backlog[i](this.redis);
+          await this.redis.executeIsolated(this.backlog[i]);
         } catch (e) {
           this.backlog = this.backlog.slice(i);
           this.logger.error(e);

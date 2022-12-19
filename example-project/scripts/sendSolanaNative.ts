@@ -1,19 +1,12 @@
 import * as wh from "@certusone/wormhole-sdk";
 import * as web3 from "@solana/web3.js";
-import { Socket } from "dgram";
 import * as relayerEngine from "relayer-engine";
 import { nnull, sleep } from "relayer-engine";
-import {
-  createMint,
-  mintTo,
-  getMint,
-  getAccount,
-  createAccount,
-  syncNative,
-  createAssociatedTokenAccount,
-  getOrCreateAssociatedTokenAccount,
-} from "@solana/spl-token";
 
+// Test script to send VAAs from devnet Solana to Fuji Avax
+// By default it sends 1 VAA
+// Calling with `ts-node sendSolanaNative.ts {num} sends {num} VAAs
+// Calling with `ts-node sendSolanaNative.ts loop sends VAAs in a loop every 10 sec
 async function main() {
   console.log(process.argv);
   const configs = await relayerEngine.loadRelayerEngineConfig(

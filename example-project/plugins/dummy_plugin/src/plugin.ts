@@ -1,25 +1,20 @@
 import {
   ActionExecutor,
   assertArray,
-  CommonEnv,
+  assertBool,
   CommonPluginEnv,
   ContractFilter,
-  dbg,
   EngineInitFn,
   ParsedVaaWithBytes,
   Plugin,
   PluginDefinition,
   Providers,
-  sleep,
-  StagingArea,
   StagingAreaKeyLock,
   Workflow,
 } from "relayer-engine";
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
-import { assertBool } from "./utils";
-import { ChainId, ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
-import { stringify } from "querystring";
+import { parseVaa } from "@certusone/wormhole-sdk";
 
 export interface DummyPluginConfig {
   spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -27,11 +22,14 @@ export interface DummyPluginConfig {
   shouldSpy: boolean;
 }
 
+// Serialized version of WorkloadPayload
+// This is what is returned by the consumeEvent and received by handleWorkflow
 interface WorkflowPayload {
   vaa: string; // base64
   count: number;
 }
 
+// Deserialized version of WorkloadPayload
 interface WorkflwoPayloadDeserialized {
   vaa: ParsedVaaWithBytes;
   count: number;
@@ -58,6 +56,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     this.shouldSpy = this.pluginConfig.shouldSpy;
   }
 
+  // Validate the plugin's config 
   static validateConfig(
     pluginConfigRaw: Record<string, any>,
   ): DummyPluginConfig {
@@ -114,15 +113,15 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
 
     const { vaa, count } = this.parseWorkflowPayload(workflow);
 
+    // Dummy job illustrating how to run an action on the wallet worker pool
     const pubkey = await execute.onEVM({
-      chainId: 6,
+      chainId: 6, // EVM chain to get a wallet for
       f: async (wallet, chainId) => {
         const pubkey = wallet.wallet.address;
         this.logger.info(
           `Inside action, have wallet pubkey ${pubkey} on chain ${chainId}`,
         );
         this.logger.info(`Also have parsed vaa. seq: ${vaa.sequence}`);
-        await sleep(500);
         return pubkey;
       },
     });
@@ -141,6 +140,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   }
 }
 
+// The interface passed to the engine that allows it to instantiate the plugin
 class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
   pluginName: string = DummyPlugin.pluginName;
 

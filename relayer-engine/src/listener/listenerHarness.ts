@@ -10,7 +10,7 @@ import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
-import { sleep } from "../utils/utils";
+import { parseVaaWithBytes, sleep } from "../utils/utils";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
 import { Storage } from "../storage";
 import * as wormholeSdk from "@certusone/wormhole-sdk";
@@ -77,8 +77,7 @@ async function consumeEventHarness(
   providers: Providers,
 ): Promise<void> {
   try {
-    const parsedVaa = parseVaa(vaa) as ParsedVaaWithBytes;
-    parsedVaa.bytes = vaa;
+    const parsedVaa = parseVaaWithBytes(vaa);
     const { workflowData } = await plugin.consumeEvent(
       parsedVaa,
       storage.getStagingAreaKeyLock(plugin.pluginName),
