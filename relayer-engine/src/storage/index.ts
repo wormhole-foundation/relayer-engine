@@ -41,6 +41,7 @@ export interface IRedis {
   hGet(key: string, field: string): Promise<string | undefined>;
   rPop(key: string): Promise<string | null>;
   lPush(key: string, val: string): Promise<number>;
+  lRem(key: string, count: number, element: string): Promise<number>;
   hDel(key: string, field: string): Promise<number>;
   hKeys(key: string): Promise<string[]>;
   executeIsolated<T>(fn: (redis: IRedis) => Promise<T>): Promise<T>;
@@ -49,6 +50,7 @@ export interface IRedis {
 export interface Multi {
   hDel(key: string, field: string): Multi;
   lPush(key: string, element: string): Multi;
+  lRem(key: string, count: number, element: string): Multi;
   set(key: string, value: string): Multi;
   exec(pipeline?: boolean): Promise<RedisCommandRawReply[]>;
 }
@@ -56,7 +58,8 @@ export interface Multi {
 export type WriteOp = (redis: IRedis) => Promise<void>;
 export type Op<T> = (redis: IRedis) => Promise<T>;
 // ensure IRedis is subset of real client
-const _: IRedis = {} as RedisClientType;
+// const _: IRedis = {} as RedisClientType;
+const x = {} as RedisClientType;
 
 export interface RedisWrapper {
   runOpWithRetry(op: WriteOp): Promise<void>;

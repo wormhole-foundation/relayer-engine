@@ -1,5 +1,3 @@
-import { Logger } from "ethers/lib/utils";
-import { WatchError } from "redis";
 import {
   ContractFilter,
   ParsedVaaWithBytes,
@@ -9,10 +7,9 @@ import {
   ActionExecutor,
 } from "relayer-plugin-interface";
 import { createLogger, transports } from "winston";
-import winston = require("winston/lib/winston/config");
 import { dbg, Plugin, sleep } from "..";
 import { InMemory } from "./inMemoryStore";
-import { createStorage, DefaultStorage } from "./storage";
+import { DefaultStorage } from "./storage";
 
 class TestPlugin implements Plugin {
   static pluginName: string = "TestPlugin";

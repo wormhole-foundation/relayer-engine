@@ -49,6 +49,14 @@ describe("Basic in memory tests for storage", () => {
     expect(await store.rPop(key1)).toBe(one);
     expect(await store.rPop(key1)).toBe(two);
     expect(await store.rPop(key1)).toBe(null);
+
+    expect(await store.lPush(key2, one)).toBe(1);
+    expect(await store.lPush(key2, two)).toBe(2);
+    expect(await store.lPush(key2, one)).toBe(3);
+    expect(await store.lPush(key2, one)).toBe(4);
+    expect(await store.lRem(key2, 2, one)).toBe(2);
+    expect(await store.rPop(key2)).toBe(two);
+    expect(await store.rPop(key2)).toBe(one);
   });
 
   test("multi", async () => {
@@ -78,6 +86,6 @@ describe("Basic in memory tests for storage", () => {
       store.multi().set(key1, three).lPush(key2, one).hDel("key3", one).exec(),
     ).resolves.toStrictEqual([]);
     expect(await store.get(key1)).toBe(three);
-    expect(await store.rPop(key2)).toBe(one)
+    expect(await store.rPop(key2)).toBe(one);
   });
 });

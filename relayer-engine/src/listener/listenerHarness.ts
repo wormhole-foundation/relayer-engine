@@ -1,5 +1,5 @@
 import { getCommonEnv, getListenerEnv } from "../config";
-import { getLogger, getScopedLogger } from "../helpers/logHelper";
+import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import {
   ContractFilter,
   ParsedVaaWithBytes,
@@ -18,7 +18,13 @@ import { providersFromChainConfig } from "../utils/providers";
 import LRUCache = require("lru-cache");
 import { parseVaa } from "@certusone/wormhole-sdk";
 
-const logger = () => getScopedLogger(["listenerHarness"]);
+let _logger: ScopedLogger;
+const logger = () => {
+  if (!_logger) {
+    _logger = getScopedLogger(["listenerHarness"]);
+  }
+  return _logger;
+};
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
 

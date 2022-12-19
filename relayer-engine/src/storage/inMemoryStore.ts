@@ -71,6 +71,23 @@ export class InMemory implements IRedis, RedisWrapper {
     this.lists[key]!.push(val);
     return this.lists[key]?.size() || 0;
   }
+  async lRem(key: string, count: number, element: string): Promise<number> {
+    const old = this.lists[key]?.toArray();
+    if (!old) {
+      return 0;
+    }
+    const fresh = new Queue<string>();
+    let removed = 0;
+    for (const x of old) {
+      if (x !== element || removed == count ) {
+        fresh.enqueue(x);
+      } else {
+        removed++;
+      }
+    }
+    this.lists[key] = fresh;
+    return removed;
+  }
   async hDel(key: string, field: string): Promise<number> {
     return this.hsets[key]?.delete(field) ? 1 : 0;
   }
@@ -97,6 +114,9 @@ class InMemoryMulti implements Multi {
   }
   lPush(key: string, element: string): Multi {
     return this.new(() => this.store.lPush(key, element));
+  }
+  lRem(key: string, count: number, element: string): Multi {
+    return this.new(() => this.store.lRem(key, count, element));
   }
   set(key: string, value: string): Multi {
     return this.new(async () => {

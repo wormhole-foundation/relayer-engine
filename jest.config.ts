@@ -5,5 +5,6 @@ const config: Config.InitialOptions = {
   transform: {
     "^.+\\.tsx?$": "ts-jest",
   },
+  modulePathIgnorePatterns: ["<rootDir>/relayer-engine/lib/"],
 };
 export default config;

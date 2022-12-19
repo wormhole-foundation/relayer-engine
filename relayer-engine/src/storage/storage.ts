@@ -66,6 +66,30 @@ export class DefaultStorage implements Storage {
     });
   }
 
+  // Requeue a workflow to be processed
+  async requeueWorkflow(workflow: Workflow): Promise<void> {
+    const key = workflowKey(workflow);
+    this.store.runOpWithRetry(async redis => {
+      await redis.watch(key);
+      const global = await redis.get(key);
+      let multi = redis.multi();
+      if (!global) {
+        throw new Error("Trying to requeue workflow that doesn't exist");
+      } else if (global == COMPLETE) {
+        // requeue completed workflow if mistakenly completed
+        this.logger.info(
+          "requeueing workflow that is marked complete: " + workflow.id,
+        );
+        multi = multi.set(key, JSON.stringify(workflow));
+      }
+      multi
+        .lRem(WORKFLOW_QUEUE, 100, key) // ensure key is not present in queue already
+        .hDel(ACTIVE_WORKFLOWS_KEY, key) // remove key from workflow queue if present
+        .lPush(WORKFLOW_QUEUE, key) // push key onto queue
+        .exec(true);
+    });
+  }
+
   // Mark a workflow as complete and remove it from the set of active workflows
   completeWorkflow(workflow: {
     id: WorkflowId;
@@ -101,28 +125,6 @@ export class DefaultStorage implements Storage {
       const raw = nnull(await redis.get(key));
       const workflow = JSON.parse(raw);
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
-    });
-  }
-
-  // Requeue a workflow to be processed
-  // Todo: merge with addWorkflow?
-  async requeueWorkflow(workflow: Workflow): Promise<void> {
-    const key = workflowKey(workflow);
-    this.store.runOpWithRetry(async redis => {
-      await redis.watch(key);
-      const global = await redis.get(key);
-      let multi = redis.multi();
-      if (!global) {
-        throw new Error("Trying to requeue workflow that doesn't exist");
-      } else if (global == COMPLETE) {
-        // Should be able to requeue completed workflows if they were mistakenly completed
-        this.logger.warn("Trying to requeue workflow that is marked complete");
-        multi = multi.set(key, JSON.stringify(workflow));
-      }
-      multi
-        .hDel(ACTIVE_WORKFLOWS_KEY, key)
-        .lPush(WORKFLOW_QUEUE, key)
-        .exec(true);
     });
   }
 
