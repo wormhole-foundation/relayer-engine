@@ -1,8 +1,6 @@
 import { Queue } from "@datastructures-js/queue";
-import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { WatchError } from "redis";
-import { IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
-import { dbg } from "../helpers/logHelper";
+import { IRedis, Multi, Op, RedisCommandRawReply, RedisWrapper, WriteOp } from ".";
 
 export class InMemory implements IRedis, RedisWrapper {
   locks: Record<string, { val: string | null }> = {};

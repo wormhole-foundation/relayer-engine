@@ -1,5 +1,3 @@
-import { RedisSearchLanguages } from "@node-redis/search/dist/commands";
-import { ComputeBudgetInstruction } from "@solana/web3.js";
 import { WatchError } from "redis";
 import {
   Plugin,
@@ -7,9 +5,9 @@ import {
   WorkflowId,
   StagingAreaKeyLock,
 } from "relayer-plugin-interface";
-import { error, Logger, warn } from "winston";
+import { Logger } from "winston";
 import { Storage, RedisWrapper, IRedis } from ".";
-import { getScopedLogger, getLogger, dbg } from "../helpers/logHelper";
+import { getScopedLogger, getLogger } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
 
 const WORKFLOW_ID_COUNTER_KEY = "__workflowIdCounter";
