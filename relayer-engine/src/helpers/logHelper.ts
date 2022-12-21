@@ -3,6 +3,10 @@ import { getCommonEnv } from "../config";
 
 //Be careful not to access this before having called init logger, or it will be undefined
 let logger: winston.Logger | undefined;
+export interface LogConfig {
+  logLevel?: string;
+  logDir?: string;
+}
 
 export function dbg<T>(x: T, msg?: string): T {
   if (msg) {
@@ -13,11 +17,11 @@ export function dbg<T>(x: T, msg?: string): T {
 }
 
 // todo: fallback to console.log if logger not init'd
-export function getLogger(): winston.Logger {
+export function getLogger(logConfig?: LogConfig): winston.Logger {
   if (logger) {
     return logger;
   } else {
-    logger = initLogger();
+    logger = initLogger(logConfig);
     return logger;
   }
 }
@@ -31,7 +35,7 @@ export interface ScopedLogger extends winston.Logger {
 // https://github.com/winstonjs/winston/blob/a320b0cf7f3c550a354ce4264d7634ebc60b0a67/lib/winston/logger.js#L45
 export function getScopedLogger(
   labels: string[],
-  parentLogger?: ScopedLogger
+  parentLogger?: ScopedLogger,
 ): ScopedLogger {
   const scope = [...(parentLogger?.scope || []), ...labels];
   const logger = parentLogger || getLogger();
@@ -42,10 +46,11 @@ export function getScopedLogger(
   return child;
 }
 
-export function initLogger(
-  logLevel: string = "info",
-  logDir?: string,
-): winston.Logger {
+export function initLogger(logConfig?: LogConfig): winston.Logger {
+  const { logDir, logLevel } = logConfig || {
+    logLevel: "info",
+    logDir: undefined,
+  };
   let useConsole = true;
   let logFileName;
   if (logDir) {
@@ -64,7 +69,7 @@ export function initLogger(
     console.log(
       "spy_relay is logging to [%s] at level [%s]",
       logFileName,
-      logLevel
+      logLevel,
     );
 
     transport = new winston.transports.File({
@@ -90,11 +95,11 @@ export function initLogger(
             info.labels && info.labels.length > 0
               ? info.labels.join("|")
               : "main"
-          }: ${info.message}`
-      )
+          }: ${info.message}`,
+      ),
     ),
   };
 
-  logger = winston.createLogger(logConfiguration)
+  logger = winston.createLogger(logConfiguration);
   return logger;
 }

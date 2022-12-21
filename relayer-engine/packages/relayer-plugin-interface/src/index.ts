@@ -1,6 +1,11 @@
 import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
-import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  EVMChainId,
+  ParsedVaa,
+  SignedVaa,
+} from "@certusone/wormhole-sdk";
 import * as winston from "winston";
 import { WormholeInstruction } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/coder";
 
@@ -35,7 +40,7 @@ export interface ChainConfigInfo {
  */
 
 export interface Workflow<D = any> {
-  id: ActionId;
+  id: WorkflowId;
   pluginName: string;
   data: D;
 }
@@ -48,7 +53,7 @@ export interface ActionExecutor {
 
 export type ActionFunc<T, W extends Wallet> = (
   walletToolBox: WalletToolBox<W>,
-  chaidId: ChainId
+  chaidId: ChainId,
 ) => Promise<T>;
 
 export interface Action<T, W extends Wallet> {
@@ -56,8 +61,7 @@ export interface Action<T, W extends Wallet> {
   f: ActionFunc<T, W>;
 }
 
-export type ActionId = number; // todo: UUID
-export type WorkflowId = number; // todo: UUID
+export type WorkflowId = string;
 
 export type StagingArea = Object; // Next action to be executed
 /*
@@ -84,6 +88,10 @@ export interface Providers {
   // todo: rest of supported chain providers
 }
 
+export interface ParsedVaaWithBytes extends ParsedVaa {
+  bytes: SignedVaa;
+}
+
 /*
  *  Plugin interfaces
  */
@@ -92,10 +100,9 @@ export interface Providers {
 export interface PluginDefinition<
   PluginConfig,
   PluginType extends Plugin<WorkflowData>,
-  WorkflowData = any
+  WorkflowData = any,
 > {
-  defaultConfig?: (env: CommonPluginEnv) => PluginConfig;
-  init(pluginConfig?: any | PluginConfig): {
+  init(pluginConfig: any | PluginConfig): {
     fn: EngineInitFn<PluginType>;
     pluginName: string;
   };
@@ -106,7 +113,7 @@ export interface PluginDefinition<
 // The engine will provide the config and a scoped logger
 export type EngineInitFn<PluginType extends Plugin> = (
   engineConfig: CommonPluginEnv,
-  logger: winston.Logger
+  logger: winston.Logger,
 ) => PluginType;
 
 export interface Plugin<WorkflowData = any> {
@@ -117,14 +124,14 @@ export interface Plugin<WorkflowData = any> {
   demoteInProgress?: boolean;
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
   consumeEvent( // Function to be defined in plug-in that takes as input a VAA outputs a list of actions
-    vaa: Buffer,
-    stagingArea: StagingArea,
-    providers: Providers
-  ): Promise<{ workflowData?: WorkflowData; nextStagingArea: StagingArea }>;
+    vaa: ParsedVaaWithBytes,
+    stagingArea: StagingAreaKeyLock,
+    providers: Providers,
+  ): Promise<{ workflowData?: WorkflowData }>;
   handleWorkflow(
     workflow: Workflow<WorkflowData>,
     providers: Providers,
-    execute: ActionExecutor
+    execute: ActionExecutor,
   ): Promise<void>;
 }
 
@@ -132,3 +139,13 @@ export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for
   chainId: ChainId; // Wormhole ChainID to filter for
 };
+
+export interface StagingAreaKeyLock {
+  withKey<T>(
+    keys: string[],
+    f: (
+      kv: Record<string, any>,
+    ) => Promise<{ newKV: Record<string, any>; val: T }>,
+  ): Promise<T>;
+  getKeys(keys: string[]): Promise<Record<string, any>>;
+}

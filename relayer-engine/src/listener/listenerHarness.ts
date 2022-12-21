@@ -1,18 +1,30 @@
 import { getCommonEnv, getListenerEnv } from "../config";
-import { getLogger, getScopedLogger } from "../helpers/logHelper";
-import { ContractFilter, Plugin, Providers } from "relayer-plugin-interface";
+import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import {
+  ContractFilter,
+  ParsedVaaWithBytes,
+  Plugin,
+  Providers,
+} from "relayer-plugin-interface";
 import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
-import { sleep } from "../utils/utils";
+import { parseVaaWithBytes, sleep } from "../utils/utils";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
-import { PluginStorage, Storage } from "../storage";
+import { Storage } from "../storage";
 import * as wormholeSdk from "@certusone/wormhole-sdk";
 import { providersFromChainConfig } from "../utils/providers";
 import LRUCache = require("lru-cache");
+import { parseVaa } from "@certusone/wormhole-sdk";
 
-const logger = () => getScopedLogger(["listenerHarness"]);
+let _logger: ScopedLogger;
+const logger = () => {
+  if (!_logger) {
+    _logger = getScopedLogger(["listenerHarness"]);
+  }
+  return _logger;
+};
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
 
@@ -25,18 +37,19 @@ export async function run(plugins: Plugin[], storage: Storage) {
   if (shouldSpy(plugins)) {
     logger().info("Initializing spy listener...");
     const spyClient = createSpyRPCServiceClient(
-      listnerEnv.spyServiceHost || ""
+      listnerEnv.spyServiceHost || "",
     );
-    plugins.forEach((plugin) => {
+    plugins.forEach(plugin => {
       if (plugin.shouldSpy) {
         logger().info(
-          `Initializing spy listener for plugin ${plugin.pluginName}...`
+          `Initializing spy listener for plugin ${plugin.pluginName}...`,
         );
         runPluginSpyListener(
-          storage.getPluginStorage(plugin),
+          plugin,
+          storage,
           spyClient,
           providers,
-          commonEnv.numGuardians || NUM_GUARDIANS
+          commonEnv.numGuardians || NUM_GUARDIANS,
         );
       }
     });
@@ -50,45 +63,43 @@ export async function run(plugins: Plugin[], storage: Storage) {
 }
 
 function shouldRest(plugins: Plugin[]): boolean {
-  return plugins.some((x) => x.shouldRest);
+  return plugins.some(x => x.shouldRest);
 }
 
 function shouldSpy(plugins: Plugin[]): boolean {
-  return plugins.some((x) => x.shouldSpy);
+  return plugins.some(x => x.shouldSpy);
 }
 
-// 1. fetches scratch area and list of actions
-// 2. calls plugin.consumeEvent(..)
-// 3. applies ActionUpdate produced by plugin
 async function consumeEventHarness(
   vaa: Buffer,
-  storage: PluginStorage,
-  providers: Providers
+  plugin: Plugin,
+  storage: Storage,
+  providers: Providers,
 ): Promise<void> {
   try {
-    const stagingArea = await storage.getStagingArea();
-    const { workflowData, nextStagingArea } = await storage.plugin.consumeEvent(
-      vaa,
-      stagingArea,
-      providers
+    const parsedVaa = parseVaaWithBytes(vaa);
+    const { workflowData } = await plugin.consumeEvent(
+      parsedVaa,
+      storage.getStagingAreaKeyLock(plugin.pluginName),
+      providers,
     );
     if (workflowData) {
-      await storage.addWorkflow(workflowData);
+      await storage.addWorkflow({
+        data: workflowData,
+        id: parsedVaa.hash.toString("base64"),
+        pluginName: plugin.pluginName,
+      });
     }
-    await storage.saveStagingArea(nextStagingArea);
   } catch (e) {
     const l = logger();
-    l.error(
-      `Encountered error consumingEvent for plugin ${storage.plugin.pluginName}`
-    );
-    l.error(e);
+    l.error(`Encountered error consumingEvent for plugin ${plugin.pluginName}`);
     l.error(JSON.stringify(e));
     // metric onError
   }
 }
 
 async function transformEmitterFilter(
-  x: ContractFilter
+  x: ContractFilter,
 ): Promise<ContractFilter> {
   return {
     chainId: x.chainId,
@@ -98,7 +109,7 @@ async function transformEmitterFilter(
 
 async function encodeEmitterAddress(
   myChainId: wormholeSdk.ChainId,
-  emitterAddressStr: string
+  emitterAddressStr: string,
 ): Promise<string> {
   if (
     myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
@@ -117,35 +128,35 @@ async function encodeEmitterAddress(
 
 //used for both rest & spy relayer for now
 async function runPluginSpyListener(
-  pluginStorage: PluginStorage,
+  plugin: Plugin,
+  storage: Storage,
   client: SpyRPCServiceClient,
   providers: Providers,
-  numGuardians: number
+  numGuardians: number,
 ) {
   const vaaHashCache = new LRUCache({
     max: 10000,
   });
-  const plugin = pluginStorage.plugin;
   while (true) {
     let stream: any;
     try {
       const rawFilters = plugin.getFilters();
       const filters = await Promise.all(
-        rawFilters.map(async (x) => {
+        rawFilters.map(async x => {
           return {
             emitterFilter: await transformEmitterFilter(x),
           };
-        })
+        }),
       );
       logger().info(
         `${
           plugin.pluginName
-        } subscribing to spy with raw filters: ${JSON.stringify(rawFilters)}`
+        } subscribing to spy with raw filters: ${JSON.stringify(rawFilters)}`,
       );
       logger().debug(
         `${plugin.pluginName} using transformed filters: ${JSON.stringify(
-          filters
-        )}`
+          filters,
+        )}`,
       );
       stream = await subscribeSignedVAA(client, {
         filters,
@@ -154,12 +165,14 @@ async function runPluginSpyListener(
       stream.on("data", (vaa: { vaaBytes: Buffer }) => {
         const parsed = wormholeSdk.parseVaa(vaa.vaaBytes);
         const hash = parsed.hash.toString("base64");
+        logger().debug(hash);
+        logger().debug(parsed.emitterChain);
 
         if (
           parsed.guardianSignatures.length < Math.ceil((numGuardians * 2) / 3)
         ) {
           logger().debug(
-            `Encountered VAA without enough signatures: ${parsed.guardianSignatures.length}, ${hash}`
+            `Encountered VAA without enough signatures: ${parsed.guardianSignatures.length}, ${hash}`,
           );
           return;
         }
@@ -168,7 +181,7 @@ async function runPluginSpyListener(
           return;
         }
         vaaHashCache.set(hash, true);
-        consumeEventHarness(vaa.vaaBytes, pluginStorage, providers);
+        consumeEventHarness(vaa.vaaBytes, plugin, storage, providers);
       });
 
       let connected = true;
@@ -183,7 +196,7 @@ async function runPluginSpyListener(
       });
 
       logger().info(
-        "connected to spy service, listening for transfer signed VAAs"
+        "connected to spy service, listening for transfer signed VAAs",
       );
 
       while (connected) {
