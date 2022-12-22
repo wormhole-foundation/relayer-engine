@@ -5,6 +5,7 @@ import { createSpyRPCServiceClient } from "@certusone/wormhole-spydk";
 import { Storage } from "../storage";
 import { providersFromChainConfig } from "../utils/providers";
 import { runPluginSpyListener } from "./spyEventSource";
+import { PluginEventSource } from "./pluginEventSource";
 
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
@@ -17,10 +18,15 @@ const logger = () => {
   return _logger;
 };
 
-export async function run(plugins: Plugin[], storage: Storage) {
+export async function run(
+  plugins: Plugin[],
+  storage: Storage,
+  pluginEventSource: PluginEventSource,
+) {
   const listnerEnv = getListenerEnv();
   const commonEnv = getCommonEnv();
   const providers = providersFromChainConfig(commonEnv.supportedChains);
+  pluginEventSource.setStorageAndPlugins(storage, plugins, providers);
 
   //if spy is enabled, instantiate spy with filters
   if (shouldSpy(plugins)) {

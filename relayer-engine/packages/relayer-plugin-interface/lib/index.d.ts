@@ -63,7 +63,7 @@ export interface PluginDefinition<PluginConfig, PluginType extends Plugin<Workfl
     };
     pluginName: string;
 }
-export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
+export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger, eventSource?: (event: SignedVaa) => Promise<void>) => PluginType;
 export interface Plugin<WorkflowData = any> {
     pluginName: string;
     pluginConfig: any;

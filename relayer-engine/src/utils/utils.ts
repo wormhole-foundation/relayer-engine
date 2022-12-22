@@ -1,4 +1,4 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
+import { parseVaa, SignedVaa } from "@certusone/wormhole-sdk";
 import { ParsedVaaWithBytes } from "relayer-plugin-interface";
 
 export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
@@ -39,7 +39,7 @@ export function assertBool(x: any, fieldName?: string): boolean {
   return x as boolean;
 }
 
-export function parseVaaWithBytes(vaa: Buffer): ParsedVaaWithBytes {
+export function parseVaaWithBytes(vaa: SignedVaa): ParsedVaaWithBytes {
   const parsedVaa = parseVaa(vaa) as ParsedVaaWithBytes;
   parsedVaa.bytes = vaa;
   return parsedVaa;

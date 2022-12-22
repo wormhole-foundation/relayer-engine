@@ -114,6 +114,9 @@ export interface PluginDefinition<
 export type EngineInitFn<PluginType extends Plugin> = (
   engineConfig: CommonPluginEnv,
   logger: winston.Logger,
+  // when running with listener mode enabled, allow plugin to generate its own events
+  // e.g. listening for logs from blockchain rpc, chron style recurring jobs etc.
+  eventSource?: (event: SignedVaa) => Promise<void>,
 ) => PluginType;
 
 export interface Plugin<WorkflowData = any> {

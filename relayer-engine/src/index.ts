@@ -16,6 +16,7 @@ export * from "./utils/utils";
 export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
+import { PluginEventSource } from "./listener/pluginEventSource";
 export {
   getLogger,
   getScopedLogger,
@@ -45,8 +46,15 @@ export async function run(args: RunArgs): Promise<void> {
   await readAndValidateEnv(args);
   const commonEnv = getCommonEnv();
   const logger = getLogger(commonEnv);
+  const pluginEventSource = new PluginEventSource();
   const plugins = args.plugins.map(({ fn, pluginName }) =>
-    fn(commonEnv, getScopedLogger([pluginName])),
+    fn(
+      commonEnv,
+      getScopedLogger([pluginName]),
+      commonEnv.mode !== Mode.EXECUTOR
+        ? pluginEventSource.getEventSourceFn(pluginName)
+        : undefined,
+    ),
   );
   const storage = await createStorage(
     args.store ? args.store : new InMemory(),
@@ -56,7 +64,7 @@ export async function run(args: RunArgs): Promise<void> {
   switch (commonEnv.mode) {
     case Mode.LISTENER:
       logger.info("Running in listener mode");
-      await listenerHarness.run(plugins, storage);
+      await listenerHarness.run(plugins, storage, pluginEventSource);
       return;
     case Mode.EXECUTOR:
       logger.info("Running in executor mode");
@@ -66,7 +74,7 @@ export async function run(args: RunArgs): Promise<void> {
       logger.info("Running as both executor and listener");
       await Promise.all([
         executorHarness.run(plugins, storage),
-        listenerHarness.run(plugins, storage),
+        listenerHarness.run(plugins, storage, pluginEventSource),
       ]);
       return;
     default:

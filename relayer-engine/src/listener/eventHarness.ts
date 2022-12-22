@@ -1,3 +1,4 @@
+import { SignedVaa } from "@certusone/wormhole-sdk";
 import { Plugin, Providers } from "relayer-plugin-interface";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
@@ -12,7 +13,7 @@ const logger = () => {
 };
 
 export async function consumeEventHarness(
-  vaa: Buffer,
+  vaa: SignedVaa,
   plugin: Plugin,
   storage: Storage,
   providers: Providers,
@@ -38,4 +39,3 @@ export async function consumeEventHarness(
     // metric onError
   }
 }
-
