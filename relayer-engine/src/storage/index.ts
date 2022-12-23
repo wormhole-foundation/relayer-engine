@@ -58,8 +58,8 @@ export interface Multi {
 export type WriteOp = (redis: IRedis) => Promise<void>;
 export type Op<T> = (redis: IRedis) => Promise<T>;
 // ensure IRedis is subset of real client
-// const _: IRedis = {} as RedisClientType;
-const x = {} as RedisClientType;
+const _: IRedis = {} as RedisClientType;
+// const x = {} as RedisClientType;
 
 export interface RedisWrapper {
   runOpWithRetry(op: WriteOp): Promise<void>;
