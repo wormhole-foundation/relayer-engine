@@ -1,7 +1,7 @@
 import * as wh from "@certusone/wormhole-sdk";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { Queue } from "@datastructures-js/queue";
-import { nnull, ParsedVaaWithBytes, Plugin, Providers, Storage } from "..";
+import { EventSource, nnull, ParsedVaaWithBytes, Plugin, Providers, Storage } from "..";
 import { consumeEventHarness } from "./eventHarness";
 
 export class PluginEventSource {
@@ -39,10 +39,10 @@ export class PluginEventSource {
     }
   }
 
-  getEventSourceFn(pluginName: string): (event: SignedVaa) => Promise<void> {
+  getEventSourceFn(pluginName: string): EventSource {
     // is this necessary?
     const _this = this;
-    return async event => {
+    return async (event, extraData) => {
       if (!_this.resources) {
         PluginEventSource.eventQueue.push({ event, pluginName });
         return;
@@ -53,6 +53,7 @@ export class PluginEventSource {
         plugin,
         _this.resources.storage,
         _this.resources.providers,
+        extraData
       );
     };
   }

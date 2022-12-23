@@ -17,6 +17,7 @@ export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
 import { PluginEventSource } from "./listener/pluginEventSource";
+import { providersFromChainConfig } from "./utils/providers";
 export {
   getLogger,
   getScopedLogger,
@@ -46,19 +47,27 @@ export async function run(args: RunArgs): Promise<void> {
   await readAndValidateEnv(args);
   const commonEnv = getCommonEnv();
   const logger = getLogger(commonEnv);
-  const pluginEventSource = new PluginEventSource();
   const plugins = args.plugins.map(({ fn, pluginName }) =>
-    fn(
-      commonEnv,
-      getScopedLogger([pluginName]),
-      commonEnv.mode !== Mode.EXECUTOR
-        ? pluginEventSource.getEventSourceFn(pluginName)
-        : undefined,
-    ),
+    fn(commonEnv, getScopedLogger([pluginName])),
   );
   const storage = await createStorage(
     args.store ? args.store : new InMemory(),
     plugins,
+  );
+
+  // run each plugins afterSetup lifecycle hook to gain access to
+  // providers for each chain and the eventSource hook that allows
+  // plugins to create their own events that the listener will respond to
+  const pluginEventSource = new PluginEventSource();
+  plugins.forEach(
+    p =>
+      p.afterSetup &&
+      p.afterSetup(
+        providersFromChainConfig(commonEnv.supportedChains),
+        commonEnv.mode === Mode.LISTENER || commonEnv.mode === Mode.BOTH
+          ? pluginEventSource.getEventSourceFn(p.pluginName)
+          : undefined,
+      ),
   );
 
   switch (commonEnv.mode) {

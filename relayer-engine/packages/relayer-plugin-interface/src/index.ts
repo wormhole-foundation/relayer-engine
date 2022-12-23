@@ -114,9 +114,6 @@ export interface PluginDefinition<
 export type EngineInitFn<PluginType extends Plugin> = (
   engineConfig: CommonPluginEnv,
   logger: winston.Logger,
-  // when running with listener mode enabled, allow plugin to generate its own events
-  // e.g. listening for logs from blockchain rpc, chron style recurring jobs etc.
-  eventSource?: (event: SignedVaa) => Promise<void>,
 ) => PluginType;
 
 export interface Plugin<WorkflowData = any> {
@@ -125,11 +122,13 @@ export interface Plugin<WorkflowData = any> {
   shouldSpy: boolean; // Boolean toggle if relayer should connect to Guardian Network via non-validation guardiand node
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
   demoteInProgress?: boolean;
+  afterSetup?(providers: Providers, eventSource?: EventSource): Promise<void>;
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
   consumeEvent( // Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: ParsedVaaWithBytes,
     stagingArea: StagingAreaKeyLock,
     providers: Providers,
+    extraData?: any[],
   ): Promise<{ workflowData?: WorkflowData }>;
   handleWorkflow(
     workflow: Workflow<WorkflowData>,
@@ -137,6 +136,11 @@ export interface Plugin<WorkflowData = any> {
     execute: ActionExecutor,
   ): Promise<void>;
 }
+
+export type EventSource = (
+  event: SignedVaa,
+  extraData?: any[],
+) => Promise<void>;
 
 export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for

@@ -17,6 +17,7 @@ export async function consumeEventHarness(
   plugin: Plugin,
   storage: Storage,
   providers: Providers,
+  extraData?: any[],
 ): Promise<void> {
   try {
     const parsedVaa = parseVaaWithBytes(vaa);
@@ -24,6 +25,7 @@ export async function consumeEventHarness(
       parsedVaa,
       storage.getStagingAreaKeyLock(plugin.pluginName),
       providers,
+      extraData,
     );
     if (workflowData) {
       await storage.addWorkflow({

@@ -63,20 +63,22 @@ export interface PluginDefinition<PluginConfig, PluginType extends Plugin<Workfl
     };
     pluginName: string;
 }
-export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger, eventSource?: (event: SignedVaa) => Promise<void>) => PluginType;
+export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
 export interface Plugin<WorkflowData = any> {
     pluginName: string;
     pluginConfig: any;
     shouldSpy: boolean;
     shouldRest: boolean;
     demoteInProgress?: boolean;
+    afterSetup?(providers: Providers, eventSource?: EventSource): Promise<void>;
     getFilters(): ContractFilter[];
     consumeEvent(// Function to be defined in plug-in that takes as input a VAA outputs a list of actions
-    vaa: ParsedVaaWithBytes, stagingArea: StagingAreaKeyLock, providers: Providers): Promise<{
+    vaa: ParsedVaaWithBytes, stagingArea: StagingAreaKeyLock, providers: Providers, extraData?: any[]): Promise<{
         workflowData?: WorkflowData;
     }>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }
+export declare type EventSource = (event: SignedVaa, extraData?: any[]) => Promise<void>;
 export declare type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
