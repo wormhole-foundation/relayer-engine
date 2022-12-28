@@ -7,7 +7,6 @@ import {
   SignedVaa,
 } from "@certusone/wormhole-sdk";
 import * as winston from "winston";
-import { WormholeInstruction } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/coder";
 
 /*
  *  Config

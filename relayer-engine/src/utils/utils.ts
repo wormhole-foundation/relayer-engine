@@ -17,10 +17,14 @@ export function assertInt(x: any, fieldName?: string): number {
   return x as number;
 }
 
-export function assertArray<T>(x: any, name: string, elemsPred?: (x: any) => boolean): T[] {
-  if (!Array.isArray(x) && x.all(elemsPred)) {
+export function assertArray<T>(
+  x: any,
+  name: string,
+  elemsPred?: (x: any) => boolean,
+): T[] {
+  if (!Array.isArray(x) || (elemsPred && !x.every(elemsPred))) {
     const e = new Error(`Expected value to be array, found ${x}`) as any;
-    e.name = name
+    e.name = name;
     throw e;
   }
   return x as T[];
