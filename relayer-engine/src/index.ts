@@ -58,12 +58,13 @@ export async function run(args: RunArgs): Promise<void> {
   // run each plugins afterSetup lifecycle hook to gain access to
   // providers for each chain and the eventSource hook that allows
   // plugins to create their own events that the listener will respond to
-  const pluginEventSource = new PluginEventSource();
+  const providers = providersFromChainConfig(commonEnv.supportedChains),
+  const pluginEventSource = new PluginEventSource(storage, plugins, providers);
   plugins.forEach(
     p =>
       p.afterSetup &&
       p.afterSetup(
-        providersFromChainConfig(commonEnv.supportedChains),
+        providers, 
         commonEnv.mode === Mode.LISTENER || commonEnv.mode === Mode.BOTH
           ? pluginEventSource.getEventSourceFn(p.pluginName)
           : undefined,

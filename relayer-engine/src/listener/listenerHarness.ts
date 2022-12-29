@@ -26,7 +26,6 @@ export async function run(
   const listnerEnv = getListenerEnv();
   const commonEnv = getCommonEnv();
   const providers = providersFromChainConfig(commonEnv.supportedChains);
-  pluginEventSource.setStorageAndPlugins(storage, plugins, providers);
 
   //if spy is enabled, instantiate spy with filters
   if (shouldSpy(plugins)) {
