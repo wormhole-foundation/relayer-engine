@@ -1,13 +1,14 @@
-import { Queue } from "@datastructures-js/queue";
+import { DoublyLinkedList } from "@datastructures-js/linked-list";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { WatchError } from "redis";
-import { IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
+import { Direction, IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
+import { sleep } from "../utils/utils";
 
 export class InMemory implements IRedis, RedisWrapper {
   locks: Record<string, { val: string | null }> = {};
   kv: Record<string, string> = {};
   hsets: Record<string, Map<string, string> | undefined> = {};
-  lists: Record<string, Queue<string> | undefined> = {};
+  lists: Record<string, DoublyLinkedList<string> | undefined> = {};
 
   // don't need to do anything fancy since there is only 1 "connection" to the in memory store
   async withRedis<T>(op: Op<T>): Promise<T> {
@@ -61,25 +62,33 @@ export class InMemory implements IRedis, RedisWrapper {
   }
 
   async rPop(key: string): Promise<string | null> {
-    return this.lists[key]?.pop() || null;
+    return this.lists[key]?.removeLast()?.getValue() || null;
   }
+
   async lPush(key: string, val: string): Promise<number> {
     if (!this.lists[key]) {
-      this.lists[key] = new Queue();
+      this.lists[key] = new DoublyLinkedList();
     }
-    this.lists[key]!.push(val);
-    return this.lists[key]?.size() || 0;
+    this.lists[key]!.insertFirst(val);
+    return this.lists[key]?.count() || 0;
   }
+
+  async lLen(key: string): Promise<number> {
+    return this.lists[key]?.count() ?? 0;
+  }
+
   async lRem(key: string, count: number, element: string): Promise<number> {
+    // in redis if you pass in 0 it removes every ocurrence
+    count = count === 0 ? Number.MAX_VALUE : count;
     const old = this.lists[key]?.toArray();
     if (!old) {
       return 0;
     }
-    const fresh = new Queue<string>();
+    const fresh = new DoublyLinkedList<string>();
     let removed = 0;
     for (const x of old) {
-      if (x !== element || removed == count ) {
-        fresh.enqueue(x);
+      if (x !== element || removed == count) {
+        fresh.insertFirst(x);
       } else {
         removed++;
       }
@@ -95,6 +104,38 @@ export class InMemory implements IRedis, RedisWrapper {
   }
   async executeIsolated<T>(fn: (redis: IRedis) => Promise<T>): Promise<T> {
     return fn(this);
+  }
+
+  async blMove(
+    source: string,
+    destination: string,
+    directionSource: Direction,
+    directionDestination: Direction,
+    timeout: number,
+  ): Promise<string | null> {
+    if (!this.lists[source]?.count()) {
+      // TODO: realistically, we want to check every so often (up until timeout) to see if there's a new item.
+      await sleep(timeout);
+      if (!this.lists[source]?.count()) {
+        return null;
+      }
+    }
+    let item =
+      directionSource == Direction.LEFT
+        ? this.lists[source]?.removeFirst()
+        : this.lists[source]?.removeLast();
+    if (!item || !item.getValue()) {
+      return null;
+    }
+    if (!this.lists[destination]) {
+      this.lists[destination] = new DoublyLinkedList<string>();
+    }
+    if (directionDestination == Direction.LEFT) {
+      this.lists[destination]!.insertFirst(item.getValue());
+    } else {
+      this.lists[destination]!.insertLast(item.getValue());
+    }
+    return item.getValue();
   }
 }
 

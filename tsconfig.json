@@ -23,6 +23,7 @@
   ],
   "exclude": [
     "node_modules",
+    "relayer-engine/lib/**/*",
     "**/__tests__/*",
     "relayer-engine/src/**/*.test.ts"
   ]

@@ -59,18 +59,17 @@ describe("Workflow lifecycle happy path tests using InMemory store", () => {
   });
 
   it("gets next workflow", async () => {
-    const res = await storage.getNextWorkflow();
+    const res = await storage.getNextWorkflow(2);
     await expect(res).toBeTruthy();
     expect(res!.plugin.demoteInProgress).toBe(plugin.demoteInProgress);
     expect(res!.workflow).toStrictEqual(workflow);
-    expect(await store.hGet("__activeWorkflows", key)).toBe("1");
-    expect(await store.hLen("__activeWorkflows")).toBe(1);
+    expect(await store.lLen("__activeWorkflows")).toBe(1);
   });
 
   it("completes workflow", async () => {
     await storage.completeWorkflow(workflow);
     expect(await store.get(key)).toBe("__complete");
-    expect(await store.hGet("__activeWorkflows", key)).toBe(undefined);
+    expect(await store.lLen("__activeWorkflows")).toBe(0);
   });
 });
 
