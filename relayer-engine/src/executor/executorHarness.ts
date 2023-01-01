@@ -129,7 +129,7 @@ async function spawnExecutor(
       let inProgressWorkflows = await storage.numActiveWorkflows();
       inProgressWorkflowsGauge.set(inProgressWorkflows);
 
-      if (inProgressWorkflows < MAX_ACTIVE_WORKFLOWS) {
+      if (inProgressWorkflows >= MAX_ACTIVE_WORKFLOWS) {
         await sleep(SPAWN_WORKFLOW_INTERNAL);
         continue;
       }
