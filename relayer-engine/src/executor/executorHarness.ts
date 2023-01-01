@@ -82,7 +82,7 @@ async function spawnExecutor(
 
   while (true) {
     try {
-      if ((await storage.numActiveWorkflows()) < MAX_ACTIVE_WORKFLOWS) {
+      if ((await storage.numActiveWorkflows()) >= MAX_ACTIVE_WORKFLOWS) {
         await sleep(SPAWN_WORKFLOW_INTERNAL);
         continue;
       }
