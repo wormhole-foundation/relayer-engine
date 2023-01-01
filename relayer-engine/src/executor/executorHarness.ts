@@ -21,6 +21,7 @@ import { createWalletToolbox } from "./walletToolBox";
 import { providersFromChainConfig } from "../utils/providers";
 import { nnull, sleep } from "../utils/utils";
 import { Logger } from "winston";
+import { Counter, Gauge, Histogram } from "prom-client";
 
 // todo: add to config
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
@@ -68,8 +69,51 @@ export async function run(plugins: Plugin[], storage: Storage) {
       return [chain.chainId, workerInfos];
     }),
   );
+
+  maxActiveWorkflowsGauge.set(MAX_ACTIVE_WORKFLOWS);
   await spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
 }
+
+const inProgressWorkflowsGauge = new Gauge({
+  name: "in_progress_workflows",
+  help: "Gauge for number of workflows that are currently being executed",
+  labelNames: [],
+});
+
+const maxActiveWorkflowsGauge = new Gauge({
+  name: "max_active_workflows",
+  help: "Gauge for maximun number of workflows allowed to be executed concurrently",
+  labelNames: [],
+});
+
+const executedWorkflows = new Counter({
+  name: "executed_workflows_total",
+  help: "Counter for number of workflows that were executed",
+  labelNames: ["plugin"],
+});
+
+const completedWorkflows = new Counter({
+  name: "executed_workflows_total",
+  help: "Counter for number of workflows that were executed",
+  labelNames: ["plugin"],
+});
+
+const failedWorkflows = new Counter({
+  name: "executed_workflows_total",
+  help: "Counter for number of workflows that were executed",
+  labelNames: ["plugin"],
+});
+
+const inQueueTimeSeconds = new Histogram({
+  name: "workflow_queue_duration_seconds",
+  help: "Number of seconds spent in queue before being picked up by an executor",
+});
+
+const executingTimeSeconds = new Histogram({
+  name: "workflow_execution_duration_seconds",
+  help: "Number of seconds spent executing by an executor",
+  labelNames: ["plugin"],
+});
 
 async function spawnExecutor(
   storage: Storage,
@@ -82,7 +126,10 @@ async function spawnExecutor(
 
   while (true) {
     try {
-      if ((await storage.numActiveWorkflows()) < MAX_ACTIVE_WORKFLOWS) {
+      let inProgressWorkflows = await storage.numActiveWorkflows();
+      inProgressWorkflowsGauge.set(inProgressWorkflows);
+
+      if (inProgressWorkflows < MAX_ACTIVE_WORKFLOWS) {
         await sleep(SPAWN_WORKFLOW_INTERNAL);
         continue;
       }
@@ -124,9 +171,20 @@ async function spawnWorkflow(
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
   logger: ScopedLogger,
 ): Promise<void> {
+  const finishedExecuting = executingTimeSeconds.startTimer({
+    plugin: plugin.pluginName,
+  });
   logger.info(
     `Starting workflow ${workflow.id} for plugin ${workflow.pluginName}`,
   );
+  // Record metrics
+  executedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+  if (workflow.scheduledAt) {
+    let now = new Date();
+    const timeInQueue = (now.getTime() - workflow.scheduledAt.getTime()) / 1000;
+    inQueueTimeSeconds.observe(timeInQueue);
+  }
+
   const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
   try {
     await plugin.handleWorkflow(workflow, providers, execute);
@@ -134,12 +192,16 @@ async function spawnWorkflow(
     logger.info(
       `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
     );
+    completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
   } catch (e) {
     logger.warn(
       `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
     );
     logger.error(e);
+    failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
     await storage.requeueWorkflow(workflow);
+  } finally {
+    finishedExecuting();
   }
 }
 

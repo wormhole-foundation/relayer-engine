@@ -18,6 +18,7 @@ import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
 import { PluginEventSource } from "./listener/pluginEventSource";
 import { providersFromChainConfig } from "./utils/providers";
+import { Counter, Gauge } from "prom-client";
 export {
   getLogger,
   getScopedLogger,
@@ -42,6 +43,11 @@ export interface RunArgs {
   plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
   store?: RedisWrapper;
 }
+
+const pluginsConfiguredGauge = new Gauge({
+  name: "plugins_configured",
+  help: "Number of plugins configured in the host.",
+});
 
 export async function run(args: RunArgs): Promise<void> {
   await readAndValidateEnv(args);
@@ -70,6 +76,8 @@ export async function run(args: RunArgs): Promise<void> {
           : undefined,
       ),
   );
+
+  pluginsConfiguredGauge.set(plugins.length);
 
   switch (commonEnv.mode) {
     case Mode.LISTENER:

@@ -41,6 +41,7 @@ export interface ChainConfigInfo {
 export interface Workflow<D = any> {
   id: WorkflowId;
   pluginName: string;
+  scheduledAt?: Date;
   data: D;
 }
 

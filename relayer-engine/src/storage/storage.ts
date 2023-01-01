@@ -61,6 +61,7 @@ export class DefaultStorage implements Storage {
         await redis.unwatch();
         return;
       }
+      workflow.scheduledAt = new Date();
       await redis
         .multi()
         .lPush(WORKFLOW_QUEUE, key)
@@ -131,6 +132,9 @@ export class DefaultStorage implements Storage {
       }
       const raw = nnull(await redis.get(key));
       const workflow = JSON.parse(raw);
+      if (workflow.scheduledAt) {
+        workflow.scheduledAt = new Date(workflow.scheduledAt);
+      }
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
     });
   }
