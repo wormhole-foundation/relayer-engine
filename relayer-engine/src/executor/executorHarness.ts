@@ -71,7 +71,8 @@ export async function run(plugins: Plugin[], storage: Storage) {
   );
 
   maxActiveWorkflowsGauge.set(MAX_ACTIVE_WORKFLOWS);
-  await spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
+  spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
+  logger.debug("End of executor harness run function");
 }
 
 const inProgressWorkflowsGauge = new Gauge({
@@ -93,13 +94,13 @@ const executedWorkflows = new Counter({
 });
 
 const completedWorkflows = new Counter({
-  name: "executed_workflows_total",
+  name: "completed_workflows_total",
   help: "Counter for number of workflows that were executed",
   labelNames: ["plugin"],
 });
 
 const failedWorkflows = new Counter({
-  name: "executed_workflows_total",
+  name: "failed_workflows_total",
   help: "Counter for number of workflows that were executed",
   labelNames: ["plugin"],
 });

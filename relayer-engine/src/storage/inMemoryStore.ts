@@ -111,11 +111,11 @@ export class InMemory implements IRedis, RedisWrapper {
     destination: string,
     directionSource: Direction,
     directionDestination: Direction,
-    timeout: number,
+    timeoutInSeconds: number,
   ): Promise<string | null> {
     if (!this.lists[source]?.count()) {
       // TODO: realistically, we want to check every so often (up until timeout) to see if there's a new item.
-      await sleep(timeout);
+      await sleep(timeoutInSeconds * 1000);
       if (!this.lists[source]?.count()) {
         return null;
       }

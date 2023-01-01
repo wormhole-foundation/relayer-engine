@@ -9,6 +9,7 @@ import {
   Plugin,
   PluginDefinition,
   Providers,
+  sleep,
   StagingAreaKeyLock,
   Workflow,
 } from "relayer-engine";
@@ -35,6 +36,9 @@ interface WorkflwoPayloadDeserialized {
   vaa: ParsedVaaWithBytes;
   count: number;
 }
+
+const randomInt = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min + 1) + min);
 
 export class DummyPlugin implements Plugin<WorkflowPayload> {
   readonly shouldSpy: boolean;
@@ -126,6 +130,14 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
         return pubkey;
       },
     });
+
+    // Simulate different processing times for metrics
+    await sleep(randomInt(0, 4000));
+
+    let PROBABILITY_OF_FAILURE = 0.05;
+    if (Math.random() < PROBABILITY_OF_FAILURE) {
+      throw new Error("Simulating workflow failure");
+    }
 
     this.logger.info(`Result of action on fuji ${pubkey}, Count: ${count}`);
   }

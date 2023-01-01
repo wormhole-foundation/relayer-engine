@@ -26,10 +26,10 @@ export interface ChainConfigInfo {
   wrappedAsset?: string | null;
 }
 export interface Workflow<D = any> {
-  id: WorkflowId;
-  pluginName: string;
-  scheduledAt?: Date;
-  data: D;
+    id: WorkflowId;
+    pluginName: string;
+    scheduledAt?: Date;
+    data: D;
 }
 export interface ActionExecutor {
   <T, W extends Wallet>(action: Action<T, W>): Promise<T>;

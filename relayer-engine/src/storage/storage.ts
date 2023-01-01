@@ -52,6 +52,10 @@ export class DefaultStorage implements Storage {
     return this.store.withRedis(redis => redis.lLen(ACTIVE_WORKFLOWS_QUEUE));
   }
 
+  numEnqueuedWorkflows(): Promise<number> {
+    return this.store.withRedis(redis => redis.lLen(WORKFLOW_QUEUE));
+  }
+
   // Add a workflow to the queue to be processed
   addWorkflow(workflow: Workflow): Promise<void> {
     const key = workflowKey(workflow);

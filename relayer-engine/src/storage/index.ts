@@ -21,6 +21,7 @@ export interface Storage {
   requeueWorkflow(workflow: Workflow): Promise<void>;
   handleStorageStartupConfig(plugins: Plugin[]): Promise<void>;
   numActiveWorkflows(): Promise<number>;
+  numEnqueuedWorkflows(): Promise<number>;
   completeWorkflow(workflow: {
     id: WorkflowId;
     pluginName: string;

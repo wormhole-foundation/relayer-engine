@@ -1,3 +1,6 @@
+import * as Koa from "koa";
+import { register } from "prom-client";
+import * as Router from "koa-router";
 import * as dotenv from "dotenv";
 import { EngineInitFn, Plugin } from "relayer-plugin-interface";
 import {
@@ -79,28 +82,49 @@ export async function run(args: RunArgs): Promise<void> {
 
   pluginsConfiguredGauge.set(plugins.length);
 
+  new Gauge({
+    name: "enqueued_workflows",
+    help: "Count of workflows waiting to be executed.",
+    async collect() {
+      // Invoked when the registry collects its metrics' values.
+      const currentValue = await storage.numEnqueuedWorkflows();
+      this.set(currentValue);
+    },
+  });
+
   switch (commonEnv.mode) {
     case Mode.LISTENER:
       logger.info("Running in listener mode");
       await listenerHarness.run(plugins, storage, pluginEventSource);
-      return;
+      break;
     case Mode.EXECUTOR:
       logger.info("Running in executor mode");
       await executorHarness.run(plugins, storage);
-      return;
+      break;
     case Mode.BOTH:
       logger.info("Running as both executor and listener");
       await Promise.all([
         executorHarness.run(plugins, storage),
         listenerHarness.run(plugins, storage, pluginEventSource),
       ]);
-      return;
+      break;
     default:
       throw new Error(
         "Expected MODE env var to be listener or executor, instead got: " +
           process.env.MODE,
       );
   }
+  const app = new Koa();
+  const router = new Router();
+
+  router.get("/metrics", async (ctx, next) => {
+    let metrics = await register.metrics();
+    ctx.body = metrics;
+  });
+
+  app.use(router.allowedMethods());
+  app.use(router.routes());
+  app.listen(9100);
 }
 
 async function readAndValidateEnv({
