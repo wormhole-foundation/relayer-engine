@@ -1,10 +1,13 @@
 import { RedisClientType } from "redis";
 import {
   Plugin,
+  StagingArea,
   StagingAreaKeyLock,
   Workflow,
   WorkflowId,
 } from "relayer-plugin-interface";
+import { DefaultStorage } from "./storage";
+import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 
 export { InMemory } from "./inMemoryStore";
 export { createStorage } from "./storage";
@@ -52,19 +55,11 @@ export interface Multi {
   exec(pipeline?: boolean): Promise<RedisCommandRawReply[]>;
 }
 
-export type RedisCommandRawReply =
-  | string
-  | number
-  | Buffer
-  | Array<RedisCommandRawReply>
-  | null
-  | undefined;
-
 export type WriteOp = (redis: IRedis) => Promise<void>;
 export type Op<T> = (redis: IRedis) => Promise<T>;
 // ensure IRedis is subset of real client
-// const _: IRedis = {} as RedisClientType;
-const x = {} as RedisClientType;
+const _: IRedis = {} as RedisClientType;
+// const x = {} as RedisClientType;
 
 export interface RedisWrapper {
   runOpWithRetry(op: WriteOp): Promise<void>;

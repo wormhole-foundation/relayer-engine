@@ -15,6 +15,7 @@ import {
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { parseVaa } from "@certusone/wormhole-sdk";
+import { SignedVaa } from "@certusone/wormhole-sdk";
 
 export interface DummyPluginConfig {
   spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -56,7 +57,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     this.shouldSpy = this.pluginConfig.shouldSpy;
   }
 
-  // Validate the plugin's config 
+  // Validate the plugin's config
   static validateConfig(
     pluginConfigRaw: Record<string, any>,
   ): DummyPluginConfig {

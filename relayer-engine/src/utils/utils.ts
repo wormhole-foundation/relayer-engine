@@ -1,4 +1,4 @@
-import { parseVaa } from "@certusone/wormhole-sdk";
+import { parseVaa, SignedVaa } from "@certusone/wormhole-sdk";
 import { ParsedVaaWithBytes } from "relayer-plugin-interface";
 
 export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
@@ -17,10 +17,14 @@ export function assertInt(x: any, fieldName?: string): number {
   return x as number;
 }
 
-export function assertArray<T>(x: any, fieldName?: string): T[] {
-  if (!Array.isArray(x)) {
-    const e = new Error(`Expected field to be array, found ${x}`) as any;
-    e.fieldName = fieldName;
+export function assertArray<T>(
+  x: any,
+  name: string,
+  elemsPred?: (x: any) => boolean,
+): T[] {
+  if (!Array.isArray(x) || (elemsPred && !x.every(elemsPred))) {
+    const e = new Error(`Expected value to be array, found ${x}`) as any;
+    e.name = name;
     throw e;
   }
   return x as T[];
@@ -39,8 +43,8 @@ export function assertBool(x: any, fieldName?: string): boolean {
   return x as boolean;
 }
 
-export function parseVaaWithBytes(vaa: Buffer): ParsedVaaWithBytes {
+export function parseVaaWithBytes(vaa: SignedVaa): ParsedVaaWithBytes {
   const parsedVaa = parseVaa(vaa) as ParsedVaaWithBytes;
-  parsedVaa.bytes = vaa;
+  parsedVaa.bytes = Buffer.from(vaa);
   return parsedVaa;
 }
