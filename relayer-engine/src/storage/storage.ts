@@ -19,6 +19,9 @@ const WORKFLOW_QUEUE = "__workflowQ";
 const COMPLETE = "__complete";
 const ACTIVE = "1";
 
+/* HACK */
+const numTimesWorkflowRequeued = new Map<string, number>();
+
 export function createStorage(
   store: RedisWrapper,
   plugins: Plugin[],
@@ -69,6 +72,15 @@ export class DefaultStorage implements Storage {
   // Requeue a workflow to be processed
   async requeueWorkflow(workflow: Workflow): Promise<void> {
     const key = workflowKey(workflow);
+
+    // HACK: prevent infinite requeues
+    if (numTimesWorkflowRequeued.get(key)! > 5) {
+      this.logger.warn("Workflow has been requeued too many times, dropping");
+      return;
+    }
+    const requeueCount = numTimesWorkflowRequeued.get(key) || 0;
+    numTimesWorkflowRequeued.set(key, requeueCount + 1);
+
     this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
       const global = await redis.get(key);
