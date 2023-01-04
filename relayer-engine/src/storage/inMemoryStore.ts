@@ -1,5 +1,6 @@
 import { DoublyLinkedList } from "@datastructures-js/linked-list";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
+import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { WatchError } from "redis";
 import { Direction, IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
 import { sleep } from "../utils/utils";

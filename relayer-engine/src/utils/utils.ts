@@ -45,6 +45,6 @@ export function assertBool(x: any, fieldName?: string): boolean {
 
 export function parseVaaWithBytes(vaa: SignedVaa): ParsedVaaWithBytes {
   const parsedVaa = parseVaa(vaa) as ParsedVaaWithBytes;
-  parsedVaa.bytes = vaa;
+  parsedVaa.bytes = Buffer.from(vaa);
   return parsedVaa;
 }

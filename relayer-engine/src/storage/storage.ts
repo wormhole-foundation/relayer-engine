@@ -1,3 +1,5 @@
+import { RedisSearchLanguages } from "@node-redis/search/dist/commands";
+import { ComputeBudgetInstruction } from "@solana/web3.js";
 import { WatchError } from "redis";
 import {
   Plugin,
@@ -5,7 +7,7 @@ import {
   Workflow,
   WorkflowId,
 } from "relayer-plugin-interface";
-import { Logger } from "winston";
+import { error, Logger, warn } from "winston";
 import {
   Direction,
   IRedis,
@@ -13,7 +15,7 @@ import {
   Storage,
   WorkflowWithPlugin,
 } from ".";
-import { getLogger, getScopedLogger } from "../helpers/logHelper";
+import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
 
 const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
@@ -21,6 +23,9 @@ const STAGING_AREA_KEY = "__stagingArea";
 const WORKFLOW_QUEUE = "__workflowQ";
 const COMPLETE = "__complete";
 const ACTIVE = "1";
+
+/* HACK */
+const numTimesWorkflowRequeued = new Map<string, number>();
 
 export function createStorage(
   store: RedisWrapper,
@@ -72,6 +77,15 @@ export class DefaultStorage implements Storage {
   // Requeue a workflow to be processed
   async requeueWorkflow(workflow: Workflow): Promise<void> {
     const key = workflowKey(workflow);
+
+    // HACK: prevent infinite requeues
+    if (numTimesWorkflowRequeued.get(key)! > 5) {
+      this.logger.warn("Workflow has been requeued too many times, dropping");
+      return;
+    }
+    const requeueCount = numTimesWorkflowRequeued.get(key) || 0;
+    numTimesWorkflowRequeued.set(key, requeueCount + 1);
+
     return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
       const global = await redis.get(key);
