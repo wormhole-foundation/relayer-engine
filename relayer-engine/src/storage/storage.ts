@@ -3,17 +3,22 @@ import { ComputeBudgetInstruction } from "@solana/web3.js";
 import { WatchError } from "redis";
 import {
   Plugin,
+  StagingAreaKeyLock,
   Workflow,
   WorkflowId,
-  StagingAreaKeyLock,
 } from "relayer-plugin-interface";
 import { error, Logger, warn } from "winston";
-import { Storage, RedisWrapper, IRedis } from ".";
-import { getScopedLogger, getLogger, dbg } from "../helpers/logHelper";
+import {
+  Direction,
+  IRedis,
+  RedisWrapper,
+  Storage,
+  WorkflowWithPlugin,
+} from ".";
+import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
 
-const WORKFLOW_ID_COUNTER_KEY = "__workflowIdCounter";
-const ACTIVE_WORKFLOWS_KEY = "__activeWorkflows";
+const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
 const STAGING_AREA_KEY = "__stagingArea";
 const WORKFLOW_QUEUE = "__workflowQ";
 const COMPLETE = "__complete";
@@ -49,7 +54,7 @@ export class DefaultStorage implements Storage {
 
   // Number of active workflows currently being executed
   numActiveWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.hLen(ACTIVE_WORKFLOWS_KEY));
+    return this.store.withRedis(redis => redis.lLen(ACTIVE_WORKFLOWS_QUEUE));
   }
 
   // Add a workflow to the queue to be processed
@@ -81,7 +86,7 @@ export class DefaultStorage implements Storage {
     const requeueCount = numTimesWorkflowRequeued.get(key) || 0;
     numTimesWorkflowRequeued.set(key, requeueCount + 1);
 
-    this.store.runOpWithRetry(async redis => {
+    return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
       const global = await redis.get(key);
       let multi = redis.multi();
@@ -94,9 +99,9 @@ export class DefaultStorage implements Storage {
         );
         multi = multi.set(key, JSON.stringify(workflow));
       }
-      multi
-        .lRem(WORKFLOW_QUEUE, 100, key) // ensure key is not present in queue already
-        .hDel(ACTIVE_WORKFLOWS_KEY, key) // remove key from workflow queue if present
+      await multi
+        .lRem(WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
+        .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key) // remove key from workflow queue if present
         .lPush(WORKFLOW_QUEUE, key) // push key onto queue
         .exec(true);
     });
@@ -117,23 +122,27 @@ export class DefaultStorage implements Storage {
       await redis
         .multi()
         .set(key, COMPLETE)
-        .hDel(ACTIVE_WORKFLOWS_KEY, key)
+        .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
         .exec(true);
     });
   }
 
   // Get the next workflow to process.
   // Removes the key from the workflow queue and places it in the active workflow set
-  async getNextWorkflow(): Promise<null | {
-    plugin: Plugin;
-    workflow: Workflow;
-  }> {
+  async getNextWorkflow(
+    timeoutInSeconds: number,
+  ): Promise<WorkflowWithPlugin | null> {
     return this.store.withRedis(async redis => {
-      const key = await redis.rPop(WORKFLOW_QUEUE);
+      const key = await redis.blMove(
+        WORKFLOW_QUEUE,
+        ACTIVE_WORKFLOWS_QUEUE,
+        Direction.LEFT,
+        Direction.RIGHT,
+        timeoutInSeconds,
+      );
       if (!key) {
         return null;
       }
-      await redis.hSet(ACTIVE_WORKFLOWS_KEY, key, ACTIVE);
       const raw = nnull(await redis.get(key));
       const workflow = JSON.parse(raw);
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
@@ -149,7 +158,7 @@ export class DefaultStorage implements Storage {
     this.logger.info("Checking for inProgress workflows to demote on startup");
     try {
       return this.store.withRedis(async redis => {
-        const keys = await redis.hKeys(ACTIVE_WORKFLOWS_KEY);
+        const keys = await redis.hKeys(ACTIVE_WORKFLOWS_QUEUE);
 
         for await (const key of keys) {
           const workflow: Workflow = await redis
