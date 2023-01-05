@@ -9,7 +9,7 @@ import {
   isTerraChain,
 } from "@certusone/wormhole-sdk";
 import { CommonEnv, ExecutorEnv, ListenerEnv, Mode } from ".";
-import { assertArray, assertInt, nnull } from "../utils/utils";
+import { assertArray, assertInt, EngineError, nnull } from "../utils/utils";
 import { type } from "os";
 
 type ConfigPrivateKey = {
@@ -30,7 +30,7 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
     logDir: raw.logDir,
     supportedChains: assertArray<Keys<ChainConfigInfo>>(
       raw.supportedChains,
-      "supportedChains"
+      "supportedChains",
     ).map(validateChainConfig),
     numGuardians:
       raw.numGuardians && assertInt(raw.numGuardians, "numGuardians"),
@@ -46,7 +46,7 @@ export function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
 
 export function validateExecutorEnv(
   raw: Keys<ExecutorEnv & { privateKeys: ConfigPrivateKey[] }>,
-  chainIds: number[]
+  chainIds: number[],
 ): ExecutorEnv {
   return {
     privateKeys: validatePrivateKeys(raw.privateKeys, chainIds),
@@ -57,7 +57,7 @@ export function validateExecutorEnv(
 
 //Polygon is not supported on local Tilt network atm.
 export function validateChainConfig(
-  supportedChainRaw: Keys<ChainConfigInfo>
+  supportedChainRaw: Keys<ChainConfigInfo>,
 ): ChainConfigInfo {
   if (!supportedChainRaw.chainId) {
     throw new Error("Invalid chain config: " + supportedChainRaw);
@@ -70,7 +70,7 @@ export function validateChainConfig(
     return createEvmChainConfig(supportedChainRaw);
   } else {
     throw new Error(
-      `Unrecognized chain ${supportedChainRaw.chainId} ${supportedChainRaw.chainName}`
+      `Unrecognized chain ${supportedChainRaw.chainId} ${supportedChainRaw.chainName}`,
     );
   }
 }
@@ -84,38 +84,42 @@ export function transformPrivateKeys(privateKeys: any): {
       assertInt(chainId, "chainId");
       assertArray(privateKeys, "privateKeys");
       return [chainId, privateKeys];
-    })
+    }),
   );
 }
 
 function validatePrivateKeys(
   privateKeys: any,
-  chainIds: number[]
+  chainIds: number[],
 ): {
   [chainId in ChainId]: string[];
 } {
   const set = new Set(chainIds);
   Object.entries(privateKeys).forEach(([chainId, pKeys]) => {
     if (!set.has(Number(chainId))) {
-      throw new Error("privateKeys includes key for unsupported chain");
+      throw new EngineError("privateKeys includes key for unsupported chain", {
+        chainId,
+      });
     }
     assertInt(chainId, "chainId");
     assertArray(pKeys, "privateKeys").forEach((key: any) => {
       if (typeof key !== "string") {
         throw new Error(
-          "Private key must be string type, found: " + typeof key
+          "Private key must be string type, found: " + typeof key,
         );
       }
     });
   });
-  if (!chainIds.every((c) => privateKeys[c])) {
-    throw new Error("privateKeys missing key from supported chains");
+  if (!chainIds.every(c => privateKeys[c])) {
+    throw new EngineError("privateKeys missing key from supported chains", {
+      chains: chainIds.filter(c => !privateKeys[c]),
+    });
   }
   return privateKeys;
 }
 
 function createSolanaChainConfig(
-  config: Keys<ChainConfigInfo>
+  config: Keys<ChainConfigInfo>,
 ): ChainConfigInfo {
   const msg = (fieldName: string) =>
     `Missing required field in chain config: ${fieldName}`;
@@ -133,8 +137,6 @@ function createSolanaChainConfig(
 function createTerraChainConfig(config: any): ChainConfigInfo {
   const msg = (fieldName: string) =>
     `Missing required field in chain config: ${fieldName}`;
-  let walletPrivateKey: string[];
-
   return {
     chainId: nnull(config.chainId, msg("chainId")),
     chainName: nnull(config.chainName, msg("chainName")),
@@ -159,7 +161,7 @@ function createEvmChainConfig(config: any): ChainConfigInfo {
 export type Keys<T> = { [k in keyof T]: any };
 export function validateStringEnum<B>(
   enumObj: Object,
-  value: string | undefined
+  value: string | undefined,
 ): B {
   if (Object.values(enumObj).includes(value)) {
     return value as unknown as B;

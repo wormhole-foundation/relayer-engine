@@ -110,7 +110,9 @@ async function readAndValidateEnv({
   mode: Mode;
 }) {
   if (typeof configs === "string") {
-    await loadUntypedEnvs(configs, mode).then(validateEnvs);
+    await loadUntypedEnvs(configs, mode, { privateKeyEnv: true }).then(
+      validateEnvs,
+    );
     return;
   }
   validateEnvs({

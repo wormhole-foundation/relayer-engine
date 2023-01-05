@@ -1,6 +1,12 @@
 import { parseVaa, SignedVaa } from "@certusone/wormhole-sdk";
 import { ParsedVaaWithBytes } from "relayer-plugin-interface";
 
+export class EngineError extends Error {
+  constructor(msg: string, public args?: Record<any, any>) {
+    super(msg);
+  }
+}
+
 export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
   if (x === undefined || x === null) {
     throw new Error("Found unexpected undefined or null. " + errMsg);
@@ -10,9 +16,9 @@ export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
 
 export function assertInt(x: any, fieldName?: string): number {
   if (!Number.isInteger(Number(x))) {
-    const e = new Error(`Expected field to be integer, found ${x}`) as any;
-    e.fieldName = fieldName;
-    throw e;
+    throw new EngineError(`Expected field to be integer, found ${x}`, {
+      fieldName,
+    }) as any;
   }
   return x as number;
 }
@@ -23,9 +29,9 @@ export function assertArray<T>(
   elemsPred?: (x: any) => boolean,
 ): T[] {
   if (!Array.isArray(x) || (elemsPred && !x.every(elemsPred))) {
-    const e = new Error(`Expected value to be array, found ${x}`) as any;
-    e.name = name;
-    throw e;
+    throw new EngineError(`Expected value to be array, found ${x}`, {
+      name,
+    }) as any;
   }
   return x as T[];
 }
@@ -36,9 +42,9 @@ export function sleep(ms: number) {
 
 export function assertBool(x: any, fieldName?: string): boolean {
   if (x !== false && x !== true) {
-    const e = new Error(`Expected field to be boolean, found ${x}`) as any;
-    e.fieldName = fieldName;
-    throw e;
+    throw new EngineError(`Expected field to be boolean, found ${x}`, {
+      fieldName,
+    }) as any;
   }
   return x as boolean;
 }

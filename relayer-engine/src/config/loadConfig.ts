@@ -7,12 +7,11 @@ import * as fs from "fs";
 import * as nodePath from "path";
 import { CommonEnv, ExecutorEnv, Mode, PrivateKeys } from ".";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { Keys } from "./validateConfig";
 
 export async function loadUntypedEnvs(
   dir: string,
   mode: Mode,
-  { privateKeyEnv }: { privateKeyEnv?: boolean } = { privateKeyEnv: false }
+  { privateKeyEnv }: { privateKeyEnv?: boolean } = { privateKeyEnv: false },
 ): Promise<{
   mode: Mode;
   rawCommonEnv: any;
@@ -27,7 +26,7 @@ export async function loadUntypedEnvs(
   const rawExecutorEnv = await loadExecutor(dir, mode);
   if (privateKeyEnv) {
     (rawExecutorEnv as ExecutorEnv).privateKeys = await privateKeyEnvVarLoader(
-      (rawCommonEnv as CommonEnv).supportedChains.map((c) => c.chainId)
+      (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
     );
   }
   console.log("Successfully loaded the mode config file.");
@@ -49,7 +48,7 @@ async function loadCommon(dir: string, mode: Mode): Promise<any> {
 async function loadExecutor(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.EXECUTOR || mode == Mode.BOTH) {
     return await loadFileAndParseToObject(
-      `${dir}/${Mode.EXECUTOR.toLowerCase()}.json`
+      `${dir}/${Mode.EXECUTOR.toLowerCase()}.json`,
     );
   }
   return undefined;
@@ -58,7 +57,7 @@ async function loadExecutor(dir: string, mode: Mode): Promise<any> {
 async function loadListener(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.LISTENER || mode == Mode.BOTH) {
     return await loadFileAndParseToObject(
-      `${dir}/${Mode.LISTENER.toLowerCase()}.json`
+      `${dir}/${Mode.LISTENER.toLowerCase()}.json`,
     );
   }
   return undefined;
@@ -66,7 +65,7 @@ async function loadListener(dir: string, mode: Mode): Promise<any> {
 
 // todo: extend to take path w/o extension and look for all supported extensions
 export async function loadFileAndParseToObject(
-  path: string
+  path: string,
 ): Promise<Record<string, any>> {
   console.log("About to read contents of : " + path);
   const fileContent = fs.readFileSync(path, { encoding: "utf-8" });
