@@ -1,6 +1,5 @@
 import { DoublyLinkedList } from "@datastructures-js/linked-list";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
-import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { WatchError } from "redis";
 import { Direction, IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
 import { sleep } from "../utils/utils";
@@ -72,6 +71,10 @@ export class InMemory implements IRedis, RedisWrapper {
     }
     this.lists[key]!.insertFirst(val);
     return this.lists[key]?.count() || 0;
+  }
+
+  async lIndex(key: string, ix: number): Promise<string | null> {
+    return this.lists[key]?.toArray()[ix] ?? null;
   }
 
   async lLen(key: string): Promise<number> {

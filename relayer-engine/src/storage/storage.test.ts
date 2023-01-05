@@ -64,6 +64,7 @@ describe("Workflow lifecycle happy path tests using InMemory store", () => {
     expect(res!.plugin.demoteInProgress).toBe(plugin.demoteInProgress);
     expect(res!.workflow).toStrictEqual(workflow);
     expect(await store.lLen("__activeWorkflows")).toBe(1);
+    expect(await store.lIndex("__activeWorkflows", 0)).toBe(key);
   });
 
   it("completes workflow", async () => {
