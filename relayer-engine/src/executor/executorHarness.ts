@@ -181,23 +181,27 @@ async function spawnWorkflow(
   }
 
   const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
-  try {
-    await plugin.handleWorkflow(workflow, providers, execute);
-    await storage.completeWorkflow(workflow);
-    logger.info(
-      `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
-    );
-    completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
-  } catch (e) {
-    logger.warn(
-      `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
-    );
-    logger.error(e);
-    failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
-    await storage.requeueWorkflow(workflow);
-  } finally {
-    finishedExecuting();
-  }
+
+  // fire off workflow and avoid blocking
+  (async () => {
+    try {
+      await plugin.handleWorkflow(workflow, providers, execute);
+      await storage.completeWorkflow(workflow);
+      logger.info(
+        `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
+      );
+      completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+    } catch (e) {
+      logger.warn(
+        `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
+      );
+      logger.error(e);
+      failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+      await storage.requeueWorkflow(workflow);
+    } finally {
+      finishedExecuting();
+    }
+  })();
 }
 
 function makeExecuteFunc(

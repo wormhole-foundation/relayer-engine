@@ -1,5 +1,3 @@
-import { RedisSearchLanguages } from "@node-redis/search/dist/commands";
-import { ComputeBudgetInstruction } from "@solana/web3.js";
 import { WatchError } from "redis";
 import {
   Plugin,
@@ -7,7 +5,7 @@ import {
   Workflow,
   WorkflowId,
 } from "relayer-plugin-interface";
-import { error, Logger, warn } from "winston";
+import { Logger } from "winston";
 import {
   Direction,
   IRedis,
@@ -22,7 +20,6 @@ const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
 const STAGING_AREA_KEY = "__stagingArea";
 const WORKFLOW_QUEUE = "__workflowQ";
 const COMPLETE = "__complete";
-const ACTIVE = "1";
 
 /* HACK */
 const numTimesWorkflowRequeued = new Map<string, number>();
