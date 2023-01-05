@@ -1,5 +1,5 @@
 import { getCommonEnv, getListenerEnv } from "../config";
-import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Plugin } from "relayer-plugin-interface";
 import { createSpyRPCServiceClient } from "@certusone/wormhole-spydk";
 import { Storage } from "../storage";

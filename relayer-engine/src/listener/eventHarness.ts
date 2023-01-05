@@ -1,9 +1,13 @@
-import { Counter } from "prom-client";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { Plugin, Providers } from "relayer-plugin-interface";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
 import { parseVaaWithBytes } from "../utils/utils";
+import {
+  createdWorkflowsCounter,
+  erroredEventsCounter,
+  receivedEventsCounter,
+} from "./metrics";
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -12,24 +16,6 @@ const logger = () => {
   }
   return _logger;
 };
-
-const receivedEventsCounter = new Counter({
-  name: "received_events_total",
-  help: "Counter for number of events received by the listener",
-  labelNames: ["plugin"],
-});
-
-const erroredEventsCounter = new Counter({
-  name: "errored_events_total",
-  help: "Counter for number of events that failed to be consumed (or add the workflow)",
-  labelNames: ["plugin"],
-});
-
-const createdWorkflowsCounter = new Counter({
-  name: "created_workflows_total",
-  help: "Counter for number of created workflows by the listener",
-  labelNames: ["plugin"],
-});
 
 export async function consumeEventHarness(
   vaa: SignedVaa,

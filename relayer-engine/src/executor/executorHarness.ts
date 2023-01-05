@@ -11,17 +11,23 @@ import {
   ActionFunc,
   Workflow,
 } from "relayer-plugin-interface";
-import * as solana from "@solana/web3.js";
-import { Storage, WorkflowWithPlugin } from "../storage";
+import { Storage } from "../storage";
 import * as wh from "@certusone/wormhole-sdk";
-import * as ethers from "ethers";
-import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { Queue } from "@datastructures-js/queue";
 import { createWalletToolbox } from "./walletToolBox";
 import { providersFromChainConfig } from "../utils/providers";
 import { nnull, sleep } from "../utils/utils";
 import { Logger } from "winston";
-import { Counter, Gauge, Histogram } from "prom-client";
+import {
+  completedWorkflows,
+  executedWorkflows,
+  executingTimeSeconds,
+  failedWorkflows,
+  inProgressWorkflowsGauge,
+  inQueueTimeSeconds,
+  maxActiveWorkflowsGauge,
+} from "./metrics";
 
 // todo: add to config
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
@@ -74,47 +80,6 @@ export async function run(plugins: Plugin[], storage: Storage) {
   spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
   logger.debug("End of executor harness run function");
 }
-
-const inProgressWorkflowsGauge = new Gauge({
-  name: "in_progress_workflows",
-  help: "Gauge for number of workflows that are currently being executed",
-  labelNames: [],
-});
-
-const maxActiveWorkflowsGauge = new Gauge({
-  name: "max_active_workflows",
-  help: "Gauge for maximun number of workflows allowed to be executed concurrently",
-  labelNames: [],
-});
-
-const executedWorkflows = new Counter({
-  name: "executed_workflows_total",
-  help: "Counter for number of workflows that were executed",
-  labelNames: ["plugin"],
-});
-
-const completedWorkflows = new Counter({
-  name: "completed_workflows_total",
-  help: "Counter for number of workflows that were executed",
-  labelNames: ["plugin"],
-});
-
-const failedWorkflows = new Counter({
-  name: "failed_workflows_total",
-  help: "Counter for number of workflows that were executed",
-  labelNames: ["plugin"],
-});
-
-const inQueueTimeSeconds = new Histogram({
-  name: "workflow_queue_duration_seconds",
-  help: "Number of seconds spent in queue before being picked up by an executor",
-});
-
-const executingTimeSeconds = new Histogram({
-  name: "workflow_execution_duration_seconds",
-  help: "Number of seconds spent executing by an executor",
-  labelNames: ["plugin"],
-});
 
 async function spawnExecutor(
   storage: Storage,
