@@ -73,6 +73,10 @@ export class InMemory implements IRedis, RedisWrapper {
     return this.lists[key]?.count() || 0;
   }
 
+  async lIndex(key: string, ix: number): Promise<string | null> {
+    return this.lists[key]?.toArray()[ix] ?? null;
+  }
+
   async lLen(key: string): Promise<number> {
     return this.lists[key]?.count() ?? 0;
   }

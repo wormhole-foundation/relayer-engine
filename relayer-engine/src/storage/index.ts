@@ -49,6 +49,7 @@ export interface IRedis {
   rPop(key: string): Promise<string | null>;
   lPush(key: string, val: string): Promise<number>;
   lLen(key: string): Promise<number>;
+  lIndex(key: string, ix: number): Promise<string | null>;
   blMove(
     source: string,
     destination: string,

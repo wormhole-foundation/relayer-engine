@@ -140,12 +140,6 @@ async function spawnExecutor(
         logger.debug("No new workflows found");
         continue;
       }
-      // After getting a workflow due to racing conditions we may be attempting to process more than MAX, if so, requeue and try again
-      // if ((await storage.numActiveWorkflows()) < MAX_ACTIVE_WORKFLOWS) {
-      //   await storage.requeueWorkflow(res.workflow);
-      //   continue;
-      // }
-      // Commented out because this can cause if DOS if multiple instances requeue at the same time over and over
       const { workflow, plugin } = res;
 
       await spawnWorkflow(
