@@ -2,6 +2,7 @@
   "mode": "BOTH",
   "logLevel": "debug",
   "readinessPort": 2000,
+  "promPort": 9100,
   "numGuardians": 1,
   "supportedChains": [
     {

@@ -22,6 +22,7 @@ import * as executorHarness from "./executor/executorHarness";
 import { PluginEventSource } from "./listener/pluginEventSource";
 import { providersFromChainConfig } from "./utils/providers";
 import { Counter, Gauge } from "prom-client";
+import { pluginsConfiguredGauge } from "./metrics";
 export {
   getLogger,
   getScopedLogger,
@@ -46,11 +47,6 @@ export interface RunArgs {
   plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
   store?: RedisWrapper;
 }
-
-const pluginsConfiguredGauge = new Gauge({
-  name: "plugins_configured",
-  help: "Number of plugins configured in the host.",
-});
 
 export async function run(args: RunArgs): Promise<void> {
   await readAndValidateEnv(args);
@@ -114,17 +110,22 @@ export async function run(args: RunArgs): Promise<void> {
           process.env.MODE,
       );
   }
-  const app = new Koa();
-  const router = new Router();
+  // Will need refactor when we implement rest listeners and readiness probes
+  if (commonEnv.promPort) {
+    const app = new Koa();
+    const router = new Router();
 
-  router.get("/metrics", async (ctx, next) => {
-    let metrics = await register.metrics();
-    ctx.body = metrics;
-  });
+    router.get("/metrics", async (ctx, next) => {
+      let metrics = await register.metrics();
+      ctx.body = metrics;
+    });
 
-  app.use(router.allowedMethods());
-  app.use(router.routes());
-  app.listen(9100);
+    app.use(router.allowedMethods());
+    app.use(router.routes());
+    app.listen(commonEnv.promPort, () =>
+      logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
+    );
+  }
 }
 
 async function readAndValidateEnv({
