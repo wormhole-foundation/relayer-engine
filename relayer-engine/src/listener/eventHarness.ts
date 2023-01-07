@@ -3,6 +3,11 @@ import { Plugin, Providers } from "relayer-plugin-interface";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
 import { parseVaaWithBytes } from "../utils/utils";
+import {
+  createdWorkflowsCounter,
+  erroredEventsCounter,
+  receivedEventsCounter,
+} from "./metrics";
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -20,6 +25,8 @@ export async function consumeEventHarness(
   extraData?: any[],
 ): Promise<void> {
   try {
+    receivedEventsCounter.labels({ plugin: plugin.pluginName }).inc();
+
     const parsedVaa = parseVaaWithBytes(vaa);
     const { workflowData } = await plugin.consumeEvent(
       parsedVaa,
@@ -33,11 +40,12 @@ export async function consumeEventHarness(
         id: parsedVaa.hash.toString("base64"),
         pluginName: plugin.pluginName,
       });
+      createdWorkflowsCounter.labels({ plugin: plugin.pluginName }).inc();
     }
   } catch (e) {
     const l = logger();
     l.error(`Encountered error consumingEvent for plugin ${plugin.pluginName}`);
     l.error(JSON.stringify(e));
-    // metric onError
+    erroredEventsCounter.labels({ plugin: plugin.pluginName }).inc();
   }
 }

@@ -1,5 +1,3 @@
-import { RedisSearchLanguages } from "@node-redis/search/dist/commands";
-import { ComputeBudgetInstruction } from "@solana/web3.js";
 import { WatchError } from "redis";
 import {
   Plugin,
@@ -7,7 +5,7 @@ import {
   Workflow,
   WorkflowId,
 } from "relayer-plugin-interface";
-import { error, Logger, warn } from "winston";
+import { Logger } from "winston";
 import {
   Direction,
   IRedis,
@@ -22,7 +20,6 @@ const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
 const STAGING_AREA_KEY = "__stagingArea";
 const WORKFLOW_QUEUE = "__workflowQ";
 const COMPLETE = "__complete";
-const ACTIVE = "1";
 
 /* HACK */
 const numTimesWorkflowRequeued = new Map<string, number>();
@@ -57,6 +54,10 @@ export class DefaultStorage implements Storage {
     return this.store.withRedis(redis => redis.lLen(ACTIVE_WORKFLOWS_QUEUE));
   }
 
+  numEnqueuedWorkflows(): Promise<number> {
+    return this.store.withRedis(redis => redis.lLen(WORKFLOW_QUEUE));
+  }
+
   // Add a workflow to the queue to be processed
   addWorkflow(workflow: Workflow): Promise<void> {
     const key = workflowKey(workflow);
@@ -66,6 +67,7 @@ export class DefaultStorage implements Storage {
         await redis.unwatch();
         return;
       }
+      workflow.scheduledAt = new Date();
       await redis
         .multi()
         .lPush(WORKFLOW_QUEUE, key)
@@ -145,6 +147,9 @@ export class DefaultStorage implements Storage {
       }
       const raw = nnull(await redis.get(key));
       const workflow = JSON.parse(raw);
+      if (workflow.scheduledAt) {
+        workflow.scheduledAt = new Date(workflow.scheduledAt);
+      }
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
     });
   }

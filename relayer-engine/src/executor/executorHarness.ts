@@ -11,16 +11,23 @@ import {
   ActionFunc,
   Workflow,
 } from "relayer-plugin-interface";
-import * as solana from "@solana/web3.js";
-import { Storage, WorkflowWithPlugin } from "../storage";
+import { Storage } from "../storage";
 import * as wh from "@certusone/wormhole-sdk";
-import * as ethers from "ethers";
-import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { Queue } from "@datastructures-js/queue";
 import { createWalletToolbox } from "./walletToolBox";
 import { providersFromChainConfig } from "../utils/providers";
 import { nnull, sleep } from "../utils/utils";
 import { Logger } from "winston";
+import {
+  completedWorkflows,
+  executedWorkflows,
+  executingTimeSeconds,
+  failedWorkflows,
+  inProgressWorkflowsGauge,
+  inQueueTimeSeconds,
+  maxActiveWorkflowsGauge,
+} from "./metrics";
 
 // todo: add to config
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
@@ -68,7 +75,10 @@ export async function run(plugins: Plugin[], storage: Storage) {
       return [chain.chainId, workerInfos];
     }),
   );
-  await spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
+
+  maxActiveWorkflowsGauge.set(MAX_ACTIVE_WORKFLOWS);
+  spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
+  logger.debug("End of executor harness run function");
 }
 
 async function spawnExecutor(
@@ -82,7 +92,10 @@ async function spawnExecutor(
 
   while (true) {
     try {
-      if ((await storage.numActiveWorkflows()) >= MAX_ACTIVE_WORKFLOWS) {
+      let inProgressWorkflows = await storage.numActiveWorkflows();
+      inProgressWorkflowsGauge.set(inProgressWorkflows);
+
+      if (inProgressWorkflows >= MAX_ACTIVE_WORKFLOWS) {
         await sleep(SPAWN_WORKFLOW_INTERNAL);
         continue;
       }
@@ -118,23 +131,42 @@ async function spawnWorkflow(
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
   logger: ScopedLogger,
 ): Promise<void> {
+  const finishedExecuting = executingTimeSeconds.startTimer({
+    plugin: plugin.pluginName,
+  });
   logger.info(
     `Starting workflow ${workflow.id} for plugin ${workflow.pluginName}`,
   );
-  const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
-  try {
-    await plugin.handleWorkflow(workflow, providers, execute);
-    await storage.completeWorkflow(workflow);
-    logger.info(
-      `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
-    );
-  } catch (e) {
-    logger.warn(
-      `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
-    );
-    logger.error(e);
-    await storage.requeueWorkflow(workflow);
+  // Record metrics
+  executedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+  if (workflow.scheduledAt) {
+    let now = new Date();
+    const timeInQueue = (now.getTime() - workflow.scheduledAt.getTime()) / 1000;
+    inQueueTimeSeconds.observe(timeInQueue);
   }
+
+  const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
+
+  // fire off workflow and avoid blocking
+  (async () => {
+    try {
+      await plugin.handleWorkflow(workflow, providers, execute);
+      await storage.completeWorkflow(workflow);
+      logger.info(
+        `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
+      );
+      completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+    } catch (e) {
+      logger.warn(
+        `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
+      );
+      logger.error(e);
+      failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+      await storage.requeueWorkflow(workflow);
+    } finally {
+      finishedExecuting();
+    }
+  })();
 }
 
 function makeExecuteFunc(
