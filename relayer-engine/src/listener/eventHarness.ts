@@ -45,7 +45,7 @@ export async function consumeEventHarness(
   } catch (e) {
     const l = logger();
     l.error(`Encountered error consumingEvent for plugin ${plugin.pluginName}`);
-    l.error(JSON.stringify(e));
+    l.error(e);
     erroredEventsCounter.labels({ plugin: plugin.pluginName }).inc();
   }
 }

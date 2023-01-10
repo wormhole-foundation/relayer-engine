@@ -62,7 +62,9 @@ export async function runPluginSpyListener(
           parsed.guardianSignatures.length < Math.ceil((numGuardians * 2) / 3)
         ) {
           logger().debug(
-            `Encountered VAA without enough signatures: ${parsed.guardianSignatures.length}, ${hash}`,
+            `Encountered VAA without enough signatures: ${
+              parsed.guardianSignatures.length
+            }, need ${Math.ceil((numGuardians * 2) / 3)}, ${hash}`,
           );
           return;
         }

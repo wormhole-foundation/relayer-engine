@@ -23,6 +23,8 @@ import { PluginEventSource } from "./listener/pluginEventSource";
 import { providersFromChainConfig } from "./utils/providers";
 import { Counter, Gauge } from "prom-client";
 import { pluginsConfiguredGauge } from "./metrics";
+import { SignedVaa } from "@certusone/wormhole-sdk";
+import { consumeEventHarness } from "./listener/eventHarness";
 export {
   getLogger,
   getScopedLogger,
@@ -64,16 +66,21 @@ export async function run(args: RunArgs): Promise<void> {
   // providers for each chain and the eventSource hook that allows
   // plugins to create their own events that the listener will respond to
   const providers = providersFromChainConfig(commonEnv.supportedChains);
-  const pluginEventSource = new PluginEventSource(storage, plugins, providers);
-  plugins.forEach(
-    p =>
-      p.afterSetup &&
-      p.afterSetup(
-        providers,
-        commonEnv.mode === Mode.LISTENER || commonEnv.mode === Mode.BOTH
-          ? pluginEventSource.getEventSourceFn(p.pluginName)
-          : undefined,
-      ),
+  await Promise.all(
+    plugins.map(
+      p =>
+        p.afterSetup &&
+        p.afterSetup(
+          providers,
+          commonEnv.mode === Mode.LISTENER || commonEnv.mode === Mode.BOTH
+            ? {
+                eventSource: (event: SignedVaa, extraData?: any[]) =>
+                  consumeEventHarness(event, p, storage, providers, extraData),
+                db: storage.getStagingAreaKeyLock(p.pluginName),
+              }
+            : undefined,
+        ),
+    ),
   );
 
   pluginsConfiguredGauge.set(plugins.length);
@@ -91,7 +98,7 @@ export async function run(args: RunArgs): Promise<void> {
   switch (commonEnv.mode) {
     case Mode.LISTENER:
       logger.info("Running in listener mode");
-      await listenerHarness.run(plugins, storage, pluginEventSource);
+      await listenerHarness.run(plugins, storage);
       break;
     case Mode.EXECUTOR:
       logger.info("Running in executor mode");
@@ -101,7 +108,7 @@ export async function run(args: RunArgs): Promise<void> {
       logger.info("Running as both executor and listener");
       await Promise.all([
         executorHarness.run(plugins, storage),
-        listenerHarness.run(plugins, storage, pluginEventSource),
+        listenerHarness.run(plugins, storage),
       ]);
       break;
     default:

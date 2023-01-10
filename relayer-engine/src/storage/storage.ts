@@ -14,7 +14,7 @@ import {
   WorkflowWithPlugin,
 } from ".";
 import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
-import { nnull } from "../utils/utils";
+import { nnull, sleep } from "../utils/utils";
 
 const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
 const STAGING_AREA_KEY = "__stagingArea";
@@ -81,7 +81,7 @@ export class DefaultStorage implements Storage {
     const key = workflowKey(workflow);
 
     // HACK: prevent infinite requeues
-    if (numTimesWorkflowRequeued.get(key)! > 5) {
+    if (numTimesWorkflowRequeued.get(key)! > 2) {
       this.logger.warn("Workflow has been requeued too many times, dropping");
       return;
     }
@@ -202,16 +202,16 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
     this.stagingAreaKey = `${STAGING_AREA_KEY}/${sanitize(pluginName)}`;
   }
 
-  getKeys(keys: string[]): Promise<Record<string, any>> {
+  getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV> {
     return this.store.withRedis(async redis =>
       this.getKeysInternal(redis, keys),
     );
   }
 
-  private getKeysInternal(
+  private getKeysInternal<KV extends Record<string, any>>(
     redis: IRedis,
     keys: string[],
-  ): Promise<Record<string, any>> {
+  ): Promise<KV> {
     return Promise.all(
       keys.map(async k => {
         const val = await redis.get(`${this.stagingAreaKey}/${k}`);
@@ -220,28 +220,27 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
     ).then(Object.fromEntries);
   }
 
-  async withKey<T>(
+  async withKey<T, KV extends Record<string, any>>(
     keys: string[],
-    f: (
-      kvs: Record<string, any>,
-    ) => Promise<{ newKV: Record<string, any>; val: T }>,
+    f: (kvs: KV) => Promise<{ newKV: KV; val: T }>,
   ): Promise<T> {
     try {
       return await this.store.withRedis(async redis => {
         // watch keys so that no other listners can alter
         await redis.watch(keys.map(key => `${this.stagingAreaKey}/${key}`));
 
-        const kvs = await this.getKeysInternal(redis, keys);
-        const original = Object.assign({}, kvs);
+        const kvs = await this.getKeysInternal<KV>(redis, keys);
+        // const original = Object.assign({}, kvs);
 
         const { newKV, val } = await f(kvs);
 
         // update only those keys that returned and were different than before
         let multi = redis.multi();
         for (const [k, v] of Object.entries(newKV)) {
-          if (v !== original[k]) {
-            multi = multi.set(`${this.stagingAreaKey}/${k}`, JSON.stringify(v));
-          }
+          // todo: consider checking for changes
+          // if (v !== original[k]) {
+          multi = multi.set(`${this.stagingAreaKey}/${k}`, JSON.stringify(v));
+          // }
         }
         await multi.exec(true);
 

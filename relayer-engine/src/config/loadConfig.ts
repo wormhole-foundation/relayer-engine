@@ -25,8 +25,11 @@ export async function loadUntypedEnvs(
   const rawListenerEnv = await loadListener(dir, mode);
   const rawExecutorEnv = await loadExecutor(dir, mode);
   if (privateKeyEnv) {
-    (rawExecutorEnv as ExecutorEnv).privateKeys = await privateKeyEnvVarLoader(
-      (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
+    Object.assign(
+      (rawExecutorEnv as ExecutorEnv).privateKeys,
+      await privateKeyEnvVarLoader(
+        (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
+      ),
     );
   }
   console.log("Successfully loaded the mode config file.");
@@ -98,7 +101,10 @@ export function privateKeyEnvVarLoader(chains: ChainId[]): PrivateKeys {
   for (const chain of chains) {
     const str = process.env[`PRIVATE_KEYS_CHAIN_${chain}`];
     if (!str) {
-      throw new Error(`Missing PRIVATE_KEYS_CHAIN_${chain} env var`);
+      console.log(
+        `No PRIVATE_KEYS_CHAIN_${chain} env var, falling back to executor.json`,
+      );
+      continue;
     }
     pkeys[chain] = JSON.parse(str);
   }

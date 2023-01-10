@@ -71,7 +71,10 @@ export interface Plugin<WorkflowData = any> {
     shouldSpy: boolean;
     shouldRest: boolean;
     demoteInProgress?: boolean;
-    afterSetup?(providers: Providers, eventSource?: EventSource): Promise<void>;
+    afterSetup?(providers: Providers, listenerResources?: {
+        eventSource: EventSource;
+        db: StagingAreaKeyLock;
+    }): Promise<void>;
     getFilters(): ContractFilter[];
     consumeEvent(// Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: ParsedVaaWithBytes, stagingArea: StagingAreaKeyLock, providers: Providers, extraData?: any[]): Promise<{
@@ -85,9 +88,9 @@ export declare type ContractFilter = {
     chainId: ChainId;
 };
 export interface StagingAreaKeyLock {
-    withKey<T>(keys: string[], f: (kv: Record<string, any>) => Promise<{
-        newKV: Record<string, any>;
+    withKey<T, KV extends Record<string, any>>(keys: string[], f: (kv: KV) => Promise<{
+        newKV: KV;
         val: T;
     }>): Promise<T>;
-    getKeys(keys: string[]): Promise<Record<string, any>>;
+    getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }
