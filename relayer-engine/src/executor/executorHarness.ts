@@ -33,7 +33,8 @@ import {
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
 const DEFAULT_WORKER_INTERVAL_MS = 500;
 const MAX_ACTIVE_WORKFLOWS = 10;
-const SPAWN_WORKFLOW_INTERNAL = 500;
+// const SPAWN_WORKFLOW_INTERNAL = 500;
+const SPAWN_WORKFLOW_INTERNAL = 2000;
 
 export interface WorkerInfo {
   id: number;
