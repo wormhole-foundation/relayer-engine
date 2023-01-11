@@ -6,19 +6,24 @@ import dummyPluginDef, {
 async function main() {
   // load plugin config
   const pluginConfig = (await relayerEngine.loadFileAndParseToObject(
-    `./plugins/dummy_plugin/config/${relayerEngine.EnvType.DEVNET.toLowerCase()}.json`
+    `./plugins/dummy_plugin/config/${relayerEngine.EnvType.DEVNET.toLowerCase()}.json`,
   )) as DummyPluginConfig;
+
+  const mode =
+    (process.env.MODE?.toUpperCase() as relayerEngine.Mode) ||
+    relayerEngine.Mode.BOTH;
 
   // run relayer engine
   await relayerEngine.run({
     configs: "./relayer-engine-config",
     plugins: [dummyPluginDef.init(pluginConfig)],
-    mode: relayerEngine.Mode.BOTH,
+    mode,
+    store: relayerEngine.StoreType.Redis,
   });
 }
 
 // allow main to be an async function and block until it rejects or resolves
-main().catch((e) => {
+main().catch(e => {
   console.error(e);
   process.exit(1);
 });
