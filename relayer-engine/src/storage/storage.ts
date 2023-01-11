@@ -12,10 +12,9 @@ import {
   IRedis,
   RedisWrapper,
   Storage,
-  StoreType,
   WorkflowWithPlugin,
 } from ".";
-import { CommonEnv } from "../config";
+import { CommonEnv, StoreType } from "../config";
 import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
 import { EngineError, nnull, sleep } from "../utils/utils";
 import { DefaultRedisWrapper, RedisConfig } from "./redisStore";
@@ -31,10 +30,9 @@ const numTimesWorkflowRequeued = new Map<string, number>();
 export async function createStorage(
   plugins: Plugin[],
   config: CommonEnv,
-  storeType: StoreType = StoreType.InMemory,
   logger?: Logger,
 ): Promise<Storage> {
-  switch (storeType) {
+  switch (config.storeType) {
     case StoreType.InMemory:
       return new DefaultStorage(new InMemory(), plugins, logger || getLogger());
     case StoreType.Redis:
@@ -50,7 +48,7 @@ export async function createStorage(
         logger || getLogger(),
       );
     default:
-      throw new EngineError("Unrecognized storage type", storeType);
+      throw new EngineError("Unrecognized storage type", config.storeType);
   }
 }
 

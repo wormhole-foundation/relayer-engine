@@ -10,7 +10,7 @@ async function main() {
   )) as DummyPluginConfig;
 
   const mode =
-    (process.env.MODE?.toUpperCase() as relayerEngine.Mode) ||
+    (process.env.RELAYER_ENGINE_MODE?.toUpperCase() as relayerEngine.Mode) ||
     relayerEngine.Mode.BOTH;
 
   // run relayer engine
@@ -18,7 +18,6 @@ async function main() {
     configs: "./relayer-engine-config",
     plugins: [dummyPluginDef.init(pluginConfig)],
     mode,
-    store: relayerEngine.StoreType.Redis,
   });
 }
 

@@ -12,11 +12,6 @@ import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 export { InMemory } from "./inMemoryStore";
 export { createStorage } from "./storage";
 
-export enum StoreType {
-  InMemory = "InMemory",
-  Redis = "Redis",
-}
-
 export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
 
 // Idea is we could have multiple implementations backed by different types of storage

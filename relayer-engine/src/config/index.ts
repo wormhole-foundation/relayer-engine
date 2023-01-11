@@ -25,6 +25,11 @@ type RelayerEngineConfigs = {
   executorEnv?: ExecutorEnv;
 };
 
+export enum StoreType {
+  InMemory = "InMemory",
+  Redis = "Redis",
+}
+
 export enum Mode {
   LISTENER = "LISTENER",
   EXECUTOR = "EXECUTOR",
@@ -37,6 +42,7 @@ export interface CommonEnv {
   promPort?: number;
   readinessPort?: number;
   logDir?: string;
+  storeType: StoreType;
   redisHost?: string;
   redisPort?: number;
   pluginURIs?: NodeURI[];

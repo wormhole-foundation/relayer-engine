@@ -10,24 +10,20 @@ import {
   ListenerEnv,
   loadUntypedEnvs,
   Mode,
+  StoreType,
   validateEnvs,
 } from "./config";
 import { getLogger, getScopedLogger } from "./helpers/logHelper";
 import {
   createStorage,
-  InMemory,
-  IRedis,
-  RedisWrapper,
-  StoreType,
 } from "./storage";
 export * from "./config";
 export * from "./utils/utils";
 export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
-import { PluginEventSource } from "./listener/pluginEventSource";
 import { providersFromChainConfig } from "./utils/providers";
-import { Counter, Gauge } from "prom-client";
+import { Gauge } from "prom-client";
 import { pluginsConfiguredGauge } from "./metrics";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { consumeEventHarness } from "./listener/eventHarness";
@@ -53,7 +49,6 @@ export interface RunArgs {
       };
   mode: Mode;
   plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
-  store?: StoreType;
 }
 
 export async function run(args: RunArgs): Promise<void> {
@@ -63,7 +58,7 @@ export async function run(args: RunArgs): Promise<void> {
   const plugins = args.plugins.map(({ fn, pluginName }) =>
     fn(commonEnv, getScopedLogger([pluginName])),
   );
-  const storage = await createStorage(plugins, commonEnv, args.store);
+  const storage = await createStorage(plugins, commonEnv);
 
   // run each plugins afterSetup lifecycle hook to gain access to
   // providers for each chain and the eventSource hook that allows
@@ -132,25 +127,9 @@ export async function run(args: RunArgs): Promise<void> {
 
     app.use(router.allowedMethods());
     app.use(router.routes());
-    // try {
     app.listen(commonEnv.promPort, () =>
       logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
     );
-    // } catch (e: any) {
-    //   console.log(e.toString());
-    //   if (e.toString().includes("EADDRINUSE")) {
-    //     for (let i = 0; i < 100; ++i) {
-    //       try {
-    //         app.listen(commonEnv.promPort + i, () =>
-    //           logger.info(
-    //             `Prometheus metrics running on port ${commonEnv.promPort! + i}`,
-    //           ),
-    //         );
-    //         break;
-    //       } catch {}
-    //     }
-    //   }
-    // }
   }
 }
 

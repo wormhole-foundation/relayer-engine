@@ -1,5 +1,6 @@
 {
   "logLevel": "debug",
+  "storeType": "Redis",
   "readinessPort": 2000,
   "numGuardians": 1,
   "redisPort": 6379,
