@@ -1,9 +1,7 @@
 {
-  "mode": "BOTH",
   "logLevel": "debug",
   "storeType": "InMemory",
   "readinessPort": 2000,
-  "promPort": 9100,
   "numGuardians": 1,
   "redisPort": 6379,
   "redisHost": "localhost",
