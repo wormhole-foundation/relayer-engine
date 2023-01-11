@@ -18,11 +18,7 @@ const logger = () => {
   return _logger;
 };
 
-export async function run(
-  plugins: Plugin[],
-  storage: Storage,
-  pluginEventSource: PluginEventSource,
-) {
+export async function run(plugins: Plugin[], storage: Storage) {
   const listnerEnv = getListenerEnv();
   const commonEnv = getCommonEnv();
   const providers = providersFromChainConfig(commonEnv.supportedChains);

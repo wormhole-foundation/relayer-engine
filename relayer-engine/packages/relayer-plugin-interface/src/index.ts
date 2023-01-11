@@ -117,12 +117,15 @@ export type EngineInitFn<PluginType extends Plugin> = (
 ) => PluginType;
 
 export interface Plugin<WorkflowData = any> {
-  pluginName: string; // String identifier for plug-in
-  pluginConfig: any; // Configuration settings for plug-in
+  pluginName: string; // String identifier for plugin
+  pluginConfig: any; // Configuration settings for plugin
   shouldSpy: boolean; // Boolean toggle if relayer should connect to Guardian Network via non-validation guardiand node
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
   demoteInProgress?: boolean;
-  afterSetup?(providers: Providers, eventSource?: EventSource): Promise<void>;
+  afterSetup?(
+    providers: Providers,
+    listenerResources?: { eventSource: EventSource; db: StagingAreaKeyLock },
+  ): Promise<void>;
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
   consumeEvent( // Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: ParsedVaaWithBytes,
@@ -148,11 +151,9 @@ export type ContractFilter = {
 };
 
 export interface StagingAreaKeyLock {
-  withKey<T>(
+  withKey<T, KV extends Record<string, any>>(
     keys: string[],
-    f: (
-      kv: Record<string, any>,
-    ) => Promise<{ newKV: Record<string, any>; val: T }>,
+    f: (kv: KV) => Promise<{ newKV: KV; val: T }>,
   ): Promise<T>;
-  getKeys(keys: string[]): Promise<Record<string, any>>;
+  getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }

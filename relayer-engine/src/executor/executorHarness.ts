@@ -235,7 +235,6 @@ async function spawnWalletWorker(
 
     try {
       if (actionQueue.isEmpty()) {
-        logger.debug("No action found, sleeping...");
         continue;
       }
       const actionWithCont = actionQueue.dequeue();
