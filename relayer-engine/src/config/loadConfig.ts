@@ -7,11 +7,14 @@ import * as fs from "fs";
 import * as nodePath from "path";
 import { CommonEnv, ExecutorEnv, Mode, PrivateKeys } from ".";
 import { ChainId } from "@certusone/wormhole-sdk";
+import { dbg } from "../helpers/logHelper";
 
 export async function loadUntypedEnvs(
   dir: string,
   mode: Mode,
-  { privateKeyEnv }: { privateKeyEnv?: boolean } = { privateKeyEnv: false },
+  { privateKeyEnv = false }: { privateKeyEnv?: boolean } = {
+    privateKeyEnv: false,
+  },
 ): Promise<{
   mode: Mode;
   rawCommonEnv: any;
@@ -23,15 +26,12 @@ export async function loadUntypedEnvs(
   console.log("Successfully loaded the common config file.");
 
   const rawListenerEnv = await loadListener(dir, mode);
-  const rawExecutorEnv = await loadExecutor(dir, mode);
-  if (privateKeyEnv) {
-    Object.assign(
-      (rawExecutorEnv as ExecutorEnv).privateKeys,
-      await privateKeyEnvVarLoader(
-        (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
-      ),
-    );
-  }
+  const rawExecutorEnv = await loadExecutor(
+    dir,
+    mode,
+    rawCommonEnv,
+    privateKeyEnv,
+  );
   console.log("Successfully loaded the mode config file.");
 
   return {
@@ -48,11 +48,26 @@ async function loadCommon(dir: string, mode: Mode): Promise<any> {
   return obj;
 }
 
-async function loadExecutor(dir: string, mode: Mode): Promise<any> {
+async function loadExecutor(
+  dir: string,
+  mode: Mode,
+  rawCommonEnv: any,
+  privateKeyEnv: boolean,
+): Promise<any> {
   if (mode == Mode.EXECUTOR || mode == Mode.BOTH) {
-    return await loadFileAndParseToObject(
+    const rawExecutorEnv = await loadFileAndParseToObject(
       `${dir}/${Mode.EXECUTOR.toLowerCase()}.json`,
     );
+
+    if (privateKeyEnv) {
+      rawExecutorEnv.privateKeys = Object.assign(
+        (rawExecutorEnv as ExecutorEnv).privateKeys,
+        await privateKeyEnvVarLoader(
+          (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
+        ),
+      );
+    }
+    return rawExecutorEnv;
   }
   return undefined;
 }

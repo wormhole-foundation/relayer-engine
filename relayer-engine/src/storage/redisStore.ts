@@ -7,7 +7,7 @@ import { getScopedLogger } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
 
 // type RedisClientType = Awaited<ReturnType<typeof createConnection>>;
-interface RedisConfig {
+export interface RedisConfig {
   redisHost: string;
   redisPort: number;
 }
@@ -55,7 +55,7 @@ export class DefaultRedisWrapper implements RedisWrapper {
 async function createConnection(
   { redisHost, redisPort }: RedisConfig,
   logger: Logger,
-) {
+): Promise<IRedis> {
   try {
     let client = createClient({
       socket: {

@@ -12,9 +12,12 @@ async function main() {
   const configs = await relayerEngine.loadRelayerEngineConfig(
     "./relayer-engine-config",
     relayerEngine.Mode.BOTH,
-    {},
   );
+
+  console.log("");
   console.log("NOTE: only works for testnet/devnet");
+  console.log("");
+
 
   const solanaConfig = nnull(
     configs.commonEnv.supportedChains.find(

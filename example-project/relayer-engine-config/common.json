@@ -1,9 +1,10 @@
 {
-  "mode": "BOTH",
   "logLevel": "debug",
+  "storeType": "Redis",
   "readinessPort": 2000,
-  "promPort": 9100,
   "numGuardians": 1,
+  "redisPort": 6379,
+  "redisHost": "localhost",
   "supportedChains": [
     {
       "chainId": 1,

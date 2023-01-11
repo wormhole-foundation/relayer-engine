@@ -8,13 +8,16 @@ import {
 import { Logger } from "winston";
 import {
   Direction,
+  InMemory,
   IRedis,
   RedisWrapper,
   Storage,
   WorkflowWithPlugin,
 } from ".";
+import { CommonEnv, StoreType } from "../config";
 import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
-import { nnull, sleep } from "../utils/utils";
+import { EngineError, nnull, sleep } from "../utils/utils";
+import { DefaultRedisWrapper, RedisConfig } from "./redisStore";
 
 const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
 const STAGING_AREA_KEY = "__stagingArea";
@@ -24,12 +27,29 @@ const COMPLETE = "__complete";
 /* HACK */
 const numTimesWorkflowRequeued = new Map<string, number>();
 
-export function createStorage(
-  store: RedisWrapper,
+export async function createStorage(
   plugins: Plugin[],
+  config: CommonEnv,
   logger?: Logger,
-): Storage {
-  return new DefaultStorage(store, plugins, logger || getLogger());
+): Promise<Storage> {
+  switch (config.storeType) {
+    case StoreType.InMemory:
+      return new DefaultStorage(new InMemory(), plugins, logger || getLogger());
+    case StoreType.Redis:
+      const redisConfig = config as RedisConfig;
+      if (!redisConfig.redisHost || !redisConfig.redisPort) {
+        throw new EngineError(
+          "Redis config values must be present if redis store type selected",
+        );
+      }
+      return new DefaultStorage(
+        await DefaultRedisWrapper.fromConfig(redisConfig),
+        plugins,
+        logger || getLogger(),
+      );
+    default:
+      throw new EngineError("Unrecognized storage type", config.storeType);
+  }
 }
 
 function sanitize(dirtyString: string): string {
