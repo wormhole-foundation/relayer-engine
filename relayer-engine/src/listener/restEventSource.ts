@@ -5,7 +5,7 @@ import { Plugin, Providers } from "relayer-plugin-interface";
 import { Storage } from "../storage";
 
 export interface RestConfig {
-  restPort: number 
+  restPort: number;
 }
 
 // //used for both rest & spy relayer for now

@@ -9,10 +9,10 @@ import { ethers } from "ethers";
 import { ChainConfigInfo, Providers } from "relayer-plugin-interface";
 
 export function providersFromChainConfig(
-  chainConfigs: ChainConfigInfo[]
+  chainConfigs: ChainConfigInfo[],
 ): Providers {
   const evmEntries: [EVMChainId, ethers.providers.JsonRpcProvider][] =
-    chainConfigs.flatMap((chain) => {
+    chainConfigs.flatMap(chain => {
       if (isEVMChain(chain.chainId)) {
         return [
           [chain.chainId, new ethers.providers.JsonRpcProvider(chain.nodeUrl)],
@@ -25,7 +25,7 @@ export function providersFromChainConfig(
   };
 
   let solanaUrl = chainConfigs.find(
-    (info) => info.chainId === CHAIN_ID_SOLANA
+    info => info.chainId === CHAIN_ID_SOLANA,
   )?.nodeUrl;
   if (!solanaUrl) {
     // todo: change me!!!!!!

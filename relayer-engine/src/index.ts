@@ -14,9 +14,7 @@ import {
   validateEnvs,
 } from "./config";
 import { getLogger, getScopedLogger } from "./helpers/logHelper";
-import {
-  createStorage,
-} from "./storage";
+import { createStorage } from "./storage";
 export * from "./config";
 export * from "./utils/utils";
 export * from "./storage";
