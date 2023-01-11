@@ -173,7 +173,7 @@ class InMemoryMulti implements Multi {
       await this.store.set(key, value);
     });
   }
-  async exec(pipeline: boolean = false): Promise<RedisCommandRawReply[]> {
+  async exec(pipeline: boolean = true): Promise<RedisCommandRawReply[]> {
     try {
       await Promise.all(this.ops.map(op => op()));
     } catch (e) {

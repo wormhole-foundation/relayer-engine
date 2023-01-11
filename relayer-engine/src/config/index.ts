@@ -40,7 +40,7 @@ export interface CommonEnv {
   redisHost?: string;
   redisPort?: number;
   pluginURIs?: NodeURI[];
-  numGuardians?: number
+  numGuardians?: number;
   mode: Mode;
   supportedChains: ChainConfigInfo[];
 }
@@ -71,7 +71,7 @@ let listenerEnv: ListenerEnv | undefined = undefined;
 export function getCommonEnv(): CommonEnv {
   if (!commonEnv) {
     throw new Error(
-      "Tried to get CommonEnv but it does not exist. Has it been loaded yet?"
+      "Tried to get CommonEnv but it does not exist. Has it been loaded yet?",
     );
   }
   return commonEnv;
@@ -80,7 +80,7 @@ export function getCommonEnv(): CommonEnv {
 export function getExecutorEnv(): ExecutorEnv {
   if (!executorEnv) {
     throw new Error(
-      "Tried to get ExecutorEnv but it does not exist. Has it been loaded yet?"
+      "Tried to get ExecutorEnv but it does not exist. Has it been loaded yet?",
     );
   }
   return executorEnv;
@@ -89,7 +89,7 @@ export function getExecutorEnv(): ExecutorEnv {
 export function getListenerEnv(): ListenerEnv {
   if (!listenerEnv) {
     throw new Error(
-      "Tried to get ListenerEnv but it does not exist. Has it been loaded yet?"
+      "Tried to get ListenerEnv but it does not exist. Has it been loaded yet?",
     );
   }
   return listenerEnv;
@@ -98,7 +98,9 @@ export function getListenerEnv(): ListenerEnv {
 export function loadRelayerEngineConfig(
   dir: string,
   mode: Mode,
-  { privateKeyEnv }: { privateKeyEnv?: boolean }
+  { privateKeyEnv = true }: { privateKeyEnv?: boolean } = {
+    privateKeyEnv: true,
+  },
 ): Promise<RelayerEngineConfigs> {
   return loadUntypedEnvs(dir, mode, { privateKeyEnv }).then(validateEnvs);
 }
@@ -143,7 +145,7 @@ export function validateEnvs(input: {
   if (input.rawExecutorEnv) {
     executorEnv = validateExecutorEnv(
       input.rawExecutorEnv,
-      commonEnv.supportedChains.map((c) => c.chainId)
+      commonEnv.supportedChains.map(c => c.chainId),
     );
   }
   if (input.rawListenerEnv) {
