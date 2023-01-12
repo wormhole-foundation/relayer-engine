@@ -12,6 +12,7 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "0.9.6",
     "@solana/spl-token": "^0.3.6",
+    "@wormhole-foundation/relayer-engine": "github:wormhole-foundation/relayer-engine#6cc93b0561dd1cd6b255be06efc99bf1e5cc3229",
     "relayer-engine": "file:../"
   },
   "author": "Joe Howarth",

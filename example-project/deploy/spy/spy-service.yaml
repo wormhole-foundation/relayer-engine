@@ -1,0 +1,79 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .NAME }}
+  namespace: {{ .NAMESPACE }}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: {{ .HOSTNAME }}
+  labels:
+    app: {{ .NAME }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: {{ .NAME }}
+  ports:
+    - port: 80
+      targetPort: {{ .PORT }}
+      name: {{ .NAME }}
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .NAME }}
+  namespace: {{ .NAMESPACE }}
+spec:
+  replicas: {{ .REPLICAS }}
+  selector:
+    matchLabels:
+      app: {{ .NAME }}
+  template:
+    metadata:
+      labels:
+        app: {{ .NAME }}
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: {{ .NAME }}
+          image: {{ .IMAGE_NAME }}
+          readinessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+            httpGet:
+              path: /api/ready
+              port: 8000
+          livenessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+            httpGet:
+              path: /api/health
+              port: 8000
+          env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb
+                  key: mongo-uri
+            - name: MONGODB_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: config
+                  key: mongo-database
+            - name: GRPC_ADDRESS
+              value: {{ .GRPC_ADDRESS }}
+            - name: PORT
+              value: "8000"
+          resources:
+            limits:
+              memory: {{ .RESOURCES_LIMITS_MEMORY }}
+              cpu: {{ .RESOURCES_LIMITS_CPU }}
+            requests:
+              memory: {{ .RESOURCES_REQUESTS_MEMORY }}
+              cpu: {{ .RESOURCES_REQUESTS_CPU }}

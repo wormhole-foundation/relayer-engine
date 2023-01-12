@@ -1,0 +1,72 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spy
+  namespace: default
+  labels:
+    app: spy
+spec:
+  type: LoadBalancer
+  selector:
+    app: spy
+  ports:
+    - port: 7073
+      targetPort: 7073
+      name: spy
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spy
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spy
+  template:
+    metadata:
+      labels:
+        app: spy
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: spy
+          image: ghcr.io/wormhole-foundation/guardiand:latest
+          args: 
+          - spy
+          - --nodeKey 
+          - /node.key 
+          - --spyRPC 
+          - "[::]:7073" 
+          - --network 
+          - /wormhole/testnet/2/1 
+          - --bootstrap 
+          - /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i
+          # readinessProbe:
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 20
+          #   timeoutSeconds: 3
+          #   failureThreshold: 3
+          #   httpGet:
+          #     path: /api/ready
+          #     port: 8000
+          # livenessProbe:
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 30
+          #   timeoutSeconds: 3
+          #   failureThreshold: 3
+          #   httpGet:
+          #     path: /api/health
+          #     port: 8000
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: 500m
+            requests:
+              memory: 128Mi
+              cpu: 250m
