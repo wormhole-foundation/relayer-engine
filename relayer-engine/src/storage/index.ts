@@ -6,7 +6,6 @@ import {
   Workflow,
   WorkflowId,
 } from "relayer-plugin-interface";
-import { DefaultStorage } from "./storage";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 
 export { InMemory } from "./inMemoryStore";
