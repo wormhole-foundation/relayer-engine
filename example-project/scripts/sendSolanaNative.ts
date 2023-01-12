@@ -1,7 +1,7 @@
 import * as wh from "@certusone/wormhole-sdk";
 import * as web3 from "@solana/web3.js";
-import * as relayerEngine from "relayer-engine";
-import { nnull, sleep } from "relayer-engine";
+import * as relayerEngine from "@wormhole-foundation/relayer-engine";
+import { nnull, sleep } from "@wormhole-foundation/relayer-engine";
 
 // Test script to send VAAs from devnet Solana to Fuji Avax
 // By default it sends 1 VAA

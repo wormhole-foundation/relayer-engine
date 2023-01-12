@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: SimpleRelayer
+  name: simple-relayer
   namespace: default
   labels:
-    app: SimpleRelayer
+    app: simple-relayer
 spec:
   type: LoadBalancer
   selector:
-    app: SimpleRelayer
+    app: simple-relayer
   ports:
-  - name: SimpleRelayer
+  - name: simple-relayer
     protocol: TCP
     port: 8000
     targetPort: 8000
@@ -19,47 +19,32 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name:  SimpleRelayer
+  name:  simple-relayer
   namespace: default
   labels:
-    app:  SimpleRelayer
+    app:  simple-relayer
 spec:
   selector:
     matchLabels:
-      app: SimpleRelayer
+      app: simple-relayer
   replicas: 1
   template:
     metadata:
       labels:
-        app:  SimpleRelayer
+        app:  simple-relayer
     spec:
       restartPolicy: Always 
       containers:
-      - name:  SimpleRelayer
-        image:  DummyPlugin:latest
+      - name:  simple-relayer
+        image:  dummy-plugin:latest
+        imagePullPolicy: Never
         resources:
           requests:
             cpu: 100m
             memory: 100Mi
           limits:
-            cpu: 100m
-            memory: 100Mi
-        readinessProbe:
-          initialDelaySeconds: 30
-          periodSeconds: 20
-          timeoutSeconds: 3
-          failureThreshold: 3
-          httpGet:
-            path: /api/ready
-            port: 8000
-        livenessProbe:
-          initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 3
-          failureThreshold: 3
-          httpGet:
-            path: /api/health
-            port: 8000
+            cpu: 900m
+            memory: 900Mi
         ports:
         - containerPort:  8000
-          name:  SimpleRelayer
+          name:  simple-relayer

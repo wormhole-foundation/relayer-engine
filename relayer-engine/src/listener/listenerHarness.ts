@@ -25,7 +25,9 @@ export async function run(plugins: Plugin[], storage: Storage) {
 
   //if spy is enabled, instantiate spy with filters
   if (shouldSpy(plugins)) {
-    logger().info("Initializing spy listener...");
+    logger().info(
+      `Initializing spy listener on ${listnerEnv.spyServiceHost}...`,
+    );
     const spyClient = createSpyRPCServiceClient(
       listnerEnv.spyServiceHost || "",
     );

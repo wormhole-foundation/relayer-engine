@@ -28,7 +28,7 @@ spec:
   replicas: {{ .REPLICAS }}
   selector:
     matchLabels:
-      app: {{ .NAME }}
+      ap: {{ .NAME }}
   template:
     metadata:
       labels:

@@ -1,4 +1,4 @@
-import * as relayerEngine from "relayer-engine";
+import * as relayerEngine from "@wormhole-foundation/relayer-engine";
 import dummyPluginDef, {
   DummyPluginConfig,
 } from "../plugins/dummy_plugin/src/plugin";
