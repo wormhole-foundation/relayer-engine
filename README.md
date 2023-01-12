@@ -4,11 +4,11 @@ Checkout the [example project](./example-project/README.md) or scroll to [quicks
 
 ## Objective
 
-Make it easy to write the off-chain component of a wormhole cross-chain app (aka [xDapp](https://book.wormhole.com/dapps/4_whatIsanXdapp.html)). 
+Make it easy to write the off-chain component of a wormhole cross-chain app (aka [xDapp](https://book.wormhole.com/dapps/4_whatIsanXdapp.html)).
 
-An xDapp developer can write their app specific logic for filtering what wormhole messages they care about, how to parse custom payloads and what actions to take on chain (or across many chains!) as a **plugin**. 
+An xDapp developer can write their app specific logic for filtering what wormhole messages they care about, how to parse custom payloads and what actions to take on chain (or across many chains!) as a **plugin**.
 
-One or more plugins are then run by the relayer **engine** which takes care of all the plumbing to start receiving VAAs. Crucially, as the app matures the engine can be reconfigured to move from a lightweight testing setup to full production grade setup, featuring multiple nodes, backing database, automatic dropped message detection and more. 
+One or more plugins are then run by the relayer **engine** which takes care of all the plumbing to start receiving VAAs. Crucially, as the app matures the engine can be reconfigured to move from a lightweight testing setup to full production grade setup, featuring multiple nodes, backing database, automatic dropped message detection and more.
 
 ## Background
 
@@ -24,7 +24,7 @@ Prior to the relayer engine and relayer plugins, there was no modularized templa
   - multi-node / high availability listeners and executors
   - backing persistent database
   - automatic dropped message detection and backfilling
-  - configurable metrics and logging 
+  - configurable metrics and logging
   - and more
 - Define the relayer interface to enable applications to define arbitrary off-chain computation
 
@@ -87,7 +87,7 @@ Common relayer engine configurations require a spy node to be running (see above
 
 ```bash
 npm run mainnet-spy
-# or 
+# or
 npm run testnet-spy
 ```
 

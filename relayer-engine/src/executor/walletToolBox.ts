@@ -12,7 +12,7 @@ import { dbg } from "../helpers/logHelper";
 export function createWalletToolbox(
   providers: Providers,
   privateKey: string,
-  chainId: wh.ChainId
+  chainId: wh.ChainId,
 ): WalletToolBox<any> {
   if (wh.isEVMChain(chainId)) {
     return createEVMWalletToolBox(providers, privateKey, chainId);
@@ -21,7 +21,7 @@ export function createWalletToolbox(
     case wh.CHAIN_ID_SOLANA:
       return createSolanaWalletToolBox(
         providers,
-        new Uint8Array(JSON.parse(privateKey))
+        new Uint8Array(JSON.parse(privateKey)),
       );
   }
   throw new Error(`Spawned worker for unknown chainId ${chainId}`);
@@ -30,7 +30,7 @@ export function createWalletToolbox(
 function createEVMWalletToolBox(
   providers: Providers,
   privateKey: string,
-  chainId: wh.EVMChainId
+  chainId: wh.EVMChainId,
 ): WalletToolBox<EVMWallet> {
   return {
     ...providers,
@@ -40,7 +40,7 @@ function createEVMWalletToolBox(
 
 function createSolanaWalletToolBox(
   providers: Providers,
-  privateKey: Uint8Array
+  privateKey: Uint8Array,
 ): WalletToolBox<SolanaWallet> {
   return {
     ...providers,
@@ -52,5 +52,5 @@ function createSolanaWalletToolBox(
 }
 
 function maybeConcat<T>(...arrs: (T[] | undefined)[]): T[] {
-  return arrs.flatMap((arr) => (arr ? arr : []));
+  return arrs.flatMap(arr => (arr ? arr : []));
 }
