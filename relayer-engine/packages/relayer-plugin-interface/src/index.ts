@@ -152,6 +152,9 @@ export interface Plugin<WorkflowData = any> {
     providers: Providers,
     execute: ActionExecutor,
   ): Promise<void>;
+
+  // A plugin can specify how long to wait to retry, if not implemented, exponential backoff will be used
+  getRetryDelayInMS?(workflow: Workflow): number;
 }
 
 export type EventSource = (
