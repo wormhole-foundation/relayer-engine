@@ -43,6 +43,7 @@ describe("Workflow lifecycle happy path tests using InMemory store", () => {
   const storage = new DefaultStorage(
     store,
     [plugin],
+    config.defaultWorkflowOptions,
     createLogger({ transports: new transports.Console() }),
   );
   const workflow = {
@@ -78,7 +79,12 @@ describe("withKeys tests", () => {
   const store = new InMemory();
   const plugin = new TestPlugin();
   const logger = createLogger({ transports: new transports.Console() });
-  const storage = new DefaultStorage(store, [plugin], logger);
+  const storage = new DefaultStorage(
+    store,
+    [plugin],
+    config.defaultWorkflowOptions,
+    logger,
+  );
   const key = "key";
 
   const lock = storage.getStagingAreaKeyLock(plugin.pluginName);

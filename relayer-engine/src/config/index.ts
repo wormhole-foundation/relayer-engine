@@ -3,6 +3,7 @@ import {
   ChainConfigInfo,
   CommonPluginEnv,
   EnvType,
+  WorkflowOptions,
 } from "relayer-plugin-interface";
 import { loadUntypedEnvs } from "./loadConfig";
 import {
@@ -43,6 +44,7 @@ export interface CommonEnv {
   numGuardians?: number;
   mode: Mode;
   supportedChains: ChainConfigInfo[];
+  defaultWorkflowOptions: WorkflowOptions;
 }
 // assert CommonEnv is superset of CommonPluginEnv
 let _x: CommonPluginEnv = {} as CommonEnv;

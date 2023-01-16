@@ -31,6 +31,7 @@ import { Counter, Gauge } from "prom-client";
 import { pluginsConfiguredGauge } from "./metrics";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { consumeEventHarness } from "./listener/eventHarness";
+import { randomUUID } from "crypto";
 export {
   getLogger,
   getScopedLogger,
@@ -63,7 +64,8 @@ export async function run(args: RunArgs): Promise<void> {
   const plugins = args.plugins.map(({ fn, pluginName }) =>
     fn(commonEnv, getScopedLogger([pluginName])),
   );
-  const storage = await createStorage(plugins, commonEnv, args.store);
+  const nodeId = randomUUID();
+  const storage = await createStorage(plugins, commonEnv, args.store, nodeId);
 
   // run each plugins afterSetup lifecycle hook to gain access to
   // providers for each chain and the eventSource hook that allows
@@ -94,6 +96,16 @@ export async function run(args: RunArgs): Promise<void> {
     async collect() {
       // Invoked when the registry collects its metrics' values.
       const currentValue = await storage.numEnqueuedWorkflows();
+      this.set(currentValue);
+    },
+  });
+
+  new Gauge({
+    name: "delayed_workflows",
+    help: "Count of workflows waiting to be requeued after erroring out.",
+    async collect() {
+      // Invoked when the registry collects its metrics' values.
+      const currentValue = await storage.numDelayedWorkflows();
       this.set(currentValue);
     },
   });

@@ -4,6 +4,9 @@
   "numGuardians": 1,
   "redisPort": 6379,
   "redisHost": "localhost",
+  "defaultWorkflowOptions": {
+    "maxRetries": 10
+  },
   "supportedChains": [
     {
       "chainId": 1,
