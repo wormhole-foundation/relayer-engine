@@ -18,7 +18,6 @@ async function main() {
   console.log("NOTE: only works for testnet/devnet");
   console.log("");
 
-
   const solanaConfig = nnull(
     configs.commonEnv.supportedChains.find(
       c => c.chainId === wh.CHAIN_ID_SOLANA,

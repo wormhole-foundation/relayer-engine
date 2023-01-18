@@ -13,19 +13,17 @@ import {
   IRedis,
   RedisWrapper,
   Storage,
-  StoreType,
   WorkflowWithPlugin,
 } from ".";
-import { CommonEnv } from "../config";
+import { CommonEnv, StoreType } from "../config";
 import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
 import { EngineError, nnull, sleep } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
 import { DefaultRedisWrapper, RedisConfig } from "./redisStore";
 
-// QUEUES
 const READY_WORKFLOW_QUEUE = "__workflowQ"; // workflows ready to execute
-const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows"; // workflows currently executing
-const DEAD_LETTER_QUEUE = "";
+const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
+const DEAD_LETTER_QUEUE = "__deadWorkflows";
 const DELAYED_WORKFLOWS_QUEUE = "__delayedWorkflows"; // failed workflows being delayed before going back to ready to execute
 const EXECUTORS_HEARTBEAT_HASH = "__executorsHeartbeats";
 const STAGING_AREA_KEY = "__stagingArea";
@@ -38,19 +36,12 @@ type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 export async function createStorage(
   plugins: Plugin[],
   config: CommonEnv,
-  storeType: StoreType = StoreType.InMemory,
   nodeId: string,
   logger?: Logger,
 ): Promise<Storage> {
-  switch (storeType) {
+  switch (config.storeType) {
     case StoreType.InMemory:
-      return new DefaultStorage(
-        new InMemory(),
-        plugins,
-        config.defaultWorkflowOptions,
-        nodeId,
-        logger || getLogger(),
-      );
+      return new DefaultStorage(new InMemory(), plugins,config.defaultWorkflowOptions, nodeId, logger || getLogger());
     case StoreType.Redis:
       const redisConfig = config as RedisConfig;
       if (!redisConfig.redisHost || !redisConfig.redisPort) {
@@ -66,7 +57,7 @@ export async function createStorage(
         logger || getLogger(),
       );
     default:
-      throw new EngineError("Unrecognized storage type", storeType);
+      throw new EngineError("Unrecognized storage type", config.storeType);
   }
 }
 

@@ -133,7 +133,6 @@ export interface Plugin<WorkflowData = any> {
   shouldSpy: boolean; // Boolean toggle if relayer should connect to Guardian Network via non-validation guardiand node
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
   demoteInProgress?: boolean;
-  maxRetries?: number; // Default number for how many times a failed workflow should be retried before moving it to a dead letter queue
   afterSetup?(
     providers: Providers,
     listenerResources?: { eventSource: EventSource; db: StagingAreaKeyLock },

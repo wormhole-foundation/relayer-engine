@@ -15,7 +15,7 @@ Filtering:
 Listener:
 
 - input: VAA & Immutable action state (redis tables)
-- output: 
+- output:
   - New actions to be enqueued for exucution
   - New actions to be side-lined
 
@@ -25,45 +25,51 @@ Execute:
 - output: New actions to enqueue, actions to dequeue
 
 ## Redis tables
+
 Each plugin will get its own redis sandbox, which is isolated from other plugins running on the same relayer.
 Each plugin receives two of the sandboxed tables:
-  - Primary list of pending actions
-  - Listener 'staging' area
+
+- Primary list of pending actions
+- Listener 'staging' area
 
 ## Workers
-- 1 sync worker per wallet, with actions created by multiple plugins 
+
+- 1 sync worker per wallet, with actions created by multiple plugins
   - 1 signer wallet
-  - all providers 
+  - all providers
   - redis state for plugin that owns this action
-- N async read-only actions scheduled in parallel  
+- N async read-only actions scheduled in parallel
   - all providers
   - redis state for plugin that owns this action
 - (later) actions can also be async, relayer will schedule multiple async actions together
 
-## Config 
+## Config
+
 ### Base Relayer
+
 - common
 - listener
-- executor 
+- executor
 
-### Plugin 
+### Plugin
+
 - defines config type
 - bundles config for mainnet and devnet as default
 - plugin constructor gets passed:
+
   - which env (to look up in default map)
   - optionally override configs
   - common config (cannot know whether it's running in executor or listener process)
 
+  ***
 
-
-  ------------
 # New Design
 
 # Listener
 
-Queue workflow storage objects in redis 
+Queue workflow storage objects in redis
 
-# Executor 
+# Executor
 
 - Consumes workflow storage objects and begins executing workflows
 - Workflow handler can
@@ -71,14 +77,15 @@ Queue workflow storage objects in redis
 - worker scheduler uses in-memory queue instead of redis, otherwise stays the same
 - workflow scheduler:
   - watches redis for new worlfow storage objects
-  - updates redis with history of actions 
+  - updates redis with history of actions
   - manage long-running workflows
-  - recover on startup 
-
+  - recover on startup
 
 # Plugin Interface
-- workflow handler 
+
+- workflow handler
 - action executor (same as before, one for each blockchain environment)
 
 # Builtin FetchVAA, FetchBatch Action
+
 `execute(fetchVAA(seq, emitter))`

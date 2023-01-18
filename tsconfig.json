@@ -4,9 +4,7 @@
     "target": "esnext",
     "module": "CommonJS",
     "moduleResolution": "node",
-    "lib": [
-      "es2019"
-    ],
+    "lib": ["es2019"],
     "declaration": true,
     "skipLibCheck": true,
     "allowJs": true,
@@ -18,9 +16,7 @@
     "downlevelIteration": true,
     "sourceMap": true
   },
-  "include": [
-    "relayer-engine/src"
-  ],
+  "include": ["relayer-engine/src"],
   "exclude": [
     "node_modules",
     "relayer-engine/lib/**/*",

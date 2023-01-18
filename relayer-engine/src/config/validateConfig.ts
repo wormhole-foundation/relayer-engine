@@ -8,9 +8,8 @@ import {
   isEVMChain,
   isTerraChain,
 } from "@certusone/wormhole-sdk";
-import { CommonEnv, ExecutorEnv, ListenerEnv, Mode } from ".";
+import { CommonEnv, ExecutorEnv, ListenerEnv, Mode, StoreType } from ".";
 import { assertArray, assertInt, EngineError, nnull } from "../utils/utils";
-import { type } from "os";
 
 type ConfigPrivateKey = {
   chainId: ChainId;
@@ -20,6 +19,7 @@ type ConfigPrivateKey = {
 export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
   return {
     logLevel: raw.logLevel,
+    storeType: validateStringEnum<StoreType>(StoreType, raw.storeType),
     redisHost: raw.redisHost,
     redisPort: raw.redisPort && assertInt(raw.redisPort, "redisPort"),
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
