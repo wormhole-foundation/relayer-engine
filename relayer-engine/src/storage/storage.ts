@@ -452,7 +452,8 @@ export class DefaultStorage implements Storage {
           !workflow.processingBy || deadExecutors[workflow.processingBy],
       );
 
-      return 0;
+      await Promise.all(staleWorkflows.map(w => this.requeueWorkflow(w, now)));
+      return staleWorkflows.length;
     });
     return movedWorkflows;
   }
