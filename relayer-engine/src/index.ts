@@ -10,7 +10,6 @@ import {
   ListenerEnv,
   loadUntypedEnvs,
   Mode,
-  StoreType,
   validateEnvs,
 } from "./config";
 import { getLogger, getScopedLogger } from "./helpers/logHelper";
@@ -48,7 +47,6 @@ export interface RunArgs {
       };
   mode: Mode;
   plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
-  store?: StoreType;
 }
 
 export async function run(args: RunArgs): Promise<void> {

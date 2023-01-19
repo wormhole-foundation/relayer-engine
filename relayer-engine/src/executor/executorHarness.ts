@@ -50,8 +50,8 @@ export interface ActionWithCont<T, W extends Wallet> {
   reject: (reason: any) => void;
 }
 
-const seg = 1000;
-const min = 60 * seg;
+const sec = 1000;
+const min = 60 * sec;
 
 export async function run(plugins: Plugin[], storage: Storage) {
   const executorEnv = getExecutorEnv();
@@ -221,9 +221,7 @@ async function spawnWorkflow(
         const waitFor =
           plugin.getRetryDelayInMS?.(workflow) ??
           exponentialBackoff(workflow.retryCount, 300, 10 * min);
-        const now = new Date();
-        const reExecuteAt = new Date(now.getTime() + waitFor);
-        workflow.retryCount++;
+        const reExecuteAt = new Date(Date.now() + waitFor);
         await storage.requeueWorkflow(workflow, reExecuteAt);
         logger.error(
           `Workflow: ${workflow.id} failed. Requeued with a delay of ${waitFor}ms. Attempt ${workflow.retryCount} of ${workflow.maxRetries}`,
