@@ -1,6 +1,6 @@
 import * as Koa from "koa";
-import { register } from "prom-client";
 import * as Router from "koa-router";
+import { register } from "prom-client";
 import * as dotenv from "dotenv";
 import { EngineInitFn, Plugin } from "relayer-plugin-interface";
 import {

@@ -96,6 +96,19 @@ export class InMemory implements IRedis, RedisWrapper {
     return this.hsets[key]?.get(field);
   }
 
+  async hmGet(key: string, fields: string[]): Promise<(string | null)[]> {
+    const obj = this.hsets[key];
+    if (!obj) {
+      return [];
+    }
+
+    const res = [];
+    for (const field of fields) {
+      res.push(obj.get(field) ?? null);
+    }
+    return res;
+  }
+
   async hGetAll(key: string): Promise<Record<string, string>> {
     const obj = Object.fromEntries(this.hsets[key]?.entries() ?? []);
     return obj;
@@ -340,6 +353,10 @@ class InMemoryMulti implements Multi {
 
   hGet(key: string, field: string): Multi {
     return this.new(() => this.store.hGet(key, field));
+  }
+
+  hmGet(key: string, fields: string[]): Multi {
+    return this.new(() => this.store.hmGet(key, fields));
   }
 
   hIncrBy(key: string, field: string, amount: number): Multi {

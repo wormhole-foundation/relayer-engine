@@ -58,7 +58,6 @@ export async function run(plugins: Plugin[], storage: Storage) {
   const commonEnv = getCommonEnv();
   const logger = getScopedLogger(["executorHarness"], getLogger());
 
-  await storage.handleStorageStartupConfig(plugins);
   const providers = providersFromChainConfig(commonEnv.supportedChains);
 
   logger.debug("Gathering chain worker infos...");
@@ -105,7 +104,7 @@ async function spawnRequeueWorker(
   logger: Logger,
 ) {
   while (true) {
-    const jobsMoved = await storage.moveWorkflowsToReadyQueue();
+    const jobsMoved = await storage.moveDelayedWorkflowsToReadyQueue();
     if (jobsMoved > 0) {
       logger.info(`Moved ${jobsMoved} to the ready queue.`);
     }

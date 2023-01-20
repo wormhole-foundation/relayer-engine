@@ -41,7 +41,13 @@ export async function createStorage(
 ): Promise<Storage> {
   switch (config.storeType) {
     case StoreType.InMemory:
-      return new DefaultStorage(new InMemory(), plugins,config.defaultWorkflowOptions, nodeId, logger || getLogger());
+      return new DefaultStorage(
+        new InMemory(),
+        plugins,
+        config.defaultWorkflowOptions,
+        nodeId,
+        logger || getLogger(),
+      );
     case StoreType.Redis:
       const redisConfig = config as RedisConfig;
       if (!redisConfig.redisHost || !redisConfig.redisPort) {
@@ -128,7 +134,7 @@ export class DefaultStorage implements Storage {
     const key = workflowKey(workflow);
     return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
-      if (await redis.get(key)) {
+      if (await redis.exists(key)) {
         await redis.unwatch();
         return;
       }
@@ -193,7 +199,11 @@ export class DefaultStorage implements Storage {
       const now = new Date();
       await redis
         .multi()
-        .hSet(key, <SerializedWorkflowKeys>{ completedAt: now.toString() })
+        .hSet(key, <SerializedWorkflowKeys>{
+          completedAt: now.toString(),
+          processingBy: "",
+          startedProcessingAt: "",
+        })
         .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
         .exec(true);
     });
@@ -213,7 +223,11 @@ export class DefaultStorage implements Storage {
       const now = new Date();
       await redis
         .multi()
-        .hSet(key, <SerializedWorkflowKeys>{ failedAt: now.toString() })
+        .hSet(key, <SerializedWorkflowKeys>{
+          failedAt: now.toString(),
+          processingBy: "",
+          startedProcessingAt: "",
+        })
         .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
         .zRem(DELAYED_WORKFLOWS_QUEUE, key)
         .lPush(DEAD_LETTER_QUEUE, key)
@@ -264,35 +278,6 @@ export class DefaultStorage implements Storage {
       retryCount: Number(raw.retryCount),
       maxRetries: Number(raw.maxRetries),
     };
-  }
-
-  // Demote workflows from active set based off plugin config
-  async handleStorageStartupConfig(plugins: Plugin[]): Promise<void> {
-    this.logger.debug("Handling storage startup config");
-    const pluginToShouldDemote = new Map(
-      plugins.map(p => [p.pluginName, p.demoteInProgress]),
-    );
-    this.logger.info("Checking for inProgress workflows to demote on startup");
-    // try {
-    //   return this.store.withRedis(async redis => {
-    //     const keys = await redis.hKeys(ACTIVE_WORKFLOWS_QUEUE);
-    //
-    //     for await (const key of keys) {
-    //       const workflow: Workflow = await redis
-    //         .get(key)
-    //         .then(nnull)
-    //         .then(JSON.parse);
-    //       if (pluginToShouldDemote.get(workflow.pluginName)) {
-    //         await this.requeueWorkflow(workflow, new Date());
-    //       }
-    //     }
-    //   });
-    // } catch (e) {
-    //   this.logger.error(
-    //     "Encountered an error while demoting in progress items at startup.",
-    //   );
-    //   this.logger.error(e);
-    // }
   }
 
   getStagingAreaKeyLock(pluginName: string): StagingAreaKeyLock {
@@ -348,7 +333,7 @@ export class DefaultStorage implements Storage {
     return Array.isArray(lock) ? lock[0] === 1 : false;
   }
 
-  async moveWorkflowsToReadyQueue(): Promise<number> {
+  async moveDelayedWorkflowsToReadyQueue(): Promise<number> {
     const lock = await this.acquireUnsafeLock(
       CHECK_REQUEUED_WORKFLOWS_LOCK,
       100,
@@ -379,6 +364,7 @@ export class DefaultStorage implements Storage {
         }
 
         if (!readyWorkflows.length) {
+          await redis.unwatch();
           return 0;
         }
 
@@ -408,45 +394,80 @@ export class DefaultStorage implements Storage {
       );
       return 0;
     }
-    const movedWorkflows = await this.store.withRedis(async redis => {
-      const activeWorkflowsIds = await redis.lRange(
-        ACTIVE_WORKFLOWS_QUEUE,
-        0,
-        -1,
-      );
-      if (!activeWorkflowsIds.length) {
-        return 0;
-      }
-
-      const now = new Date();
-      const aMinuteAgo = new Date(now.getTime() - 60000);
-      const executors = await redis.hGetAll(EXECUTORS_HEARTBEAT_HASH);
-      const deadExecutors: Record<string, boolean> = {};
-      for (const executorId of Object.keys(executors)) {
-        const lastHeartbeat = new Date(executors[executorId]);
-        if (lastHeartbeat < aMinuteAgo) {
-          deadExecutors[executorId] = true;
+    try {
+      const movedWorkflows = await this.store.withRedis(async redis => {
+        await redis.watch(lock);
+        const activeWorkflowsIds = await redis.lRange(
+          ACTIVE_WORKFLOWS_QUEUE,
+          0,
+          -1,
+        );
+        if (!activeWorkflowsIds.length) {
+          await redis.unwatch();
+          return 0;
         }
-      }
 
-      const multi = redis.multi();
-      for (const key of activeWorkflowsIds) {
-        multi.hGetAll(key);
-      }
-      const rawWorkflows = await multi.exec();
-      const activeWorkflows = rawWorkflows.map(raw =>
-        // @ts-ignore
-        this.rawObjToWorkflow(raw),
-      );
-      const staleWorkflows = activeWorkflows.filter(
-        workflow =>
-          !workflow.processingBy || deadExecutors[workflow.processingBy],
-      );
+        const now = new Date();
+        const aMinuteAgo = new Date(Date.now() - 60000);
+        const executors = await redis.hGetAll(EXECUTORS_HEARTBEAT_HASH);
+        const deadExecutors: Record<string, boolean> = {};
+        for (const executorId of Object.keys(executors)) {
+          const lastHeartbeat = new Date(executors[executorId]);
+          if (lastHeartbeat < aMinuteAgo) {
+            deadExecutors[executorId] = true;
+          }
+        }
 
-      await Promise.all(staleWorkflows.map(w => this.requeueWorkflow(w, now)));
-      return staleWorkflows.length;
-    });
-    return movedWorkflows;
+        let multi = redis.multi();
+        for (const key of activeWorkflowsIds) {
+          // TODO: READ LESS DATA. You only to read the processingBy field and then set the corresponding metadata.
+          multi.hmGet(key, ["pluginName", "id", "processingBy"]);
+        }
+        const rawWorkflows = await multi.exec();
+        await redis.watch(lock);
+        const activeWorkflows = rawWorkflows.map(
+          // @ts-ignore This is a valid array, the type system is wrong.
+          ([pluginName, id, processingBy]) => ({
+            id,
+            pluginName,
+            processingBy,
+          }),
+        );
+        const staleWorkflows = activeWorkflows.filter(
+          workflow =>
+            !workflow.processingBy || deadExecutors[workflow.processingBy],
+        );
+        if (!staleWorkflows.length) {
+          await redis.unwatch();
+          return 0;
+        }
+
+        multi = redis.multi();
+        for (const w of staleWorkflows) {
+          const key = workflowKey(w);
+          multi
+            .lRem(READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
+            .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
+            .hSet(key, <SerializedWorkflowKeys>{
+              processingBy: "",
+              startedProcessingAt: "",
+            })
+            .hIncrBy(key, "retryCount", 1)
+            .lPush(READY_WORKFLOW_QUEUE, key);
+        }
+        await multi.exec();
+        // LOG Ids
+        const count = staleWorkflows.length;
+        this.logger.info(
+          `Found ${count} state jobs. Moved them back to ready queue`,
+        );
+        return count;
+      });
+      return movedWorkflows;
+    } catch (e) {
+      this.logger.error(e);
+      return 0;
+    }
   }
 }
 

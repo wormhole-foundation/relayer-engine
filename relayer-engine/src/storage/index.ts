@@ -17,7 +17,6 @@ export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
 export interface Storage {
   getNextWorkflow(timeoutInSeconds: number): Promise<null | WorkflowWithPlugin>;
   requeueWorkflow(workflow: Workflow, reExecuteAt: Date): Promise<void>;
-  handleStorageStartupConfig(plugins: Plugin[]): Promise<void>;
   numActiveWorkflows(): Promise<number>;
   numEnqueuedWorkflows(): Promise<number>;
   numDelayedWorkflows(): Promise<number>;
@@ -30,7 +29,7 @@ export interface Storage {
   addWorkflow(workflow: Workflow): Promise<void>;
 
   getStagingAreaKeyLock(pluginName: string): StagingAreaKeyLock;
-  moveWorkflowsToReadyQueue(): Promise<number>;
+  moveDelayedWorkflowsToReadyQueue(): Promise<number>;
   cleanupStaleActiveWorkflows(): Promise<number>;
   emitHeartbeat(): Promise<void>;
 }
@@ -62,6 +61,7 @@ export interface IRedis {
   hIncrBy(key: string, field: string, incr: number): Promise<number>;
   hGet(key: string, field: string): Promise<string | undefined>;
   hGetAll(key: string): Promise<Record<string, string>>;
+  hmGet(key: string, keys: string[]): Promise<(string | null)[]>;
   rPop(key: string): Promise<string | null>;
   lPush(key: string, val: string | string[]): Promise<number>;
   lLen(key: string): Promise<number>;
@@ -104,6 +104,7 @@ export interface Multi {
   hIncrBy(key: string, field: string, incr: number): Multi;
   hGet(key: string, field: string): Multi;
   hGetAll(key: string): Multi;
+  hmGet(key: string, keys: string[]): Multi;
   pExpire(key: string, ms: number): Multi;
   exec(pipeline?: boolean): Promise<RedisCommandRawReply[]>;
 }

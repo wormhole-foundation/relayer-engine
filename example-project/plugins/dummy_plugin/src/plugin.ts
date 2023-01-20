@@ -138,7 +138,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     // Simulate different processing times for metrics
     await sleep(randomInt(0, 4000));
 
-    let PROBABILITY_OF_FAILURE = 1;
+    let PROBABILITY_OF_FAILURE = 0.5;
     if (Math.random() < PROBABILITY_OF_FAILURE) {
       throw new Error("Simulating workflow failure");
     }
