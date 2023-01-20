@@ -92,7 +92,6 @@ export interface Plugin<WorkflowData = any> {
         workflowOptions?: WorkflowOptions;
     }>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
-    getRetryDelayInMS?(workflow: Workflow): number;
 }
 export declare type EventSource = (event: SignedVaa, extraData?: any[]) => Promise<void>;
 export declare type ContractFilter = {
