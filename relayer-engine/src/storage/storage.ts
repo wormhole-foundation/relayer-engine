@@ -266,35 +266,6 @@ export class DefaultStorage implements Storage {
     };
   }
 
-  // Demote workflows from active set based off plugin config
-  async handleStorageStartupConfig(plugins: Plugin[]): Promise<void> {
-    this.logger.debug("Handling storage startup config");
-    const pluginToShouldDemote = new Map(
-      plugins.map(p => [p.pluginName, p.demoteInProgress]),
-    );
-    this.logger.info("Checking for inProgress workflows to demote on startup");
-    // try {
-    //   return this.store.withRedis(async redis => {
-    //     const keys = await redis.hKeys(ACTIVE_WORKFLOWS_QUEUE);
-    //
-    //     for await (const key of keys) {
-    //       const workflow: Workflow = await redis
-    //         .get(key)
-    //         .then(nnull)
-    //         .then(JSON.parse);
-    //       if (pluginToShouldDemote.get(workflow.pluginName)) {
-    //         await this.requeueWorkflow(workflow, new Date());
-    //       }
-    //     }
-    //   });
-    // } catch (e) {
-    //   this.logger.error(
-    //     "Encountered an error while demoting in progress items at startup.",
-    //   );
-    //   this.logger.error(e);
-    // }
-  }
-
   getStagingAreaKeyLock(pluginName: string): StagingAreaKeyLock {
     return new DefaultStagingAreaKeyLock(this.store, this.logger, pluginName);
   }

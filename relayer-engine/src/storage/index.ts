@@ -17,7 +17,6 @@ export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
 export interface Storage {
   getNextWorkflow(timeoutInSeconds: number): Promise<null | WorkflowWithPlugin>;
   requeueWorkflow(workflow: Workflow, reExecuteAt: Date): Promise<void>;
-  handleStorageStartupConfig(plugins: Plugin[]): Promise<void>;
   numActiveWorkflows(): Promise<number>;
   numEnqueuedWorkflows(): Promise<number>;
   numDelayedWorkflows(): Promise<number>;
@@ -52,7 +51,7 @@ export interface IRedis {
   multi(): Multi;
   watch(key: string | string[]): Promise<string>;
   get(key: string): Promise<string | null>;
-  exists(key: string): Promise<boolean>;
+  exists(key: string): Promise<number>;
   del(key: string): Promise<number>;
   set(key: string, value: string, options?: Opts): Promise<string | null>;
   unwatch(): Promise<string>;
@@ -93,7 +92,7 @@ export interface IRedis {
 export interface Multi {
   hDel(key: string, field: string): Multi;
   del(key: string): Multi;
-  exists(key: string): Multi;
+  exists(keys: string): Multi;
   lPush(key: string, element: string | string[]): Multi;
   zAdd(key: string, elements: { value: string; score: number }[]): Multi;
   lRem(key: string, count: number, element: string): Multi;
