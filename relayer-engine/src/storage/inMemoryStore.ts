@@ -60,14 +60,14 @@ export class InMemory implements IRedis, RedisWrapper {
     return this.hsets[key]?.size || 0;
   }
 
-  async exists(key: string): Promise<boolean> {
-    return !!(
-      this.locks[key] ||
+  async exists(key: string): Promise<number> {
+    return this.locks[key] ||
       this.kv[key] ||
       this.hsets[key] ||
       this.sets[key] ||
       this.lists[key]
-    );
+      ? 1
+      : 0;
   }
 
   async hSet(key: string, fields: HSETObject): Promise<number>;

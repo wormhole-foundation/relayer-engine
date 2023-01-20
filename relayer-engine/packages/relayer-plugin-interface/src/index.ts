@@ -132,7 +132,7 @@ export interface Plugin<WorkflowData = any> {
   pluginConfig: any; // Configuration settings for plugin
   shouldSpy: boolean; // Boolean toggle if relayer should connect to Guardian Network via non-validation guardiand node
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
-  demoteInProgress?: boolean;
+  maxRetries?: number;
   afterSetup?(
     providers: Providers,
     listenerResources?: { eventSource: EventSource; db: StagingAreaKeyLock },

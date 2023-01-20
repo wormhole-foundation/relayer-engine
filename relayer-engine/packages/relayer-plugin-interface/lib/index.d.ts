@@ -80,7 +80,6 @@ export interface Plugin<WorkflowData = any> {
     pluginConfig: any;
     shouldSpy: boolean;
     shouldRest: boolean;
-    demoteInProgress?: boolean;
     maxRetries?: number;
     afterSetup?(providers: Providers, listenerResources?: {
         eventSource: EventSource;
