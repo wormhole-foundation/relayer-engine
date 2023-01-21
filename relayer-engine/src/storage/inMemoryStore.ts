@@ -37,10 +37,11 @@ export class InMemory implements IRedis, RedisWrapper {
       keys = [keys];
     }
     for (const key of keys) {
-      const val = this.locks[key];
-      if (val) {
-        throw new Error("Watching already watched key");
-      }
+      // we can't throw here because this is out of spec with redis. We need to come up with something better.
+      // const val = this.locks[key];
+      // if (val) {
+      //   throw new Error("Watching already watched key");
+      // }
       this.locks[key] = { val: this.kv[key] || null };
     }
     return "OK";
@@ -61,11 +62,7 @@ export class InMemory implements IRedis, RedisWrapper {
   }
 
   async exists(key: string): Promise<number> {
-    return this.locks[key] ||
-      this.kv[key] ||
-      this.hsets[key] ||
-      this.sets[key] ||
-      this.lists[key]
+    return this.kv[key] || this.hsets[key] || this.sets[key] || this.lists[key]
       ? 1
       : 0;
   }

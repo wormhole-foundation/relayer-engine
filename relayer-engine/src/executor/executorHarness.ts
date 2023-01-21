@@ -217,9 +217,7 @@ async function spawnWorkflow(
       logger.error(e);
       failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
       if (workflow.maxRetries! > workflow.retryCount) {
-        const waitFor =
-          plugin.getRetryDelayInMS?.(workflow) ??
-          exponentialBackoff(workflow.retryCount, 300, 10 * min);
+        const waitFor = exponentialBackoff(workflow.retryCount, 300, 10 * min);
         const reExecuteAt = new Date(Date.now() + waitFor);
         await storage.requeueWorkflow(workflow, reExecuteAt);
         logger.error(

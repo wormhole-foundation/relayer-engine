@@ -407,7 +407,6 @@ export class DefaultStorage implements Storage {
           return 0;
         }
 
-        const now = new Date();
         const aMinuteAgo = new Date(Date.now() - 60000);
         const executors = await redis.hGetAll(EXECUTORS_HEARTBEAT_HASH);
         const deadExecutors: Record<string, boolean> = {};
@@ -416,6 +415,11 @@ export class DefaultStorage implements Storage {
           if (lastHeartbeat < aMinuteAgo) {
             deadExecutors[executorId] = true;
           }
+        }
+
+        if (Object.keys(deadExecutors).length === 0) {
+          await redis.unwatch();
+          return 0;
         }
 
         let multi = redis.multi();
