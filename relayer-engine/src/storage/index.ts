@@ -15,6 +15,10 @@ export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
 // Idea is we could have multiple implementations backed by different types of storage
 // i.e. RedisStorage, PostgresStorage, MemoryStorage etc.
 export interface Storage {
+  getWorkflow(id: {
+    id: string;
+    pluginName: string;
+  }): Promise<null | WorkflowWithPlugin>;
   getNextWorkflow(timeoutInSeconds: number): Promise<null | WorkflowWithPlugin>;
   requeueWorkflow(workflow: Workflow, reExecuteAt: Date): Promise<void>;
   numActiveWorkflows(): Promise<number>;

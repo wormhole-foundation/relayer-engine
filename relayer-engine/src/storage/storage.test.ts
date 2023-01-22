@@ -43,35 +43,39 @@ describe("Workflow lifecycle happy path tests using InMemory store", () => {
   const storage = new DefaultStorage(
     store,
     [plugin],
-    config.defaultWorkflowOptions,
+    { maxRetries: 10 },
+    "test-id",
     createLogger({ transports: new transports.Console() }),
   );
   const workflow = {
     id: "id",
     pluginName: TestPlugin.pluginName,
     data: "This is some great data",
+    retryCount: 0,
   };
   const key = workflowKey(workflow);
 
   it("adds workflows", async () => {
     await expect(await storage.numActiveWorkflows()).toBe(0);
     await storage.addWorkflow(workflow);
-    await expect(await store.get(key)).toStrictEqual(JSON.stringify(workflow));
+    const workflowAndPlugin = await storage.getWorkflow(workflow);
+    expect(workflowAndPlugin).not.toBeNull();
+    expect(workflowAndPlugin!.workflow).toEqual(workflow);
   });
 
   it("gets next workflow", async () => {
     const res = await storage.getNextWorkflow(2);
     await expect(res).toBeTruthy();
-    expect(res!.plugin.demoteInProgress).toBe(plugin.demoteInProgress);
-    expect(res!.workflow).toStrictEqual(workflow);
+    expect(res!.workflow).toEqual(workflow);
     expect(await store.lLen("__activeWorkflows")).toBe(1);
     expect(await store.lIndex("__activeWorkflows", 0)).toBe(key);
   });
 
   it("completes workflow", async () => {
     await storage.completeWorkflow(workflow);
-    expect(await store.get(key)).toBe("__complete");
-    expect(await store.lLen("__activeWorkflows")).toBe(0);
+    expect(await store.hGet(key, "completedAt")).toBeTruthy();
+    expect(await storage.numActiveWorkflows()).toBe(0);
+    expect(await storage.numEnqueuedWorkflows()).toBe(0);
   });
 });
 
@@ -82,7 +86,8 @@ describe("withKeys tests", () => {
   const storage = new DefaultStorage(
     store,
     [plugin],
-    config.defaultWorkflowOptions,
+    { maxRetries: 10 },
+    "test-node-id",
     logger,
   );
   const key = "key";
@@ -121,7 +126,7 @@ describe("withKeys tests", () => {
     expect(await lock.getKeys([key])).toStrictEqual({ [key]: 2 });
   });
 
-  it("should not allow conficting modifications ", async () => {
+  it("should not allow conflicting modifications ", async () => {
     const key = "key2";
     const val = lock.withKey([key], async kv => {
       await sleep(500);

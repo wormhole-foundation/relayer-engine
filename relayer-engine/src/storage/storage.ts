@@ -123,13 +123,10 @@ export class DefaultStorage implements Storage {
   }
 
   // Add a workflow to the queue to be processed
-  addWorkflow(
-    workflow: Workflow,
-    workflowOptions: WorkflowOptions = this.defaultWorkflowOptions,
-  ): Promise<void> {
+  addWorkflow(workflow: Workflow): Promise<void> {
     // set defaults if no values were passed;
-    workflowOptions.maxRetries =
-      workflowOptions.maxRetries ?? this._defaultWorkflowOptions.maxRetries;
+    workflow.maxRetries =
+      workflow.maxRetries ?? this._defaultWorkflowOptions.maxRetries;
 
     const key = workflowKey(workflow);
     return this.store.runOpWithRetry(async redis => {
@@ -233,6 +230,19 @@ export class DefaultStorage implements Storage {
         .lPush(DEAD_LETTER_QUEUE, key)
         .exec(true);
     });
+  }
+
+  async getWorkflow(workflowId: {
+    pluginName: string;
+    id: string;
+  }): Promise<WorkflowWithPlugin | null> {
+    const key = workflowKey(workflowId);
+    const workflowRaw = await this.store.withRedis(redis => redis.hGetAll(key));
+    if (!workflowRaw) {
+      return null;
+    }
+    const workflow = this.rawObjToWorkflow(workflowRaw);
+    return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
   }
 
   // Get the next workflow to process.
