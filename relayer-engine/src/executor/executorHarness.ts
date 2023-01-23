@@ -149,6 +149,7 @@ async function spawnExecutor(
         logger.debug("No new workflows found");
         continue;
       }
+      logger.debug("New workflow found");
       const { workflow, plugin } = res;
 
       await spawnWorkflow(
