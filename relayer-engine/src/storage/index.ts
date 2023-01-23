@@ -6,11 +6,20 @@ import {
   WorkflowId,
 } from "relayer-plugin-interface";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
+import { ChainId } from "@certusone/wormhole-sdk";
 
 export { InMemory } from "./inMemoryStore";
 export { createStorage } from "./storage";
 
 export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
+export type EmitterRecord = {
+  lastSeenSequence: number;
+  time: Date;
+};
+export type EmitterRecordWithKey = EmitterRecord & {
+  emitterAddress: string;
+  chainId: ChainId;
+};
 
 // Idea is we could have multiple implementations backed by different types of storage
 // i.e. RedisStorage, PostgresStorage, MemoryStorage etc.
@@ -36,6 +45,17 @@ export interface Storage {
   moveDelayedWorkflowsToReadyQueue(): Promise<number>;
   cleanupStaleActiveWorkflows(): Promise<number>;
   emitHeartbeat(): Promise<void>;
+
+  getEmitterRecord(
+    chainId: ChainId,
+    emitterAddress: string,
+  ): Promise<EmitterRecord | null>;
+  setEmitterRecord(
+    chainId: ChainId,
+    emitterAddress: string,
+    sequence: number,
+  ): Promise<void>;
+  getAllEmitterRecords(): Promise<EmitterRecordWithKey[]>;
 }
 
 export enum Direction {

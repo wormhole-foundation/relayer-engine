@@ -9,6 +9,8 @@ import {
 import { Logger } from "winston";
 import {
   Direction,
+  EmitterRecord,
+  EmitterRecordWithKey,
   InMemory,
   IRedis,
   RedisWrapper,
@@ -20,6 +22,7 @@ import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
 import { EngineError, nnull, sleep } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
 import { DefaultRedisWrapper, RedisConfig } from "./redisStore";
+import { ChainId } from "@certusone/wormhole-sdk";
 
 const READY_WORKFLOW_QUEUE = "__workflowQ"; // workflows ready to execute
 const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
@@ -30,6 +33,7 @@ const STAGING_AREA_KEY = "__stagingArea";
 const COMPLETE = "__complete";
 const CHECK_REQUEUED_WORKFLOWS_LOCK = "__isRequeueJobRunning";
 const CHECK_STALE_ACTIVE_WORKFLOWS_LOCK = "_isStaleWorkflowsJobRunning";
+const EMITTER_KEY = "__emitter";
 
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 
@@ -71,6 +75,18 @@ function sanitize(dirtyString: string): string {
   return dirtyString.replace("[^a-zA-z_0-9]*", "");
 }
 
+function emitterRecordKey(chainId: ChainId, emitterAddress: string): string {
+  return `${chainId}:${emitterAddress}`;
+}
+
+function parseEmitterRecordKey(key: string): {
+  chainId: ChainId;
+  emitterAddress: string;
+} {
+  const [chainIdStr, emitterAddress] = key.split(":");
+  return { chainId: Number(chainIdStr) as ChainId, emitterAddress };
+}
+
 export class DefaultStorage implements Storage {
   private readonly plugins: Map<string, Plugin>;
   private readonly logger;
@@ -84,6 +100,60 @@ export class DefaultStorage implements Storage {
   ) {
     this.logger = getScopedLogger([`GlobalStorage`], logger);
     this.plugins = new Map(plugins.map(p => [p.pluginName, p]));
+  }
+
+  // fetch an emitter record by chainId and emitterAddress
+  getEmitterRecord(
+    chainId: ChainId,
+    emitterAddress: string,
+  ): Promise<EmitterRecord | null> {
+    return this.store.withRedis(async redis => {
+      const res = await redis.hGet(
+        EMITTER_KEY,
+        emitterRecordKey(chainId, emitterAddress),
+      );
+      if (!res) {
+        return null;
+      }
+      const parsed: EmitterRecord = JSON.parse(res);
+      parsed.time = new Date(parsed.time);
+      return parsed;
+    });
+  }
+
+  // set an emitter record with given sequence and update the timestamp
+  setEmitterRecord(
+    chainId: ChainId,
+    emitterAddress: string,
+    lastSeenSequence: number,
+  ): Promise<void> {
+    return this.store.runOpWithRetry(async redis => {
+      while (true) {
+        const record: EmitterRecord = { lastSeenSequence, time: new Date() };
+        const key = emitterRecordKey(chainId, emitterAddress);
+        const entry = await this.getEmitterRecord(chainId, emitterAddress)
+        if (entry?.lastSeenSequence)
+        if (!(await this.acquireUnsafeLock(key, 50))) {
+          continue;
+        }
+        await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
+      }
+    });
+  }
+
+  // Fetch all emitter records from redis
+  getAllEmitterRecords(): Promise<EmitterRecordWithKey[]> {
+    return this.store.withRedis(async redis => {
+      const res = await redis.hGetAll(EMITTER_KEY);
+      return Object.entries(res).map(([key, value]) => {
+        const { lastSeenSequence, time }: EmitterRecord = JSON.parse(value);
+        return {
+          lastSeenSequence,
+          time: new Date(time),
+          ...parseEmitterRecordKey(key),
+        };
+      });
+    });
   }
 
   async emitHeartbeat(): Promise<void> {
@@ -311,7 +381,8 @@ export class DefaultStorage implements Storage {
         if (lockOwner === this.nodeId) {
           await redis.multi().pExpire(lockKey, expiresInMs).exec();
           return lockKey;
-        } else if (!lockOwner) {
+        } else if (lockOwner === null) {
+          // no one ownes lock, aquire it
           const didSet = await redis.set(lockKey, this.nodeId, {
             NX: true,
             PX: expiresInMs,

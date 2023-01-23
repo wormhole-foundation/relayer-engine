@@ -144,7 +144,6 @@ async function spawnExecutor(
         await sleep(SPAWN_WORKFLOW_INTERNAL);
         continue;
       }
-      // TODO
       const res = await storage.getNextWorkflow(1);
       if (!res) {
         logger.debug("No new workflows found");
