@@ -1,5 +1,5 @@
 {
-  "mode": "BOTH",
+  "mode": "both",
   "logLevel": "debug",
   "storeType": "InMemory",
   "readinessPort": 2000,

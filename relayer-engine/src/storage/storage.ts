@@ -131,12 +131,23 @@ export class DefaultStorage implements Storage {
       while (true) {
         const record: EmitterRecord = { lastSeenSequence, time: new Date() };
         const key = emitterRecordKey(chainId, emitterAddress);
-        const entry = await this.getEmitterRecord(chainId, emitterAddress)
-        if (entry?.lastSeenSequence)
+        const entry = await this.getEmitterRecord(chainId, emitterAddress);
+        if (entry && entry.lastSeenSequence >= lastSeenSequence) {
+          // no need to update if lastSeenSeq has moved past what we are trying to set
+          return;
+        }
         if (!(await this.acquireUnsafeLock(key, 50))) {
+          this.logger.debug(
+            "Failed to acquire lock for key, retrying... " + key,
+          );
           continue;
         }
         await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
+        await this.releaseUnsafeLock(key);
+        this.logger.debug(
+          `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
+        );
+        return;
       }
     });
   }
@@ -321,6 +332,7 @@ export class DefaultStorage implements Storage {
     timeoutInSeconds: number,
   ): Promise<WorkflowWithPlugin | null> {
     return this.store.withRedis(async redis => {
+      this.logger.debug("Top of getNextWorkflow");
       const key = await redis.blMove(
         READY_WORKFLOW_QUEUE,
         ACTIVE_WORKFLOWS_QUEUE,
@@ -328,9 +340,11 @@ export class DefaultStorage implements Storage {
         Direction.RIGHT,
         timeoutInSeconds,
       );
+      this.logger.debug("Returned null");
       if (!key) {
         return null;
       }
+      this.logger.debug("Got workflow object from queue, parsing...");
       const raw = nnull(await redis.hGetAll(key));
       const workflow = this.rawObjToWorkflow(raw);
       const now = new Date();
@@ -338,6 +352,7 @@ export class DefaultStorage implements Storage {
         processingBy: this.nodeId,
         startedProcessingAt: now.getTime(),
       });
+      this.logger.debug("Returning next workflow");
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
     });
   }

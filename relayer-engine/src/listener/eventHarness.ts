@@ -38,6 +38,9 @@ async function fetchMissedVaas(
   lastSeenSequence: number,
   latestSequence: number,
 ): Promise<void> {
+  logger().debug(
+    `Fetching missed vaas for ${chainId}:${emitterAddress}, from ${lastSeenSequence} to ${latestSequence}`,
+  );
   for (let seq = lastSeenSequence + 1; seq < latestSequence; ++seq) {
     try {
       const resp = await wh.getSignedVAAWithRetry(
@@ -115,9 +118,15 @@ export async function consumeEventHarnessInner(
       });
       createdWorkflowsCounter.labels({ plugin: plugin.pluginName }).inc();
     }
+
+    // update last seen sequence number for this emitter
     const chainId = assertChainId(parsedVaa.emitterChain);
     const emitterAddress = wormholeBytesToHex(parsedVaa.emitterAddress);
-    storage.setEmitterRecord(chainId, emitterAddress, );
+    await storage.setEmitterRecord(
+      chainId,
+      emitterAddress,
+      Number(parsedVaa.sequence),
+    );
   } catch (e) {
     const l = logger();
     l.error(`Encountered error consumingEvent for plugin ${plugin.pluginName}`);
