@@ -108,10 +108,9 @@ export class DefaultStorage implements Storage {
     emitterAddress: string,
   ): Promise<EmitterRecord | null> {
     return this.store.withRedis(async redis => {
-      const res = await redis.hGet(
-        EMITTER_KEY,
-        emitterRecordKey(chainId, emitterAddress),
-      );
+      const key = emitterRecordKey(chainId, emitterAddress);
+      this.logger.debug(`getEmitterRecord ${key}`);
+      const res = await redis.hGet(EMITTER_KEY, key);
       if (!res) {
         return null;
       }
@@ -128,26 +127,29 @@ export class DefaultStorage implements Storage {
     lastSeenSequence: number,
   ): Promise<void> {
     return this.store.runOpWithRetry(async redis => {
+      this.logger.debug(`setEmitterRecord`);
       while (true) {
         const record: EmitterRecord = { lastSeenSequence, time: new Date() };
         const key = emitterRecordKey(chainId, emitterAddress);
+        this.logger.debug(`about to get emitterRecord`);
         const entry = await this.getEmitterRecord(chainId, emitterAddress);
+        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}`);
         if (entry && entry.lastSeenSequence >= lastSeenSequence) {
-          // no need to update if lastSeenSeq has moved past what we are trying to set
+          this.logger.debug(
+            "no need to update if lastSeenSeq has moved past what we are trying to set " +
+              key,
+          );
           return;
         }
-        if (!(await this.acquireUnsafeLock(key, 50))) {
+        if (await this.acquireUnsafeLock(key, 50)) {
+          await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
+          await this.releaseUnsafeLock(key);
           this.logger.debug(
-            "Failed to acquire lock for key, retrying... " + key,
+            `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
           );
-          continue;
+          return;
         }
-        await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
-        await this.releaseUnsafeLock(key);
-        this.logger.debug(
-          `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
-        );
-        return;
+        this.logger.debug("Failed to acquire lock for key, retrying... " + key);
       }
     });
   }
@@ -155,7 +157,9 @@ export class DefaultStorage implements Storage {
   // Fetch all emitter records from redis
   getAllEmitterRecords(): Promise<EmitterRecordWithKey[]> {
     return this.store.withRedis(async redis => {
+      this.logger.debug(`getAllEmitterRecords`);
       const res = await redis.hGetAll(EMITTER_KEY);
+      this.logger.debug(`getAllEmitterRecords raw: ${JSON.stringify(res)}`);
       return Object.entries(res).map(([key, value]) => {
         const { lastSeenSequence, time }: EmitterRecord = JSON.parse(value);
         return {
