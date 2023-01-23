@@ -1,4 +1,12 @@
-import { parseVaa, SignedVaa } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  EVMChainId,
+  isChain,
+  isEVMChain,
+  parseVaa,
+  SignedVaa,
+} from "@certusone/wormhole-sdk";
+import { ethers } from "ethers";
 import { ParsedVaaWithBytes } from "relayer-plugin-interface";
 
 export class EngineError extends Error {
@@ -49,8 +57,34 @@ export function assertBool(x: any, fieldName?: string): boolean {
   return x as boolean;
 }
 
-export function parseVaaWithBytes(vaa: SignedVaa): ParsedVaaWithBytes {
-  const parsedVaa = parseVaa(vaa) as ParsedVaaWithBytes;
-  parsedVaa.bytes = Buffer.from(vaa);
+export function parseVaaWithBytes(
+  vaa: ParsedVaaWithBytes | SignedVaa,
+): ParsedVaaWithBytes {
+  // @ts-ignore
+  if (vaa?.emitterAddress?.length > 0) {
+    return vaa as ParsedVaaWithBytes;
+  }
+  const parsedVaa = parseVaa(vaa as SignedVaa) as ParsedVaaWithBytes;
+  parsedVaa.bytes = Buffer.from(vaa as SignedVaa);
   return parsedVaa;
+}
+
+export function wormholeBytesToHex(address: Buffer | Uint8Array): string {
+  return ethers.utils.hexlify(address).replace("0x", "");
+}
+
+export function assertEvmChainId(chainId: number): EVMChainId {
+  if (!isEVMChain(chainId as ChainId)) {
+    throw new EngineError("Expected number to be valid EVM chainId", {
+      chainId,
+    });
+  }
+  return chainId as EVMChainId;
+}
+
+export function assertChainId(chainId: number): ChainId {
+  if (!isChain(chainId)) {
+    throw new EngineError("Expected number to be valid chainId", { chainId });
+  }
+  return chainId as ChainId;
 }
