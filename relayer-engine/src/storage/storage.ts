@@ -336,7 +336,6 @@ export class DefaultStorage implements Storage {
     timeoutInSeconds: number,
   ): Promise<WorkflowWithPlugin | null> {
     return this.store.withRedis(async redis => {
-      this.logger.debug("Top of getNextWorkflow");
       const key = await redis.blMove(
         READY_WORKFLOW_QUEUE,
         ACTIVE_WORKFLOWS_QUEUE,
@@ -344,11 +343,9 @@ export class DefaultStorage implements Storage {
         Direction.RIGHT,
         timeoutInSeconds,
       );
-      this.logger.debug("Returned null");
       if (!key) {
         return null;
       }
-      this.logger.debug("Got workflow object from queue, parsing...");
       const raw = nnull(await redis.hGetAll(key));
       const workflow = this.rawObjToWorkflow(raw);
       const now = new Date();
@@ -356,7 +353,6 @@ export class DefaultStorage implements Storage {
         processingBy: this.nodeId,
         startedProcessingAt: now.getTime(),
       });
-      this.logger.debug("Returning next workflow");
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
     });
   }
