@@ -1,4 +1,7 @@
-import { subscribeSignedVAA } from "@certusone/wormhole-spydk";
+import {
+  createSpyRPCServiceClient,
+  subscribeSignedVAA,
+} from "@certusone/wormhole-spydk";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
 import LRUCache = require("lru-cache");
 import { ContractFilter, Plugin, Providers } from "relayer-plugin-interface";
@@ -7,6 +10,11 @@ import { sleep } from "../utils/utils";
 import * as wormholeSdk from "@certusone/wormhole-sdk";
 import { ScopedLogger, getScopedLogger } from "../helpers/logHelper";
 import { consumeEventHarness } from "./eventHarness";
+import { getCommonEnv, getListenerEnv } from "../config";
+import { transformEmitterFilter } from "./listenerHarness";
+
+// TODO: get from config or sdk etc.
+const NUM_GUARDIANS = 19;
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -16,8 +24,32 @@ const logger = () => {
   return _logger;
 };
 
+export async function createSpyEventSource(
+  plugins: Plugin[],
+  storage: Storage,
+  providers: Providers,
+) {
+  const commonEnv = getCommonEnv();
+  const listenerEnv = getListenerEnv();
+  const spyClient = createSpyRPCServiceClient(listenerEnv.spyServiceHost || "");
+  plugins.forEach(plugin => {
+    if (plugin.shouldSpy) {
+      logger().info(
+        `Initializing spy listener for plugin ${plugin.pluginName}...`,
+      );
+      runPluginSpyListener(
+        plugin,
+        storage,
+        spyClient,
+        providers,
+        commonEnv.numGuardians || NUM_GUARDIANS,
+      );
+    }
+  });
+}
+
 //used for both rest & spy relayer for now
-export async function runPluginSpyListener(
+async function runPluginSpyListener(
   plugin: Plugin,
   storage: Storage,
   client: SpyRPCServiceClient,
@@ -102,32 +134,4 @@ export async function runPluginSpyListener(
     await sleep(5 * 1000);
     logger().info("attempting to reconnect to the spy service");
   }
-}
-
-async function transformEmitterFilter(
-  x: ContractFilter,
-): Promise<ContractFilter> {
-  return {
-    chainId: x.chainId,
-    emitterAddress: await encodeEmitterAddress(x.chainId, x.emitterAddress),
-  };
-}
-
-async function encodeEmitterAddress(
-  myChainId: wormholeSdk.ChainId,
-  emitterAddressStr: string,
-): Promise<string> {
-  if (
-    myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
-    myChainId === wormholeSdk.CHAIN_ID_PYTHNET
-  ) {
-    return await wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
-  }
-  if (wormholeSdk.isTerraChain(myChainId)) {
-    return await wormholeSdk.getEmitterAddressTerra(emitterAddressStr);
-  }
-  if (wormholeSdk.isEVMChain(myChainId)) {
-    return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
-  }
-  throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
 }

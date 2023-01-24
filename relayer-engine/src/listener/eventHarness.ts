@@ -1,5 +1,4 @@
-import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
-import * as wh from "@certusone/wormhole-sdk";
+import { SignedVaa } from "@certusone/wormhole-sdk";
 import {
   ParsedVaaWithBytes,
   Plugin,
@@ -17,9 +16,7 @@ import {
   erroredEventsCounter,
   receivedEventsCounter,
 } from "./metrics";
-import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
-
-const wormholeRpc = "https://wormhole-v2-testnet-api.certus.one";
+import { fetchMissedVaas } from "./missedVaaFetching";
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -28,42 +25,6 @@ const logger = () => {
   }
   return _logger;
 };
-
-async function fetchMissedVaas(
-  plugin: Plugin,
-  storage: Storage,
-  providers: Providers,
-  chainId: ChainId,
-  emitterAddress: string,
-  lastSeenSequence: number,
-  latestSequence: number,
-): Promise<void> {
-  logger().debug(
-    `Fetching missed vaas for ${chainId}:${emitterAddress}, from ${lastSeenSequence} to ${latestSequence}`,
-  );
-  for (let seq = lastSeenSequence + 1; seq < latestSequence; ++seq) {
-    try {
-      const resp = await wh.getSignedVAAWithRetry(
-        [wormholeRpc],
-        chainId,
-        emitterAddress,
-        seq.toString(),
-        { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
-      );
-
-      if (!resp?.vaaBytes) {
-        logger().debug(
-          `Attempted to fetch vaa with lagging sequence number but not found in wormhole rpc. ${chainId}:${emitterAddress}:${seq}`,
-        );
-        continue;
-      }
-      consumeEventHarnessInner(resp.vaaBytes, plugin, storage, providers);
-    } catch (e) {
-      logger().error("Attempted to fetch missed Vaa but encountered error");
-      logger().error(e);
-    }
-  }
-}
 
 export async function consumeEventHarness(
   vaa: SignedVaa,
@@ -113,6 +74,9 @@ export async function consumeEventHarnessInner(
       extraData,
     );
     if (workflowData) {
+      logger().info(
+        `Received workflow data from plugin ${plugin.pluginName}, adding workflow...`,
+      );
       await storage.addWorkflow({
         data: workflowData,
         id: parsedVaa.hash.toString("base64"),
