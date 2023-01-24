@@ -636,17 +636,12 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
         await redis.watch(keys.map(key => `${this.stagingAreaKey}/${key}`));
 
         const kvs = await this.getKeysInternal<KV>(redis, keys);
-        // const original = Object.assign({}, kvs);
 
         const { newKV, val } = await f(kvs);
 
-        // update only those keys that returned and were different than before
         let multi = redis.multi();
         for (const [k, v] of Object.entries(newKV)) {
-          // todo: consider checking for changes
-          // if (v !== original[k]) {
           multi = multi.set(`${this.stagingAreaKey}/${k}`, JSON.stringify(v));
-          // }
         }
         await multi.exec(true);
 
