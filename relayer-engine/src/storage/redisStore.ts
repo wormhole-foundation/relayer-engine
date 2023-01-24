@@ -28,8 +28,7 @@ export class DefaultRedisWrapper implements RedisWrapper {
   }
 
   withRedis<T>(op: Op<T>): Promise<T> {
-    return op(this.redis)
-    // return this.redis.executeIsolated(op);
+    return this.redis.executeIsolated(op);
   }
 
   // This process executes the backlog periodically, so that items inside the backlog
