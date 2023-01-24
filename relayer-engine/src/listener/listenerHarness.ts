@@ -1,14 +1,11 @@
 import { getCommonEnv, getListenerEnv } from "../config";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
-import { Plugin } from "relayer-plugin-interface";
-import { createSpyRPCServiceClient } from "@certusone/wormhole-spydk";
+import { ContractFilter, Plugin } from "relayer-plugin-interface";
 import { Storage } from "../storage";
 import { providersFromChainConfig } from "../utils/providers";
-import { runPluginSpyListener } from "./spyEventSource";
-import { PluginEventSource } from "./pluginEventSource";
-
-// TODO: get from config or sdk etc.
-const NUM_GUARDIANS = 19;
+import { createSpyEventSource } from "./spyEventSource";
+import * as wormholeSdk from "@certusone/wormhole-sdk";
+import { nextVaaFetchingWorker } from "./missedVaaFetching";
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -19,34 +16,17 @@ const logger = () => {
 };
 
 export async function run(plugins: Plugin[], storage: Storage) {
-  const listnerEnv = getListenerEnv();
   const commonEnv = getCommonEnv();
   const providers = providersFromChainConfig(commonEnv.supportedChains);
 
-  //if spy is enabled, instantiate spy with filters
   if (shouldSpy(plugins)) {
     logger().info("Initializing spy listener...");
-    const spyClient = createSpyRPCServiceClient(
-      listnerEnv.spyServiceHost || "",
-    );
-    plugins.forEach(plugin => {
-      if (plugin.shouldSpy) {
-        logger().info(
-          `Initializing spy listener for plugin ${plugin.pluginName}...`,
-        );
-        runPluginSpyListener(
-          plugin,
-          storage,
-          spyClient,
-          providers,
-          commonEnv.numGuardians || NUM_GUARDIANS,
-        );
-      }
-    });
+    createSpyEventSource(plugins, storage, providers);
+    nextVaaFetchingWorker(plugins, storage, providers);
   }
 
-  //if rest is enabled, instantiate rest with filters
   if (shouldRest(plugins)) {
+    logger().warn(`Rest listener interface not yet implemented`);
     //const restListener = setupRestListener(restFilters);
   }
   logger().debug("End of listener harness run function");
@@ -58,4 +38,32 @@ function shouldRest(plugins: Plugin[]): boolean {
 
 function shouldSpy(plugins: Plugin[]): boolean {
   return plugins.some(x => x.shouldSpy);
+}
+
+export async function transformEmitterFilter(
+  x: ContractFilter,
+): Promise<ContractFilter> {
+  return {
+    chainId: x.chainId,
+    emitterAddress: await encodeEmitterAddress(x.chainId, x.emitterAddress),
+  };
+}
+
+async function encodeEmitterAddress(
+  myChainId: wormholeSdk.ChainId,
+  emitterAddressStr: string,
+): Promise<string> {
+  if (
+    myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
+    myChainId === wormholeSdk.CHAIN_ID_PYTHNET
+  ) {
+    return await wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
+  }
+  if (wormholeSdk.isTerraChain(myChainId)) {
+    return await wormholeSdk.getEmitterAddressTerra(emitterAddressStr);
+  }
+  if (wormholeSdk.isEVMChain(myChainId)) {
+    return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
+  }
+  throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
 }
