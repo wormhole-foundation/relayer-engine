@@ -156,9 +156,9 @@ export class DefaultStorage implements Storage {
         }
 
         // only set the record if we are able to aquire the lock
-        if (await this.acquireUnsafeLock(key, 50)) {
+        if (await this.acquireUnsafeLock(redis, key, 50)) {
           await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
-          await this.releaseUnsafeLock(key);
+          await this.releaseUnsafeLock(redis, key);
           this.logger.debug(
             `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
           );
@@ -398,13 +398,13 @@ export class DefaultStorage implements Storage {
   // if we need a better lock we can use redlock (https://redis.io/docs/manual/patterns/distributed-locks/), but that's not needed right now as it's ok for 2 instances to check this queue.
   // the lock is just to avoid duplicated work, not to guarantee exclusivity.
   private async acquireUnsafeLock(
+    redis: IRedis,
     key: string,
     expiresInMs: number,
   ): Promise<string | null> {
-    const lockKey = `locks:${key}`;
-
-    const acquired = await this.store.withRedis(async redis => {
+    const op = async (redis: IRedis) => {
       try {
+        const lockKey = `locks:${key}`;
         await redis.watch(lockKey);
         const lockOwner = await redis.get(lockKey);
         // we already own the lock, extend it
@@ -426,35 +426,41 @@ export class DefaultStorage implements Storage {
         this.logger.error(e);
       }
       return null;
-    });
+    };
 
-    return acquired;
+    return await op(redis);
   }
 
-  private async releaseUnsafeLock(key: string): Promise<boolean> {
-    const lockKey = `locks:${key}`;
-    const lock = await this.store.withRedis(async redis => {
+  private async releaseUnsafeLock(
+    redis: IRedis,
+    key: string,
+  ): Promise<boolean> {
+    const op = async (redis: IRedis) => {
+      const lockKey = `locks:${key}`;
       await redis.watch(lockKey);
       const holder = await redis.get(lockKey);
       if (holder === this.nodeId) {
         return redis.multi().del(lockKey).exec();
       }
       return 0;
-    });
+    };
+
+    const lock = await op(redis);
     return Array.isArray(lock) ? lock[0] === 1 : false;
   }
 
   async moveDelayedWorkflowsToReadyQueue(): Promise<number> {
-    const lock = await this.acquireUnsafeLock(
-      CHECK_REQUEUED_WORKFLOWS_LOCK,
-      100,
-    );
-    if (!lock) {
-      this.logger.debug("could not acquire lock to move workflows");
-      return 0;
-    }
     try {
       const jobsMoved = await this.store.withRedis(async redis => {
+        const lock = await this.acquireUnsafeLock(
+          redis,
+          CHECK_REQUEUED_WORKFLOWS_LOCK,
+          100,
+        );
+        if (!lock) {
+          this.logger.debug("could not acquire lock to move workflows");
+          return 0;
+        }
         await redis.watch(lock);
         const pendingJobs = await redis.zRangeWithScores(
           DELAYED_WORKFLOWS_QUEUE,
@@ -495,18 +501,20 @@ export class DefaultStorage implements Storage {
   }
 
   async cleanupStaleActiveWorkflows(): Promise<number> {
-    const lock = await this.acquireUnsafeLock(
-      CHECK_STALE_ACTIVE_WORKFLOWS_LOCK,
-      100,
-    );
-    if (!lock) {
-      this.logger.debug(
-        "could not acquire lock to cleanup stale active workflows",
-      );
-      return 0;
-    }
     try {
       const movedWorkflows = await this.store.withRedis(async redis => {
+        const lock = await this.acquireUnsafeLock(
+          redis,
+          CHECK_STALE_ACTIVE_WORKFLOWS_LOCK,
+          100,
+        );
+        if (!lock) {
+          this.logger.debug(
+            "could not acquire lock to cleanup stale active workflows",
+          );
+          return 0;
+        }
+
         await redis.watch(lock);
         const activeWorkflowsIds = await redis.lRange(
           ACTIVE_WORKFLOWS_QUEUE,
