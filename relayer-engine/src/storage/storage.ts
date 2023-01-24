@@ -10,6 +10,7 @@ import { Logger } from "winston";
 import {
   Direction,
   EmitterRecord,
+  EmitterRecordKey,
   EmitterRecordWithKey,
   InMemory,
   IRedis,
@@ -75,16 +76,17 @@ function sanitize(dirtyString: string): string {
   return dirtyString.replace("[^a-zA-z_0-9]*", "");
 }
 
-function emitterRecordKey(chainId: ChainId, emitterAddress: string): string {
-  return `${chainId}:${emitterAddress}`;
+function emitterRecordKey(
+  pluginName: string,
+  chainId: ChainId,
+  emitterAddress: string,
+): string {
+  return `${sanitize(pluginName)}:${chainId}:${emitterAddress}`;
 }
 
-function parseEmitterRecordKey(key: string): {
-  chainId: ChainId;
-  emitterAddress: string;
-} {
-  const [chainIdStr, emitterAddress] = key.split(":");
-  return { chainId: Number(chainIdStr) as ChainId, emitterAddress };
+function parseEmitterRecordKey(key: string): EmitterRecordKey {
+  const [pluginName, chainIdStr, emitterAddress] = key.split(":");
+  return { pluginName, chainId: Number(chainIdStr) as ChainId, emitterAddress };
 }
 
 export class DefaultStorage implements Storage {
@@ -104,24 +106,34 @@ export class DefaultStorage implements Storage {
 
   // fetch an emitter record by chainId and emitterAddress
   getEmitterRecord(
+    pluginName: string,
     chainId: ChainId,
     emitterAddress: string,
   ): Promise<EmitterRecord | null> {
     return this.store.withRedis(async redis => {
-      const key = emitterRecordKey(chainId, emitterAddress);
-      this.logger.debug(`getEmitterRecord ${key}`);
-      const res = await redis.hGet(EMITTER_KEY, key);
-      if (!res) {
-        return null;
-      }
-      const parsed: EmitterRecord = JSON.parse(res);
-      parsed.time = new Date(parsed.time);
-      return parsed;
+      return await this.getEmitterRecordInner(
+        redis,
+        emitterRecordKey(pluginName, chainId, emitterAddress),
+      );
     });
+  }
+
+  private async getEmitterRecordInner(
+    redis: IRedis,
+    key: string,
+  ): Promise<EmitterRecord | null> {
+    const res = await redis.hGet(EMITTER_KEY, key);
+    if (!res) {
+      return null;
+    }
+    const parsed: EmitterRecord = JSON.parse(res);
+    parsed.time = new Date(parsed.time);
+    return parsed;
   }
 
   // set an emitter record with given sequence and update the timestamp
   setEmitterRecord(
+    pluginName: string,
     chainId: ChainId,
     emitterAddress: string,
     lastSeenSequence: number,
@@ -130,10 +142,11 @@ export class DefaultStorage implements Storage {
       this.logger.debug(`setEmitterRecord`);
       while (true) {
         const record: EmitterRecord = { lastSeenSequence, time: new Date() };
-        const key = emitterRecordKey(chainId, emitterAddress);
-        this.logger.debug(`about to get emitterRecord`);
-        const entry = await this.getEmitterRecord(chainId, emitterAddress);
+        const key = emitterRecordKey(pluginName, chainId, emitterAddress);
+
+        const entry = await this.getEmitterRecordInner(redis, key);
         this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}`);
+
         if (entry && entry.lastSeenSequence >= lastSeenSequence) {
           this.logger.debug(
             "no need to update if lastSeenSeq has moved past what we are trying to set " +
@@ -141,6 +154,8 @@ export class DefaultStorage implements Storage {
           );
           return;
         }
+
+        // only set the record if we are able to aquire the lock
         if (await this.acquireUnsafeLock(key, 50)) {
           await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
           await this.releaseUnsafeLock(key);
@@ -565,7 +580,7 @@ export class DefaultStorage implements Storage {
       });
       return movedWorkflows;
     } catch (e) {
-      this.logger.error(e);
+      this.logger.warn(e);
       return 0;
     }
   }
