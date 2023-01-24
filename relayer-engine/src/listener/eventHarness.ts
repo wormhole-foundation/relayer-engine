@@ -76,7 +76,11 @@ export async function consumeEventHarness(
 
   const chainId = assertChainId(parsedVaa.emitterChain);
   const emitterAddress = wormholeBytesToHex(parsedVaa.emitterAddress);
-  const emitterRecord = await storage.getEmitterRecord(chainId, emitterAddress);
+  const emitterRecord = await storage.getEmitterRecord(
+    plugin.pluginName,
+    chainId,
+    emitterAddress,
+  );
 
   if (emitterRecord) {
     await fetchMissedVaas(
@@ -123,6 +127,7 @@ export async function consumeEventHarnessInner(
     const chainId = assertChainId(parsedVaa.emitterChain);
     const emitterAddress = wormholeBytesToHex(parsedVaa.emitterAddress);
     await storage.setEmitterRecord(
+      plugin.pluginName,
       chainId,
       emitterAddress,
       Number(parsedVaa.sequence),

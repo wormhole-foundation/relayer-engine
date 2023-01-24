@@ -12,14 +12,18 @@ export { InMemory } from "./inMemoryStore";
 export { createStorage } from "./storage";
 
 export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
+
+// emitter record types
 export type EmitterRecord = {
   lastSeenSequence: number;
   time: Date;
 };
-export type EmitterRecordWithKey = EmitterRecord & {
+export type EmitterRecordKey = {
   emitterAddress: string;
   chainId: ChainId;
+  pluginName: string;
 };
+export type EmitterRecordWithKey = EmitterRecord & EmitterRecordKey;
 
 // Idea is we could have multiple implementations backed by different types of storage
 // i.e. RedisStorage, PostgresStorage, MemoryStorage etc.
@@ -47,10 +51,12 @@ export interface Storage {
   emitHeartbeat(): Promise<void>;
 
   getEmitterRecord(
+    pluginName: string,
     chainId: ChainId,
     emitterAddress: string,
   ): Promise<EmitterRecord | null>;
   setEmitterRecord(
+    pluginName: string,
     chainId: ChainId,
     emitterAddress: string,
     sequence: number,
