@@ -51,7 +51,7 @@ export function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
   return {
     spyServiceHost: raw.spyServiceHost,
     nextVaaFetchingWorkerTimeoutSeconds:
-      raw.nextVaaFetchingWorkerTimeoutSeconds ??
+      raw.nextVaaFetchingWorkerTimeoutSeconds &&
       assertInt(
         raw.nextVaaFetchingWorkerTimeoutSeconds,
         "nextVaaFetchingWorkerTimeoutSeconds",
