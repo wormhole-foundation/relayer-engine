@@ -34,6 +34,16 @@ const EMITTER_KEY = "__emitter";
 
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 
+function validateAndGetRedisConfig(config: CommonEnv) {
+  const redisConfig = config as RedisConfig;
+  if (!redisConfig.redisHost || !redisConfig.redisPort) {
+    throw new EngineError(
+      "Redis config values must be present if redis store type selected",
+    );
+  }
+  return redisConfig;
+}
+
 export async function createStorage(
   plugins: Plugin[],
   config: CommonEnv,
