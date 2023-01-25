@@ -51,15 +51,16 @@ function validateAndGetRedisConfig(config: CommonEnv) {
   return redisConfig;
 }
 
-
 async function createRedisStorage({ plugins, config, nodeId, logger}: CreationArgs) {
   const redisConfig = validateAndGetRedisConfig(config);
+  const { defaultWorkflowOptions, namespace } = config;
   return new Storage(
     await RedisWrapper.fromConfig(redisConfig),
     plugins,
-    config.defaultWorkflowOptions,
+    defaultWorkflowOptions,
     nodeId,
     logger,
+    namespace
   );
 }
 
@@ -110,6 +111,7 @@ export class Storage {
     private readonly _defaultWorkflowOptions: WorkflowOptions,
     private readonly nodeId: string,
     logger: Logger,
+    private readonly namespace?: string
   ) {
     this.logger = getScopedLogger([`GlobalStorage`], logger);
     this.plugins = new Map(plugins.map(p => [p.pluginName, p]));
@@ -239,7 +241,7 @@ export class Storage {
     workflow.maxRetries =
       workflow.maxRetries ?? this._defaultWorkflowOptions.maxRetries;
 
-    const key = workflowKey(workflow);
+    const key = this._workflowKey(workflow);
     return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
       if (await redis.exists(key)) {
@@ -259,7 +261,7 @@ export class Storage {
 
   // Requeue a workflow to be processed
   async requeueWorkflow(workflow: Workflow, reExecuteAt: Date): Promise<void> {
-    const key = workflowKey(workflow);
+    const key = this._workflowKey(workflow);
 
     return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
@@ -297,7 +299,7 @@ export class Storage {
     id: WorkflowId;
     pluginName: string;
   }): Promise<void> {
-    const key = workflowKey(workflow);
+    const key = this._workflowKey(workflow);
     return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
       if (await redis.hGet(key, "completedAt")) {
@@ -321,7 +323,7 @@ export class Storage {
     id: WorkflowId;
     pluginName: string;
   }): Promise<void> {
-    const key = workflowKey(workflow);
+    const key = this._workflowKey(workflow);
     return this.store.runOpWithRetry(async redis => {
       await redis.watch(key);
       if (await redis.hGet(key, "failedAt")) {
@@ -347,7 +349,7 @@ export class Storage {
     pluginName: string;
     id: string;
   }): Promise<WorkflowWithPlugin | null> {
-    const key = workflowKey(workflowId);
+    const key = this._workflowKey(workflowId);
     const workflowRaw = await this.store.withRedis(redis => redis.hGetAll(key));
     if (!workflowRaw) {
       return null;
@@ -578,7 +580,7 @@ export class Storage {
 
         multi = redis.multi();
         for (const w of staleWorkflows) {
-          const key = workflowKey(w);
+          const key = this._workflowKey(w);
           multi
             .lRem(READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
             .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
@@ -603,10 +605,10 @@ export class Storage {
       return 0;
     }
   }
-}
 
-function workflowKey(workflow: { id: string; pluginName: string }): string {
-  return `${workflow.pluginName}/${workflow.id}`;
+  private _workflowKey(workflow: { id: string; pluginName: string }): string {
+    return this.namespace ? `${this.namespace}/${workflow.pluginName}/${workflow.id}` : `${workflow.pluginName}/${workflow.id}`
+  }
 }
 
 class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
