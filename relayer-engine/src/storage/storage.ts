@@ -20,7 +20,7 @@ import { EngineError, nnull } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
 import { RedisConfig, RedisWrapper } from "./redisStore";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { CommonEnv } from "../config";
+import { CommonEnv, StoreType } from "../config";
 
 const READY_WORKFLOW_QUEUE = "__workflowQ"; // workflows ready to execute
 const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
@@ -34,6 +34,13 @@ const EMITTER_KEY = "__emitter";
 
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 
+type CreationArgs = {
+  plugins: Plugin[]
+  config: CommonEnv
+  nodeId: string
+  logger: Logger
+}
+
 function validateAndGetRedisConfig(config: CommonEnv) {
   const redisConfig = config as RedisConfig;
   if (!redisConfig.redisHost || !redisConfig.redisPort) {
@@ -44,18 +51,9 @@ function validateAndGetRedisConfig(config: CommonEnv) {
   return redisConfig;
 }
 
-export async function createStorage(
-  plugins: Plugin[],
-  config: CommonEnv,
-  nodeId: string,
-  logger: Logger = getLogger(),
-): Promise<Storage> {
-  const redisConfig = config as RedisConfig;
-  if (!redisConfig.redisHost || !redisConfig.redisPort) {
-    throw new EngineError(
-      "Redis config values must be present if redis store type selected",
-    );
-  }
+
+async function createRedisStorage({ plugins, config, nodeId, logger}: CreationArgs) {
+  const redisConfig = validateAndGetRedisConfig(config);
   return new Storage(
     await RedisWrapper.fromConfig(redisConfig),
     plugins,
@@ -63,6 +61,26 @@ export async function createStorage(
     nodeId,
     logger,
   );
+}
+
+function createInvalidStorage({ config: { storeType } } : CreationArgs) {
+  throw new EngineError(`Unrecognized storage type ${storeType}`);
+}
+
+function getFactory({ storeType }: CommonEnv, factories = {
+  [StoreType.Redis]: createRedisStorage
+}) {
+  return factories[storeType] || createInvalidStorage;
+}
+
+export async function createStorage(
+  plugins: Plugin[],
+  config: CommonEnv,
+  nodeId: string,
+  logger: Logger = getLogger(),
+): Promise<Storage> {
+  const create = getFactory(config);
+  return create({ plugins, config, nodeId, logger });
 }
 
 function sanitize(dirtyString: string): string {
