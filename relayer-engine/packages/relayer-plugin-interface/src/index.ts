@@ -42,7 +42,14 @@ export interface Workflow<D = any> {
   id: WorkflowId;
   pluginName: string;
   scheduledAt?: Date;
+  scheduledBy?: string;
+  retryCount: number;
+  maxRetries?: number;
   data: D;
+  failedAt?: Date;
+  completedAt?: Date;
+  startedProcessingAt?: Date;
+  processingBy?: string;
 }
 
 export interface ActionExecutor {
@@ -116,12 +123,16 @@ export type EngineInitFn<PluginType extends Plugin> = (
   logger: winston.Logger,
 ) => PluginType;
 
+export interface WorkflowOptions {
+  maxRetries?: number;
+}
+
 export interface Plugin<WorkflowData = any> {
   pluginName: string; // String identifier for plugin
   pluginConfig: any; // Configuration settings for plugin
   shouldSpy: boolean; // Boolean toggle if relayer should connect to Guardian Network via non-validation guardiand node
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
-  demoteInProgress?: boolean;
+  maxRetries?: number;
   afterSetup?(
     providers: Providers,
     listenerResources?: { eventSource: EventSource; db: StagingAreaKeyLock },
@@ -132,7 +143,10 @@ export interface Plugin<WorkflowData = any> {
     stagingArea: StagingAreaKeyLock,
     providers: Providers,
     extraData?: any[],
-  ): Promise<{ workflowData?: WorkflowData }>;
+  ): Promise<{
+    workflowData?: WorkflowData;
+    workflowOptions?: WorkflowOptions;
+  }>;
   handleWorkflow(
     workflow: Workflow<WorkflowData>,
     providers: Providers,

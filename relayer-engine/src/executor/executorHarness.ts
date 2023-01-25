@@ -32,8 +32,9 @@ import {
 // todo: add to config
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
 const DEFAULT_WORKER_INTERVAL_MS = 500;
-const MAX_ACTIVE_WORKFLOWS = 10;
-const SPAWN_WORKFLOW_INTERNAL = 500;
+export const MAX_ACTIVE_WORKFLOWS = 10;
+// const SPAWN_WORKFLOW_INTERNAL = 500;
+const SPAWN_WORKFLOW_INTERNAL = 2000;
 
 export interface WorkerInfo {
   id: number;
@@ -49,12 +50,14 @@ export interface ActionWithCont<T, W extends Wallet> {
   reject: (reason: any) => void;
 }
 
+const sec = 1000;
+const min = 60 * sec;
+
 export async function run(plugins: Plugin[], storage: Storage) {
   const executorEnv = getExecutorEnv();
   const commonEnv = getCommonEnv();
   const logger = getScopedLogger(["executorHarness"], getLogger());
 
-  await storage.handleStorageStartupConfig(plugins);
   const providers = providersFromChainConfig(commonEnv.supportedChains);
 
   logger.debug("Gathering chain worker infos...");
@@ -77,8 +80,50 @@ export async function run(plugins: Plugin[], storage: Storage) {
   );
 
   maxActiveWorkflowsGauge.set(MAX_ACTIVE_WORKFLOWS);
+  spawnStaleJobsWorker(storage, 1000, logger);
+  spawnRequeueWorker(storage, 150, logger);
+  spawnHeartbeatWorker(storage, 1000, logger);
   spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
   logger.debug("End of executor harness run function");
+}
+
+async function spawnHeartbeatWorker(
+  storage: Storage,
+  checkEveryInMs: number,
+  logger: Logger,
+) {
+  while (true) {
+    await storage.emitHeartbeat();
+    await sleep(checkEveryInMs);
+  }
+}
+
+async function spawnRequeueWorker(
+  storage: Storage,
+  checkEveryInMs: number,
+  logger: Logger,
+) {
+  while (true) {
+    const jobsMoved = await storage.moveDelayedWorkflowsToReadyQueue();
+    if (jobsMoved > 0) {
+      logger.info(`Moved ${jobsMoved} to the ready queue.`);
+    }
+    await sleep(checkEveryInMs);
+  }
+}
+
+async function spawnStaleJobsWorker(
+  storage: Storage,
+  checkEveryInMs: number,
+  logger: Logger,
+) {
+  while (true) {
+    const jobsMoved = await storage.cleanupStaleActiveWorkflows();
+    if (jobsMoved > 0) {
+      logger.info(`Moved ${jobsMoved} stale jobs.`);
+    }
+    await sleep(checkEveryInMs);
+  }
 }
 
 async function spawnExecutor(
@@ -123,6 +168,15 @@ async function spawnExecutor(
   }
 }
 
+function exponentialBackoff(
+  retryCount: number,
+  minDelayInMs: number,
+  maxDelayInMs: number,
+) {
+  const delay = minDelayInMs * Math.pow(2, retryCount);
+  return Math.min(maxDelayInMs, delay);
+}
+
 async function spawnWorkflow(
   storage: Storage,
   workflow: Workflow,
@@ -148,7 +202,7 @@ async function spawnWorkflow(
   const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
 
   // fire off workflow and avoid blocking
-  (async () => {
+  const result = (async () => {
     try {
       await plugin.handleWorkflow(workflow, providers, execute);
       await storage.completeWorkflow(workflow);
@@ -162,7 +216,19 @@ async function spawnWorkflow(
       );
       logger.error(e);
       failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
-      await storage.requeueWorkflow(workflow);
+      if (workflow.maxRetries! > workflow.retryCount) {
+        const waitFor = exponentialBackoff(workflow.retryCount, 300, 10 * min);
+        const reExecuteAt = new Date(Date.now() + waitFor);
+        await storage.requeueWorkflow(workflow, reExecuteAt);
+        logger.error(
+          `Workflow: ${workflow.id} failed. Requeued with a delay of ${waitFor}ms. Attempt ${workflow.retryCount} of ${workflow.maxRetries}`,
+        );
+      } else {
+        await storage.failWorkflow(workflow);
+        logger.error(
+          `Workflow: ${workflow.id} failed. Reached maxRetries. Moving to dead letter queue.`,
+        );
+      }
     } finally {
       finishedExecuting();
     }

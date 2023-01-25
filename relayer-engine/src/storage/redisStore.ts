@@ -1,8 +1,7 @@
 import { Mutex } from "async-mutex";
-import { createClient, RedisClientType } from "redis";
+import { createClient } from "redis";
 import { Logger } from "winston";
 import { IRedis, WriteOp, RedisWrapper, Op } from ".";
-import { CommonEnv, getCommonEnv } from "../config";
 import { getScopedLogger } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
 

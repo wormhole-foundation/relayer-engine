@@ -28,7 +28,7 @@ export async function consumeEventHarness(
     receivedEventsCounter.labels({ plugin: plugin.pluginName }).inc();
 
     const parsedVaa = parseVaaWithBytes(vaa);
-    const { workflowData } = await plugin.consumeEvent(
+    const { workflowData, workflowOptions } = await plugin.consumeEvent(
       parsedVaa,
       storage.getStagingAreaKeyLock(plugin.pluginName),
       providers,
@@ -39,6 +39,8 @@ export async function consumeEventHarness(
         data: workflowData,
         id: parsedVaa.hash.toString("base64"),
         pluginName: plugin.pluginName,
+        maxRetries: workflowOptions?.maxRetries ?? plugin.maxRetries,
+        retryCount: 0,
       });
       createdWorkflowsCounter.labels({ plugin: plugin.pluginName }).inc();
     }

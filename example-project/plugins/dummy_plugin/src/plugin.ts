@@ -12,6 +12,7 @@ import {
   sleep,
   StagingAreaKeyLock,
   Workflow,
+  WorkflowOptions,
 } from "relayer-engine";
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
@@ -81,7 +82,10 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   async consumeEvent(
     vaa: ParsedVaaWithBytes,
     stagingArea: StagingAreaKeyLock,
-  ): Promise<{ workflowData: WorkflowPayload }> {
+  ): Promise<{
+    workflowData: WorkflowPayload;
+    workflowOptions?: WorkflowOptions;
+  }> {
     this.logger.debug("Parsing VAA...");
     this.logger.debug(`Parsed VAA: ${vaa.hash.toString("base64")}`);
 
@@ -134,7 +138,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     // Simulate different processing times for metrics
     await sleep(randomInt(0, 4000));
 
-    let PROBABILITY_OF_FAILURE = 0.05;
+    let PROBABILITY_OF_FAILURE = 0.5;
     if (Math.random() < PROBABILITY_OF_FAILURE) {
       throw new Error("Simulating workflow failure");
     }
@@ -151,6 +155,8 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
       count: workflow.data.count as number,
     };
   }
+
+  maxRetries = 10;
 }
 
 // The interface passed to the engine that allows it to instantiate the plugin

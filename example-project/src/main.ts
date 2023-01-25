@@ -24,5 +24,6 @@ async function main() {
 // allow main to be an async function and block until it rejects or resolves
 main().catch(e => {
   console.error(e);
+  console.error(e.stackTrace);
   process.exit(1);
 });

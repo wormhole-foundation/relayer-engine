@@ -24,7 +24,14 @@ export interface Workflow<D = any> {
     id: WorkflowId;
     pluginName: string;
     scheduledAt?: Date;
+    scheduledBy?: string;
+    retryCount: number;
+    maxRetries?: number;
     data: D;
+    failedAt?: Date;
+    completedAt?: Date;
+    startedProcessingAt?: Date;
+    processingBy?: string;
 }
 export interface ActionExecutor {
     <T, W extends Wallet>(action: Action<T, W>): Promise<T>;
@@ -65,12 +72,15 @@ export interface PluginDefinition<PluginConfig, PluginType extends Plugin<Workfl
     pluginName: string;
 }
 export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
+export interface WorkflowOptions {
+    maxRetries?: number;
+}
 export interface Plugin<WorkflowData = any> {
     pluginName: string;
     pluginConfig: any;
     shouldSpy: boolean;
     shouldRest: boolean;
-    demoteInProgress?: boolean;
+    maxRetries?: number;
     afterSetup?(providers: Providers, listenerResources?: {
         eventSource: EventSource;
         db: StagingAreaKeyLock;
@@ -79,6 +89,7 @@ export interface Plugin<WorkflowData = any> {
     consumeEvent(// Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: ParsedVaaWithBytes, stagingArea: StagingAreaKeyLock, providers: Providers, extraData?: any[]): Promise<{
         workflowData?: WorkflowData;
+        workflowOptions?: WorkflowOptions;
     }>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }

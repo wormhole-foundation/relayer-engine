@@ -1,10 +1,15 @@
 {
+  "mode": "BOTH",
   "logLevel": "debug",
-  "storeType": "Redis",
+  "storeType": "InMemory",
   "readinessPort": 2000,
+  "promPort": 9100,
   "numGuardians": 1,
   "redisPort": 6379,
   "redisHost": "localhost",
+  "defaultWorkflowOptions": {
+    "maxRetries": 10
+  },
   "supportedChains": [
     {
       "chainId": 1,

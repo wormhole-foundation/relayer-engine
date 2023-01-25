@@ -1,7 +1,15 @@
 import { DoublyLinkedList } from "@datastructures-js/linked-list";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { WatchError } from "redis";
-import { Direction, IRedis, Multi, Op, RedisWrapper, WriteOp } from ".";
+import {
+  Direction,
+  HSETObject,
+  IRedis,
+  Multi,
+  Op,
+  RedisWrapper,
+  WriteOp,
+} from ".";
 import { sleep } from "../utils/utils";
 
 export class InMemory implements IRedis, RedisWrapper {
@@ -9,6 +17,7 @@ export class InMemory implements IRedis, RedisWrapper {
   kv: Record<string, string> = {};
   hsets: Record<string, Map<string, string> | undefined> = {};
   lists: Record<string, DoublyLinkedList<string> | undefined> = {};
+  sets: Record<string, { set: Set<string>; values: string[] }> = {};
 
   // don't need to do anything fancy since there is only 1 "connection" to the in memory store
   async withRedis<T>(op: Op<T>): Promise<T> {
@@ -28,10 +37,11 @@ export class InMemory implements IRedis, RedisWrapper {
       keys = [keys];
     }
     for (const key of keys) {
-      const val = this.locks[key];
-      if (val) {
-        throw new Error("Watching already watched key");
-      }
+      // we can't throw here because this is out of spec with redis. We need to come up with something better.
+      // const val = this.locks[key];
+      // if (val) {
+      //   throw new Error("Watching already watched key");
+      // }
       this.locks[key] = { val: this.kv[key] || null };
     }
     return "OK";
@@ -50,27 +60,73 @@ export class InMemory implements IRedis, RedisWrapper {
   async hLen(key: string): Promise<number> {
     return this.hsets[key]?.size || 0;
   }
-  async hSet(key: string, field: string, val: string): Promise<number> {
+
+  async exists(key: string): Promise<number> {
+    return this.kv[key] || this.hsets[key] || this.sets[key] || this.lists[key]
+      ? 1
+      : 0;
+  }
+
+  async hSet(key: string, fields: HSETObject): Promise<number>;
+  async hSet(key: string, field: string, val: string): Promise<number>;
+  async hSet(
+    key: string,
+    fields: string | HSETObject,
+    val?: string,
+  ): Promise<number> {
     if (!this.hsets[key]) {
       this.hsets[key] = new Map();
     }
-    this.hsets[key]!.set(field, val);
-    return 1;
+    if (typeof fields === "string") {
+      this.hsets[key]!.set(fields, val ?? "");
+      return 1;
+    }
+    let updated = 0;
+    for (const [field, val] of Object.entries(fields)) {
+      this.hsets[key]!.set(field, val.toString());
+      updated++;
+    }
+    return updated;
   }
+
   async hGet(key: string, field: string): Promise<string | undefined> {
     return this.hsets[key]?.get(field);
+  }
+
+  async hmGet(key: string, fields: string[]): Promise<(string | null)[]> {
+    const obj = this.hsets[key];
+    if (!obj) {
+      return [];
+    }
+
+    const res = [];
+    for (const field of fields) {
+      res.push(obj.get(field) ?? null);
+    }
+    return res;
+  }
+
+  async hGetAll(key: string): Promise<Record<string, string>> {
+    const obj = Object.fromEntries(this.hsets[key]?.entries() ?? []);
+    return obj;
   }
 
   async rPop(key: string): Promise<string | null> {
     return this.lists[key]?.removeLast()?.getValue() || null;
   }
 
-  async lPush(key: string, val: string): Promise<number> {
+  async lPush(key: string, val: string | string[]): Promise<number> {
     if (!this.lists[key]) {
       this.lists[key] = new DoublyLinkedList();
     }
-    this.lists[key]!.insertFirst(val);
-    return this.lists[key]?.count() || 0;
+    if (Array.isArray(val)) {
+      for (const v of val) {
+        this.lists[key]!.insertFirst(v);
+      }
+    } else {
+      this.lists[key]!.insertFirst(val);
+    }
+    return this.lists[key]!.count() || 0;
   }
 
   async lIndex(key: string, ix: number): Promise<string | null> {
@@ -100,6 +156,45 @@ export class InMemory implements IRedis, RedisWrapper {
     this.lists[key] = fresh;
     return removed;
   }
+
+  async zRem(key: string, elements: string | string[]): Promise<number> {
+    if (!this.sets[key]) {
+      return 0;
+    }
+    const { set, values } = this.sets[key];
+    let removedCount = 0;
+    let elementsRemoved: Record<string, boolean> = {};
+    for (const element of elements) {
+      const wasDeleted = set.delete(element);
+      if (wasDeleted) {
+        removedCount++;
+        elementsRemoved[element] = true;
+      }
+    }
+    const newValues = [];
+    for (const value of values) {
+      if (!elementsRemoved[value]) {
+        newValues.push(value);
+      }
+    }
+    this.sets[key] = { set, values: newValues };
+    return removedCount;
+  }
+
+  async hIncrBy(
+    key: string,
+    field: string,
+    amount: number = 1,
+  ): Promise<number> {
+    if (!this.hsets[key]) {
+      this.hsets[key] = new Map<string, string>();
+    }
+    let currentValue = Number(this.hsets[key]!.get(field)) || 0;
+    currentValue += amount;
+    this.hsets[key]!.set(field, currentValue.toString());
+    return currentValue;
+  }
+
   async hDel(key: string, field: string): Promise<number> {
     return this.hsets[key]?.delete(field) ? 1 : 0;
   }
@@ -141,6 +236,54 @@ export class InMemory implements IRedis, RedisWrapper {
     }
     return item.getValue();
   }
+
+  del(key: string): Promise<number> {
+    return Promise.resolve(0);
+  }
+
+  async zAdd(
+    key: string,
+    elements: { value: string; score: number }[],
+  ): Promise<number> {
+    if (!this.sets[key]) {
+      this.sets[key] = { set: new Set<string>(), values: [] };
+    }
+    let inserted = 0;
+    for (const { value, score } of elements) {
+      if (this.sets[key].set.has(value)) {
+        continue;
+      }
+      this.sets[key].set.add(value);
+      this.sets[key].values.push(`${score}:${value}`);
+      inserted++;
+    }
+    return inserted;
+  }
+
+  async zRangeWithScores(
+    key: string,
+    start: number,
+    end: number,
+  ): Promise<{ value: string; score: number }[]> {
+    if (!this.sets[key]) {
+      return [];
+    }
+    return this.sets[key].values
+      .slice(start, end)
+      .sort()
+      .map(strings => {
+        const values = strings.split(":");
+        return { score: Number(values[0]), value: values[1] };
+      });
+  }
+
+  async pExpire(key: string, ms: number): Promise<boolean> {
+    return true;
+  }
+
+  async lRange(key: string, start: number, end: number): Promise<string[]> {
+    return this.lists[key]?.toArray().slice(start, end) ?? [];
+  }
 }
 
 class InMemoryMulti implements Multi {
@@ -151,6 +294,10 @@ class InMemoryMulti implements Multi {
 
   protected new(op: () => Promise<any>): InMemoryMulti {
     return new InMemoryMulti(this.store, [...this.ops, op]);
+  }
+
+  exists(key: string): Multi {
+    return this.new(() => this.store.exists(key));
   }
 
   hDel(key: string, field: string): Multi {
@@ -173,7 +320,7 @@ class InMemoryMulti implements Multi {
       await this.store.set(key, value);
     });
   }
-  async exec(pipeline: boolean = false): Promise<RedisCommandRawReply[]> {
+  async exec(pipeline: boolean = true): Promise<RedisCommandRawReply[]> {
     try {
       await Promise.all(this.ops.map(op => op()));
     } catch (e) {
@@ -183,5 +330,46 @@ class InMemoryMulti implements Multi {
     // todo: make this more like real redis?
     await this.store.unwatch();
     return [];
+  }
+
+  del(key: string): Multi {
+    return this.new(() => this.store.del(key));
+  }
+
+  zAdd(key: string, elements: { value: string; score: number }[]): Multi {
+    return this.new(() => this.store.zAdd(key, elements));
+  }
+
+  pExpire(key: string, ms: number): Multi {
+    return this.new(() => this.store.pExpire(key, ms));
+  }
+
+  zRem(key: string, elements: string | string[]): Multi {
+    return this.new(() => this.store.zRem(key, elements));
+  }
+
+  hGet(key: string, field: string): Multi {
+    return this.new(() => this.store.hGet(key, field));
+  }
+
+  hmGet(key: string, fields: string[]): Multi {
+    return this.new(() => this.store.hmGet(key, fields));
+  }
+
+  hIncrBy(key: string, field: string, amount: number): Multi {
+    return this.new(() => this.store.hIncrBy(key, field, amount));
+  }
+
+  hSet(key: string, fields: HSETObject): Multi;
+  hSet(key: string, field: string, val: string): Multi;
+  hSet(key: string, fields: string | HSETObject, val?: string): Multi {
+    if (typeof fields === "string") {
+      return this.new(() => this.store.hSet(key, fields, val ?? ""));
+    }
+    return this.new(() => this.store.hSet(key, fields));
+  }
+
+  hGetAll(key: string): Multi {
+    return this.new(() => this.store.hGetAll(key));
   }
 }
