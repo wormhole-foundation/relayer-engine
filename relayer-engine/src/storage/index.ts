@@ -8,8 +8,7 @@ import {
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { ChainId } from "@certusone/wormhole-sdk";
 
-export { InMemory } from "./inMemoryStore";
-export { createStorage } from "./storage";
+export { createStorage, Storage } from "./storage";
 
 export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
 
@@ -24,45 +23,6 @@ export type EmitterRecordKey = {
   pluginName: string;
 };
 export type EmitterRecordWithKey = EmitterRecord & EmitterRecordKey;
-
-// Idea is we could have multiple implementations backed by different types of storage
-// i.e. RedisStorage, PostgresStorage, MemoryStorage etc.
-export interface Storage {
-  getWorkflow(id: {
-    id: string;
-    pluginName: string;
-  }): Promise<null | WorkflowWithPlugin>;
-  getNextWorkflow(timeoutInSeconds: number): Promise<null | WorkflowWithPlugin>;
-  requeueWorkflow(workflow: Workflow, reExecuteAt: Date): Promise<void>;
-  numActiveWorkflows(): Promise<number>;
-  numEnqueuedWorkflows(): Promise<number>;
-  numDelayedWorkflows(): Promise<number>;
-  completeWorkflow(workflow: {
-    id: WorkflowId;
-    pluginName: string;
-  }): Promise<void>;
-  failWorkflow(workflow: { id: WorkflowId; pluginName: string }): Promise<void>;
-
-  addWorkflow(workflow: Workflow): Promise<void>;
-
-  getStagingAreaKeyLock(pluginName: string): StagingAreaKeyLock;
-  moveDelayedWorkflowsToReadyQueue(): Promise<number>;
-  cleanupStaleActiveWorkflows(): Promise<number>;
-  emitHeartbeat(): Promise<void>;
-
-  getEmitterRecord(
-    pluginName: string,
-    chainId: ChainId,
-    emitterAddress: string,
-  ): Promise<EmitterRecord | null>;
-  setEmitterRecord(
-    pluginName: string,
-    chainId: ChainId,
-    emitterAddress: string,
-    sequence: number,
-  ): Promise<void>;
-  getAllEmitterRecords(): Promise<EmitterRecordWithKey[]>;
-}
 
 export enum Direction {
   LEFT = "LEFT",
@@ -117,6 +77,8 @@ export interface IRedis {
     key: string,
     elements: { value: string; score: number }[],
   ): Promise<number>;
+  duplicate(): IRedis;
+  select(db: number): Promise<void>;
   executeIsolated<T>(fn: (redis: IRedis) => Promise<T>): Promise<T>;
 }
 
@@ -144,8 +106,3 @@ export type Op<T> = (redis: IRedis) => Promise<T>;
 // ensure IRedis is subset of real client
 const _: IRedis = {} as RedisClientType;
 // const x = {} as RedisClientType;
-
-export interface RedisWrapper {
-  runOpWithRetry(op: WriteOp): Promise<void>;
-  withRedis<T>(op: Op<T>): Promise<T>;
-}

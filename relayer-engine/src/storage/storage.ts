@@ -12,17 +12,14 @@ import {
   EmitterRecord,
   EmitterRecordKey,
   EmitterRecordWithKey,
-  InMemory,
   IRedis,
-  RedisWrapper,
-  Storage,
   WorkflowWithPlugin,
 } from ".";
 import { CommonEnv, StoreType } from "../config";
 import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
 import { EngineError, nnull, sleep } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
-import { DefaultRedisWrapper, RedisConfig } from "./redisStore";
+import { RedisWrapper, RedisConfig } from "./redisStore";
 import { ChainId } from "@certusone/wormhole-sdk";
 
 const READY_WORKFLOW_QUEUE = "__workflowQ"; // workflows ready to execute
@@ -31,7 +28,6 @@ const DEAD_LETTER_QUEUE = "__deadWorkflows";
 const DELAYED_WORKFLOWS_QUEUE = "__delayedWorkflows"; // failed workflows being delayed before going back to ready to execute
 const EXECUTORS_HEARTBEAT_HASH = "__executorsHeartbeats";
 const STAGING_AREA_KEY = "__stagingArea";
-const COMPLETE = "__complete";
 const CHECK_REQUEUED_WORKFLOWS_LOCK = "__isRequeueJobRunning";
 const CHECK_STALE_ACTIVE_WORKFLOWS_LOCK = "_isStaleWorkflowsJobRunning";
 const EMITTER_KEY = "__emitter";
@@ -45,14 +41,6 @@ export async function createStorage(
   logger?: Logger,
 ): Promise<Storage> {
   switch (config.storeType) {
-    case StoreType.InMemory:
-      return new DefaultStorage(
-        new InMemory(),
-        plugins,
-        config.defaultWorkflowOptions,
-        nodeId,
-        logger || getLogger(),
-      );
     case StoreType.Redis:
       const redisConfig = config as RedisConfig;
       if (!redisConfig.redisHost || !redisConfig.redisPort) {
@@ -60,8 +48,8 @@ export async function createStorage(
           "Redis config values must be present if redis store type selected",
         );
       }
-      return new DefaultStorage(
-        await DefaultRedisWrapper.fromConfig(redisConfig),
+      return new Storage(
+        await RedisWrapper.fromConfig(redisConfig),
         plugins,
         config.defaultWorkflowOptions,
         nodeId,
@@ -89,7 +77,7 @@ function parseEmitterRecordKey(key: string): EmitterRecordKey {
   return { pluginName, chainId: Number(chainIdStr) as ChainId, emitterAddress };
 }
 
-export class DefaultStorage implements Storage {
+export class Storage {
   private readonly plugins: Map<string, Plugin>;
   private readonly logger;
 

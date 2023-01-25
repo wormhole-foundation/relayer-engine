@@ -27,7 +27,6 @@ type RelayerEngineConfigs = {
 };
 
 export enum StoreType {
-  InMemory = "InMemory",
   Redis = "Redis",
 }
 
