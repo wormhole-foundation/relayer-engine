@@ -23,5 +23,10 @@ jobs:
           cache-dependency-path: |
             ./package-lock.json
             ./relayer-engine/packages/relayer-package-interface/package-lock.json
+      - name: npm ci
+        run: |
+          npm ci
+          cd relayer-engine/packages/relayer-package-interface
+          npm ci
       - name: Run tests
         run: npm test
