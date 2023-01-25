@@ -136,25 +136,9 @@ export async function run(args: RunArgs): Promise<void> {
 
     app.use(router.allowedMethods());
     app.use(router.routes());
-    // try {
     app.listen(commonEnv.promPort, () =>
       logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
     );
-    // } catch (e: any) {
-    //   console.log(e.toString());
-    //   if (e.toString().includes("EADDRINUSE")) {
-    //     for (let i = 0; i < 100; ++i) {
-    //       try {
-    //         app.listen(commonEnv.promPort + i, () =>
-    //           logger.info(
-    //             `Prometheus metrics running on port ${commonEnv.promPort! + i}`,
-    //           ),
-    //         );
-    //         break;
-    //       } catch {}
-    //     }
-    //   }
-    // }
   }
 }
 
