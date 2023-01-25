@@ -38,7 +38,7 @@ export async function createStorage(
   plugins: Plugin[],
   config: CommonEnv,
   nodeId: string,
-  logger?: Logger,
+  logger: Logger = getLogger(),
 ): Promise<Storage> {
   const redisConfig = config as RedisConfig;
   if (!redisConfig.redisHost || !redisConfig.redisPort) {
@@ -51,7 +51,7 @@ export async function createStorage(
     plugins,
     config.defaultWorkflowOptions,
     nodeId,
-    logger || getLogger(),
+    logger,
   );
 }
 
