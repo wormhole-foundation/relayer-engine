@@ -48,6 +48,7 @@ export interface CommonEnv {
   redisPort?: number;
   pluginURIs?: NodeURI[];
   numGuardians?: number;
+  wormholeRpc: string;
   mode: Mode;
   supportedChains: ChainConfigInfo[];
   defaultWorkflowOptions: WorkflowOptions;
@@ -57,6 +58,7 @@ let _x: CommonPluginEnv = {} as CommonEnv;
 
 export type ListenerEnv = {
   spyServiceHost: string;
+  nextVaaFetchingWorkerTimeoutSeconds?: number;
   restPort?: number;
 };
 

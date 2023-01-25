@@ -9,6 +9,10 @@ import {
 import { ethers } from "ethers";
 import { ParsedVaaWithBytes } from "relayer-plugin-interface";
 
+export const second = 1000
+export const minute = 60 * second
+export const hour = 60 * minute
+
 export class EngineError extends Error {
   constructor(msg: string, public args?: Record<any, any>) {
     super(msg);
@@ -20,6 +24,15 @@ export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
     throw new Error("Found unexpected undefined or null. " + errMsg);
   }
   return x;
+}
+
+export function assertStr(x: any, fieldName?: string): string {
+  if (typeof x !== "string") {
+    throw new EngineError(`Expected field to be integer, found ${x}`, {
+      fieldName,
+    }) as any;
+  }
+  return x as string;
 }
 
 export function assertInt(x: any, fieldName?: string): number {

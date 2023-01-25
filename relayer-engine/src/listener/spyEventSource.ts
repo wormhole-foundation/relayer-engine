@@ -12,6 +12,7 @@ import { ScopedLogger, getScopedLogger } from "../helpers/logHelper";
 import { consumeEventHarness } from "./eventHarness";
 import { getCommonEnv, getListenerEnv } from "../config";
 import { transformEmitterFilter } from "./listenerHarness";
+import { consumeEventWithMissedVaaDetection } from "./missedVaaFetching";
 
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
@@ -105,7 +106,12 @@ async function runPluginSpyListener(
           return;
         }
         vaaHashCache.set(hash, true);
-        consumeEventHarness(vaa.vaaBytes, plugin, storage, providers);
+        consumeEventWithMissedVaaDetection(
+          vaa.vaaBytes,
+          plugin,
+          storage,
+          providers,
+        );
       });
 
       let connected = true;

@@ -1,14 +1,24 @@
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
 import * as wh from "@certusone/wormhole-sdk";
 import { Plugin, Providers } from "relayer-plugin-interface";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
-import { sleep } from "../utils/utils";
+import {
+  assertChainId,
+  minute,
+  parseVaaWithBytes,
+  second,
+  sleep,
+  wormholeBytesToHex,
+} from "../utils/utils";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { transformEmitterFilter } from "./listenerHarness";
-import { consumeEventHarnessInner } from "./eventHarness";
+import { consumeEventHarness } from "./eventHarness";
+import { getCommonEnv, getListenerEnv } from "../config";
+import { time } from "console";
 
-const wormholeRpc = "https://wormhole-v2-testnet-api.certus.one";
+const DEFAULT_NEXT_VAA_FETCHING_WORKER_TIMEOUT_MS = 5 * minute;
+const MIN_NEXT_VAA_FETCHING_WORKER_TIMEOUT_MS = 5 * second;
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -17,6 +27,37 @@ const logger = () => {
   }
   return _logger;
 };
+
+export async function consumeEventWithMissedVaaDetection(
+  vaa: SignedVaa,
+  plugin: Plugin,
+  storage: Storage,
+  providers: Providers,
+  extraData?: any[],
+): Promise<void> {
+  const parsedVaa = parseVaaWithBytes(vaa);
+
+  const chainId = assertChainId(parsedVaa.emitterChain);
+  const emitterAddress = wormholeBytesToHex(parsedVaa.emitterAddress);
+  const emitterRecord = await storage.getEmitterRecord(
+    plugin.pluginName,
+    chainId,
+    emitterAddress,
+  );
+
+  if (emitterRecord) {
+    await fetchAndConsumeMissedVaas(
+      plugin,
+      storage,
+      providers,
+      chainId,
+      emitterAddress,
+      emitterRecord.lastSeenSequence,
+      Number(parsedVaa.sequence),
+    );
+  }
+  await consumeEventHarness(vaa, plugin, storage, providers, extraData);
+}
 
 export async function nextVaaFetchingWorker(
   plugins: Plugin[],
@@ -27,6 +68,8 @@ export async function nextVaaFetchingWorker(
   const pluginsAndFilters = await getEmitterKeys(plugins);
 
   logger().debug(`Starting nextVaaFetchingWorker...`);
+  const timeout = getTimeout();
+
   while (true) {
     logger().debug(
       `Pessimistically fetching next vaa for all emitters registered by plugins`,
@@ -35,8 +78,8 @@ export async function nextVaaFetchingWorker(
       await tryFetchVaasForEmitter(key, storage, providers);
     }
     // wait 5 minutes between fetching next vaa
-    logger().debug(`nextVaaFetchingWorker loop completed, sleeping...`);
-    await sleep(5 * 60_000);
+    logger().debug(`nextVaaFetchingWorker loop completed, sleeping ${timeout} ms...`);
+    await sleep(timeout);
   }
 }
 
@@ -58,7 +101,7 @@ async function tryFetchVaasForEmitter(
   if (record !== null) {
     let seq = record.lastSeenSequence + 1;
     for (let fetched = true; fetched; seq++) {
-      fetched = await tryFetchVaa(
+      fetched = await tryFetchAndConsumeVaa(
         plugin,
         storage,
         providers,
@@ -76,7 +119,7 @@ async function tryFetchVaasForEmitter(
   }
 }
 
-async function tryFetchVaa(
+async function tryFetchAndConsumeVaa(
   plugin: Plugin,
   storage: Storage,
   providers: Providers,
@@ -86,7 +129,7 @@ async function tryFetchVaa(
 ): Promise<boolean> {
   try {
     const resp = await wh.getSignedVAAWithRetry(
-      [wormholeRpc],
+      [getCommonEnv().wormholeRpc],
       chainId,
       emitterAddress,
       sequence.toString(),
@@ -99,7 +142,7 @@ async function tryFetchVaa(
       );
       return false;
     }
-    consumeEventHarnessInner(resp.vaaBytes, plugin, storage, providers);
+    consumeEventHarness(resp.vaaBytes, plugin, storage, providers);
     return true;
   } catch (e) {
     logger().error("Attempted to fetch VAA but encountered error");
@@ -108,7 +151,7 @@ async function tryFetchVaa(
   }
 }
 
-export async function fetchMissedVaas(
+export async function fetchAndConsumeMissedVaas(
   plugin: Plugin,
   storage: Storage,
   providers: Providers,
@@ -121,7 +164,7 @@ export async function fetchMissedVaas(
     `Fetching missed vaas for ${chainId}:${emitterAddress}, from ${lastSeenSequence} to ${latestSequence}`,
   );
   for (let seq = lastSeenSequence + 1; seq < latestSequence; ++seq) {
-    const fetched = await tryFetchVaa(
+    const fetched = await tryFetchAndConsumeVaa(
       plugin,
       storage,
       providers,
@@ -157,4 +200,22 @@ async function getEmitterKeys(plugins: Plugin[]): Promise<
       );
     }),
   ).then(x => x.flatMap(y => y));
+}
+
+function getTimeout(): number {
+  const listenerEnv = getListenerEnv();
+  if (listenerEnv.nextVaaFetchingWorkerTimeoutSeconds) {
+    const configValue =
+      listenerEnv.nextVaaFetchingWorkerTimeoutSeconds * second;
+    if (configValue >= MIN_NEXT_VAA_FETCHING_WORKER_TIMEOUT_MS) {
+      return configValue;
+    }
+    logger().warn(
+      `nextVaaFetchingWorkerTimeoutSeconds must be at least ${Math.round(
+        MIN_NEXT_VAA_FETCHING_WORKER_TIMEOUT_MS / second,
+      )} seconds, found: ${listenerEnv.nextVaaFetchingWorkerTimeoutSeconds}`,
+    );
+    return MIN_NEXT_VAA_FETCHING_WORKER_TIMEOUT_MS;
+  }
+  return DEFAULT_NEXT_VAA_FETCHING_WORKER_TIMEOUT_MS * second;
 }

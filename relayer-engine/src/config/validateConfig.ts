@@ -9,7 +9,13 @@ import {
   isTerraChain,
 } from "@certusone/wormhole-sdk";
 import { CommonEnv, ExecutorEnv, ListenerEnv, Mode, StoreType } from ".";
-import { assertArray, assertInt, EngineError, nnull } from "../utils/utils";
+import {
+  assertArray,
+  assertInt,
+  assertStr,
+  EngineError,
+  nnull,
+} from "../utils/utils";
 
 type ConfigPrivateKey = {
   chainId: ChainId;
@@ -37,12 +43,19 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
     ).map(validateChainConfig),
     numGuardians:
       raw.numGuardians && assertInt(raw.numGuardians, "numGuardians"),
+    wormholeRpc: assertStr(raw.wormholeRpc, "wormholeRpc"),
   };
 }
 
 export function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
   return {
     spyServiceHost: raw.spyServiceHost,
+    nextVaaFetchingWorkerTimeoutSeconds:
+      raw.nextVaaFetchingWorkerTimeoutSeconds ??
+      assertInt(
+        raw.nextVaaFetchingWorkerTimeoutSeconds,
+        "nextVaaFetchingWorkerTimeoutSeconds",
+      ),
     restPort: raw.restPort ? assertInt(raw.restPort, "restPort") : undefined,
   };
 }
