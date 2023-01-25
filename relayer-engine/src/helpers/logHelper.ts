@@ -55,19 +55,23 @@ export function initLogger(logConfig?: LogConfig): winston.Logger {
   let logFileName;
   if (logDir) {
     useConsole = false;
-    logFileName = logDir + "/spy_relay." + new Date().toISOString() + ".log";
+    logFileName =
+      logDir + "/relayer_engine." + new Date().toISOString() + ".log";
   }
 
   let transport: any;
   if (useConsole) {
-    console.log("spy_relay is logging to the console at level [%s]", logLevel);
+    console.log(
+      "relayer_engine is logging to the console at level [%s]",
+      logLevel,
+    );
 
     transport = new winston.transports.Console({
       level: logLevel,
     });
   } else {
     console.log(
-      "spy_relay is logging to [%s] at level [%s]",
+      "relayer_engine is logging to [%s] at level [%s]",
       logFileName,
       logLevel,
     );

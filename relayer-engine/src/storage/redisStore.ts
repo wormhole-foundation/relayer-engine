@@ -1,7 +1,7 @@
 import { Mutex } from "async-mutex";
 import { createClient } from "redis";
 import { Logger } from "winston";
-import { IRedis, WriteOp, RedisWrapper, Op } from ".";
+import { IRedis, WriteOp, Op } from ".";
 import { getScopedLogger } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
 
@@ -11,15 +11,17 @@ export interface RedisConfig {
   redisPort: number;
 }
 
-export class DefaultRedisWrapper implements RedisWrapper {
+export class RedisWrapper {
   private backlog: WriteOp[] = [];
   private mutex = new Mutex();
   constructor(readonly redis: IRedis, readonly logger: Logger) {}
 
-  static async fromConfig(config: RedisConfig): Promise<RedisWrapper> {
-    const logger = getScopedLogger(["DefaultRedisWrapper"]);
+  static async fromConfig(
+    config: RedisConfig,
+  ): Promise<RedisWrapper> {
+    const logger = getScopedLogger(["RedisWrapper"]);
     const redis = await createConnection(config, logger);
-    return new DefaultRedisWrapper(redis, logger);
+    return new RedisWrapper(redis, logger);
   }
 
   async runOpWithRetry(op: WriteOp): Promise<void> {
