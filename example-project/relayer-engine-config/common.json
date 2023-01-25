@@ -8,6 +8,7 @@
   "defaultWorkflowOptions": {
     "maxRetries": 10
   },
+  "wormholeRpc": "https://wormhole-v2-testnet-api.certus.one",
   "supportedChains": [
     {
       "chainId": 1,

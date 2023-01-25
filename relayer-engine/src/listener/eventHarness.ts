@@ -16,7 +16,7 @@ import {
   erroredEventsCounter,
   receivedEventsCounter,
 } from "./metrics";
-import { fetchMissedVaas } from "./missedVaaFetching";
+import { fetchAndConsumeMissedVaas } from "./missedVaaFetching";
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -27,37 +27,6 @@ const logger = () => {
 };
 
 export async function consumeEventHarness(
-  vaa: SignedVaa,
-  plugin: Plugin,
-  storage: Storage,
-  providers: Providers,
-  extraData?: any[],
-): Promise<void> {
-  const parsedVaa = parseVaaWithBytes(vaa);
-
-  const chainId = assertChainId(parsedVaa.emitterChain);
-  const emitterAddress = wormholeBytesToHex(parsedVaa.emitterAddress);
-  const emitterRecord = await storage.getEmitterRecord(
-    plugin.pluginName,
-    chainId,
-    emitterAddress,
-  );
-
-  if (emitterRecord) {
-    await fetchMissedVaas(
-      plugin,
-      storage,
-      providers,
-      chainId,
-      emitterAddress,
-      emitterRecord.lastSeenSequence,
-      Number(parsedVaa.sequence),
-    );
-  }
-  await consumeEventHarnessInner(vaa, plugin, storage, providers, extraData);
-}
-
-export async function consumeEventHarnessInner(
   vaa: SignedVaa | ParsedVaaWithBytes,
   plugin: Plugin,
   storage: Storage,
