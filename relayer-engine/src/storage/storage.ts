@@ -32,6 +32,18 @@ const CHECK_REQUEUED_WORKFLOWS_LOCK = "__isRequeueJobRunning";
 const CHECK_STALE_ACTIVE_WORKFLOWS_LOCK = "_isStaleWorkflowsJobRunning";
 const EMITTER_KEY = "__emitter";
 
+const CONSTANTS = {
+  READY_WORKFLOW_QUEUE,
+  ACTIVE_WORKFLOWS_QUEUE,
+  DEAD_LETTER_QUEUE,
+  DELAYED_WORKFLOWS_QUEUE,
+  EXECUTORS_HEARTBEAT_HASH,
+  STAGING_AREA_KEY,
+  CHECK_REQUEUED_WORKFLOWS_LOCK,
+  CHECK_STALE_ACTIVE_WORKFLOWS_LOCK,
+  EMITTER_KEY
+}
+
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 
 type CreationArgs = {
@@ -102,6 +114,7 @@ function parseEmitterRecordKey(key: string): EmitterRecordKey {
 }
 
 export class Storage {
+  private readonly constants: Record<string, string> = {};
   private readonly plugins: Map<string, Plugin>;
   private readonly logger;
 
@@ -118,6 +131,13 @@ export class Storage {
     if (!this.namespace) {
       this.logger.warn('You are starting a relayer without a namespace, which could cause issues if you run multiple relayer over the same Redis instance');
     }
+    this.constants = this._computeConstants();
+  }
+
+  private _computeConstants(): Record<string, string> {
+    return Object.entries(CONSTANTS)
+      .map(([key,value]) => ({ [key]: [this.namespace, value].join("") }))
+      .reduce((acc, item) => ({ ...acc, ...item }), {});
   }
 
   // fetch an emitter record by chainId and emitterAddress
@@ -138,7 +158,7 @@ export class Storage {
     redis: IRedis,
     key: string,
   ): Promise<EmitterRecord | null> {
-    const res = await redis.hGet(EMITTER_KEY, key);
+    const res = await redis.hGet(this.constants.EMITTER_KEY, key);
     if (!res) {
       return null;
     }
@@ -173,7 +193,7 @@ export class Storage {
 
         // only set the record if we are able to aquire the lock
         if (await this.acquireUnsafeLock(redis, key, 50)) {
-          await redis.hSet(EMITTER_KEY, key, JSON.stringify(record));
+          await redis.hSet(this.constants.EMITTER_KEY, key, JSON.stringify(record));
           await this.releaseUnsafeLock(redis, key);
           this.logger.debug(
             `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
@@ -189,7 +209,7 @@ export class Storage {
   getAllEmitterRecords(): Promise<EmitterRecordWithKey[]> {
     return this.store.withRedis(async redis => {
       this.logger.debug(`getAllEmitterRecords`);
-      const res = await redis.hGetAll(EMITTER_KEY);
+      const res = await redis.hGetAll(this.constants.EMITTER_KEY);
       this.logger.debug(`getAllEmitterRecords raw: ${JSON.stringify(res)}`);
       return Object.entries(res).map(([key, value]) => {
         const { lastSeenSequence, time }: EmitterRecord = JSON.parse(value);
@@ -206,7 +226,7 @@ export class Storage {
     return this.store.withRedis(async redis => {
       const now = new Date();
       await redis.hSet(
-        EXECUTORS_HEARTBEAT_HASH,
+        this.constants.EXECUTORS_HEARTBEAT_HASH,
         this.nodeId,
         now.toISOString(),
       );
@@ -220,15 +240,15 @@ export class Storage {
 
   // Number of active workflows currently being executed
   numActiveWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.lLen(ACTIVE_WORKFLOWS_QUEUE));
+    return this.store.withRedis(redis => redis.lLen(this.constants.ACTIVE_WORKFLOWS_QUEUE));
   }
 
   numEnqueuedWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.lLen(READY_WORKFLOW_QUEUE));
+    return this.store.withRedis(redis => redis.lLen(this.constants.READY_WORKFLOW_QUEUE));
   }
 
   numDelayedWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.lLen(DELAYED_WORKFLOWS_QUEUE));
+    return this.store.withRedis(redis => redis.lLen(this.constants.DELAYED_WORKFLOWS_QUEUE));
   }
 
   private serializeWorkflow(workflow: Workflow): Record<string, any> {
@@ -256,7 +276,7 @@ export class Storage {
       const serializedWorkflow = this.serializeWorkflow(workflow);
       await redis
         .multi()
-        .lPush(READY_WORKFLOW_QUEUE, key)
+        .lPush(this.constants.READY_WORKFLOW_QUEUE, key)
         .hSet(key, serializedWorkflow)
         .exec(true);
     });
@@ -280,8 +300,8 @@ export class Storage {
         multi = multi.hSet(key, <SerializedWorkflowKeys>{ completedAt: "" });
       }
       let op = await multi
-        .lRem(READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
-        .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key) // remove key from workflow queue if present
+        .lRem(this.constants.READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
+        .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key) // remove key from workflow queue if present
         .hSet(key, <SerializedWorkflowKeys>{
           processingBy: "",
           startedProcessingAt: "",
@@ -289,8 +309,8 @@ export class Storage {
         .hIncrBy(key, "retryCount", 1);
       op =
         reExecuteAt < new Date()
-          ? op.lPush(READY_WORKFLOW_QUEUE, key) //if  Add directly to ready workflows
-          : op.zAdd(DELAYED_WORKFLOWS_QUEUE, [
+          ? op.lPush(this.constants.READY_WORKFLOW_QUEUE, key) //if  Add directly to ready workflows
+          : op.zAdd(this.constants.DELAYED_WORKFLOWS_QUEUE, [
               { value: key, score: reExecuteAt.getTime() },
             ]); // Add to delayed worfklows
       await op.exec(true);
@@ -317,7 +337,7 @@ export class Storage {
           processingBy: "",
           startedProcessingAt: "",
         })
-        .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
+        .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
         .exec(true);
     });
   }
@@ -341,9 +361,9 @@ export class Storage {
           processingBy: "",
           startedProcessingAt: "",
         })
-        .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
-        .zRem(DELAYED_WORKFLOWS_QUEUE, key)
-        .lPush(DEAD_LETTER_QUEUE, key)
+        .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
+        .zRem(this.constants.DELAYED_WORKFLOWS_QUEUE, key)
+        .lPush(this.constants.DEAD_LETTER_QUEUE, key)
         .exec(true);
     });
   }
@@ -368,8 +388,8 @@ export class Storage {
   ): Promise<WorkflowWithPlugin | null> {
     return this.store.withRedis(async redis => {
       const key = await redis.blMove(
-        READY_WORKFLOW_QUEUE,
-        ACTIVE_WORKFLOWS_QUEUE,
+        this.constants.READY_WORKFLOW_QUEUE,
+        this.constants.ACTIVE_WORKFLOWS_QUEUE,
         Direction.LEFT,
         Direction.RIGHT,
         timeoutInSeconds,
@@ -470,7 +490,7 @@ export class Storage {
       const jobsMoved = await this.store.withRedis(async redis => {
         const lock = await this.acquireUnsafeLock(
           redis,
-          CHECK_REQUEUED_WORKFLOWS_LOCK,
+          this.constants.CHECK_REQUEUED_WORKFLOWS_LOCK,
           100,
         );
         if (!lock) {
@@ -479,7 +499,7 @@ export class Storage {
         }
         await redis.watch(lock);
         const pendingJobs = await redis.zRangeWithScores(
-          DELAYED_WORKFLOWS_QUEUE,
+          this.constants.DELAYED_WORKFLOWS_QUEUE,
           0,
           MAX_ACTIVE_WORKFLOWS,
         );
@@ -503,8 +523,8 @@ export class Storage {
 
         await redis
           .multi()
-          .lPush(READY_WORKFLOW_QUEUE, readyWorkflows)
-          .zRem(DELAYED_WORKFLOWS_QUEUE, readyWorkflows)
+          .lPush(this.constants.READY_WORKFLOW_QUEUE, readyWorkflows)
+          .zRem(this.constants.DELAYED_WORKFLOWS_QUEUE, readyWorkflows)
           .exec();
         return readyWorkflows.length;
       });
@@ -521,7 +541,7 @@ export class Storage {
       const movedWorkflows = await this.store.withRedis(async redis => {
         const lock = await this.acquireUnsafeLock(
           redis,
-          CHECK_STALE_ACTIVE_WORKFLOWS_LOCK,
+          this.constants.CHECK_STALE_ACTIVE_WORKFLOWS_LOCK,
           100,
         );
         if (!lock) {
@@ -533,7 +553,7 @@ export class Storage {
 
         await redis.watch(lock);
         const activeWorkflowsIds = await redis.lRange(
-          ACTIVE_WORKFLOWS_QUEUE,
+          this.constants.ACTIVE_WORKFLOWS_QUEUE,
           0,
           -1,
         );
@@ -543,7 +563,7 @@ export class Storage {
         }
 
         const aMinuteAgo = new Date(Date.now() - 60000);
-        const executors = await redis.hGetAll(EXECUTORS_HEARTBEAT_HASH);
+        const executors = await redis.hGetAll(this.constants.EXECUTORS_HEARTBEAT_HASH);
         const deadExecutors: Record<string, boolean> = {};
         for (const executorId of Object.keys(executors)) {
           const lastHeartbeat = new Date(executors[executorId]);
@@ -585,14 +605,14 @@ export class Storage {
         for (const w of staleWorkflows) {
           const key = this._workflowKey(w);
           multi
-            .lRem(READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
-            .lRem(ACTIVE_WORKFLOWS_QUEUE, 0, key)
+            .lRem(this.constants.READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
+            .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
             .hSet(key, <SerializedWorkflowKeys>{
               processingBy: "",
               startedProcessingAt: "",
             })
             .hIncrBy(key, "retryCount", 1)
-            .lPush(READY_WORKFLOW_QUEUE, key);
+            .lPush(this.constants.READY_WORKFLOW_QUEUE, key);
         }
         await multi.exec();
         // LOG Ids
@@ -621,7 +641,7 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
     readonly logger: Logger,
     pluginName: string,
   ) {
-    this.stagingAreaKey = `${STAGING_AREA_KEY}/${sanitize(pluginName)}`;
+    this.stagingAreaKey = `${this.constants.STAGING_AREA_KEY}/${sanitize(pluginName)}`;
   }
 
   getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV> {
