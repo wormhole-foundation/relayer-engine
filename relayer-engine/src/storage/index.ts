@@ -1,14 +1,9 @@
 import { RedisClientType } from "redis";
-import {
-  Plugin,
-  StagingAreaKeyLock,
-  Workflow,
-  WorkflowId,
-} from "relayer-plugin-interface";
+import { Plugin, Workflow } from "relayer-plugin-interface";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { ChainId } from "@certusone/wormhole-sdk";
 
-export { createStorage, Storage } from "./storage";
+export { Storage, createStorage } from "./storage";
 
 export type WorkflowWithPlugin = { plugin: Plugin; workflow: Workflow };
 

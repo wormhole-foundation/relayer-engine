@@ -15,12 +15,12 @@ import {
   IRedis,
   WorkflowWithPlugin,
 } from ".";
-import { CommonEnv, StoreType } from "../config";
-import { getLogger, getScopedLogger, dbg } from "../helpers/logHelper";
-import { EngineError, nnull, sleep } from "../utils/utils";
+import { getLogger, getScopedLogger } from "../helpers/logHelper";
+import { EngineError, nnull } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
-import { RedisWrapper, RedisConfig } from "./redisStore";
+import { RedisConfig, RedisWrapper } from "./redisStore";
 import { ChainId } from "@certusone/wormhole-sdk";
+import { CommonEnv } from "../config";
 
 const READY_WORKFLOW_QUEUE = "__workflowQ"; // workflows ready to execute
 const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
@@ -40,24 +40,19 @@ export async function createStorage(
   nodeId: string,
   logger?: Logger,
 ): Promise<Storage> {
-  switch (config.storeType) {
-    case StoreType.Redis:
-      const redisConfig = config as RedisConfig;
-      if (!redisConfig.redisHost || !redisConfig.redisPort) {
-        throw new EngineError(
-          "Redis config values must be present if redis store type selected",
-        );
-      }
-      return new Storage(
-        await RedisWrapper.fromConfig(redisConfig),
-        plugins,
-        config.defaultWorkflowOptions,
-        nodeId,
-        logger || getLogger(),
-      );
-    default:
-      throw new EngineError("Unrecognized storage type", config.storeType);
+  const redisConfig = config as RedisConfig;
+  if (!redisConfig.redisHost || !redisConfig.redisPort) {
+    throw new EngineError(
+      "Redis config values must be present if redis store type selected",
+    );
   }
+  return new Storage(
+    await RedisWrapper.fromConfig(redisConfig),
+    plugins,
+    config.defaultWorkflowOptions,
+    nodeId,
+    logger || getLogger(),
+  );
 }
 
 function sanitize(dirtyString: string): string {
