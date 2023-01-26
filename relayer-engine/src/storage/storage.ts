@@ -427,7 +427,7 @@ export class Storage {
   }
 
   getStagingAreaKeyLock(pluginName: string): StagingAreaKeyLock {
-    return new DefaultStagingAreaKeyLock(this.store, this.logger, pluginName);
+    return new DefaultStagingAreaKeyLock(this.store, this.constants, this.logger, pluginName);
   }
 
   // this is a simple lock which under the wrong conditions cannot guarantee exclusivity
@@ -638,6 +638,7 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
   private readonly stagingAreaKey: string;
   constructor(
     private readonly store: RedisWrapper,
+    private readonly constants: Record<string, string>,
     readonly logger: Logger,
     pluginName: string,
   ) {
