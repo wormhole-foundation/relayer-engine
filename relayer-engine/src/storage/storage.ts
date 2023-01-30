@@ -21,28 +21,7 @@ import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
 import { RedisConfig, RedisWrapper } from "./redisStore";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { CommonEnv, StoreType } from "../config";
-
-const READY_WORKFLOW_QUEUE = "__workflowQ"; // workflows ready to execute
-const ACTIVE_WORKFLOWS_QUEUE = "__activeWorkflows";
-const DEAD_LETTER_QUEUE = "__deadWorkflows";
-const DELAYED_WORKFLOWS_QUEUE = "__delayedWorkflows"; // failed workflows being delayed before going back to ready to execute
-const EXECUTORS_HEARTBEAT_HASH = "__executorsHeartbeats";
-const STAGING_AREA_KEY = "__stagingArea";
-const CHECK_REQUEUED_WORKFLOWS_LOCK = "__isRequeueJobRunning";
-const CHECK_STALE_ACTIVE_WORKFLOWS_LOCK = "_isStaleWorkflowsJobRunning";
-const EMITTER_KEY = "__emitter";
-
-const CONSTANTS = {
-  READY_WORKFLOW_QUEUE,
-  ACTIVE_WORKFLOWS_QUEUE,
-  DEAD_LETTER_QUEUE,
-  DELAYED_WORKFLOWS_QUEUE,
-  EXECUTORS_HEARTBEAT_HASH,
-  STAGING_AREA_KEY,
-  CHECK_REQUEUED_WORKFLOWS_LOCK,
-  CHECK_STALE_ACTIVE_WORKFLOWS_LOCK,
-  EMITTER_KEY
-}
+import { constantsWithNamespace } from './dbConstants';
 
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 
@@ -124,20 +103,14 @@ export class Storage {
     private readonly _defaultWorkflowOptions: WorkflowOptions,
     private readonly nodeId: string,
     logger: Logger,
-    private readonly namespace?: string
+    private readonly namespace: string = ""
   ) {
     this.logger = getScopedLogger([`GlobalStorage`], logger);
     this.plugins = new Map(plugins.map(p => [p.pluginName, p]));
     if (!this.namespace) {
       this.logger.warn('You are starting a relayer without a namespace, which could cause issues if you run multiple relayer over the same Redis instance');
     }
-    this.constants = this._computeConstants();
-  }
-
-  private _computeConstants(): Record<string, string> {
-    return Object.entries(CONSTANTS)
-      .map(([key,value]) => ({ [key]: [this.namespace, value].join("") }))
-      .reduce((acc, item) => ({ ...acc, ...item }), {});
+    this.constants = constantsWithNamespace(this.namespace);
   }
 
   // fetch an emitter record by chainId and emitterAddress
