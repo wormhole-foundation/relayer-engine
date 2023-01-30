@@ -23,7 +23,7 @@ class TestPlugin implements Plugin {
   getFilters(): ContractFilter[] {
     throw new Error("Method not implemented.");
   }
-  consumeEvent(): Promise<{ workflowData?: any }> {
+  consumeEvent(): Promise<{ workflowData: any }> {
     throw new Error("Method not implemented.");
   }
   handleWorkflow(): Promise<void> {
