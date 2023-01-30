@@ -44,21 +44,24 @@ export interface Action<T, W extends Wallet> {
     f: ActionFunc<T, W>;
 }
 export declare type WorkflowId = string;
-export declare type StagingArea = Object;
+export declare type UntypedProvider = {
+    rpcUrl: string;
+};
 export declare type EVMWallet = ethers.Wallet;
-export declare type Wallet = EVMWallet | SolanaWallet | CosmWallet;
-export interface WalletToolBox<T extends Wallet> extends Providers {
-    wallet: T;
-}
+export declare type UntypedWallet = UntypedProvider & {
+    privateKey: string;
+};
 export declare type SolanaWallet = {
     conn: solana.Connection;
     payer: solana.Keypair;
 };
-export declare type CosmWallet = {};
+export declare type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
+export interface WalletToolBox<T extends Wallet> extends Providers {
+    wallet: T;
+}
 export interface Providers {
-    evm: {
-        [id in EVMChainId]: ethers.providers.Provider;
-    };
+    untyped: Record<ChainId, UntypedProvider>;
+    evm: Record<EVMChainId, ethers.providers.Provider>;
     solana: solana.Connection;
 }
 export interface ParsedVaaWithBytes extends ParsedVaa {

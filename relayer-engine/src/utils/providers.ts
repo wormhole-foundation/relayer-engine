@@ -2,39 +2,37 @@ import {
   CHAIN_ID_SOLANA,
   EVMChainId,
   isEVMChain,
-  solana,
+  ChainId,
 } from "@certusone/wormhole-sdk";
 import { Connection } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { ChainConfigInfo, Providers } from "relayer-plugin-interface";
+import {
+  ChainConfigInfo,
+  Providers,
+  UntypedProvider,
+} from "relayer-plugin-interface";
 
 export function providersFromChainConfig(
   chainConfigs: ChainConfigInfo[],
 ): Providers {
-  const evmEntries: [EVMChainId, ethers.providers.JsonRpcProvider][] =
-    chainConfigs.flatMap(chain => {
-      if (isEVMChain(chain.chainId)) {
-        return [
-          [chain.chainId, new ethers.providers.JsonRpcProvider(chain.nodeUrl)],
-        ];
-      }
-      return [];
-    });
-  const evm = Object.fromEntries(evmEntries) as {
-    [id in EVMChainId]: ethers.providers.JsonRpcProvider;
+  let providers = {
+    evm: {} as Record<EVMChainId, ethers.providers.JsonRpcProvider>,
+    untyped: {} as Record<ChainId, UntypedProvider>,
+    solana: undefined as unknown as Connection,
   };
 
-  let solanaUrl = chainConfigs.find(
-    info => info.chainId === CHAIN_ID_SOLANA,
-  )?.nodeUrl;
-  if (!solanaUrl) {
-    // todo: change me!!!!!!
-    solanaUrl = "http://localhost:8899";
-    // todo: generalize this
-    // throw new Error("Expected solana rpc url to be defined");
+  for (const chain of chainConfigs) {
+    if (isEVMChain(chain.chainId)) {
+      providers.evm[chain.chainId] = new ethers.providers.JsonRpcProvider(
+        chain.nodeUrl,
+      );
+    } else if (chain.chainId === CHAIN_ID_SOLANA) {
+      providers.solana = new Connection(chain.nodeUrl);
+    } else {
+      providers.untyped[chain.chainId] = {
+        rpcUrl: chain.nodeUrl,
+      };
+    }
   }
-  return {
-    evm,
-    solana: new Connection(solanaUrl, "confirmed"),
-  };
+  return providers;
 }
