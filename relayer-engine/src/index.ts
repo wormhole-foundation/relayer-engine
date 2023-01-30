@@ -32,6 +32,7 @@ export {
   initLogger,
 } from "./helpers/logHelper";
 export * from "relayer-plugin-interface";
+export { transformEmitterFilter, encodeEmitterAddress } from "./listener/listenerHarness";
 
 dotenv.config();
 

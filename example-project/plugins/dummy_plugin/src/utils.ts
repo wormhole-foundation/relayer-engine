@@ -31,3 +31,8 @@ export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
   }
   return x;
 }
+
+// random integer between min and max inclusive.
+export function randomInt(min: number, max: number) {
+  return Math.round(Math.random() * (max - min + 1) + min);
+}

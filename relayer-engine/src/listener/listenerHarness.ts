@@ -49,7 +49,7 @@ export async function transformEmitterFilter(
   };
 }
 
-async function encodeEmitterAddress(
+export async function encodeEmitterAddress(
   myChainId: wormholeSdk.ChainId,
   emitterAddressStr: string,
 ): Promise<string> {

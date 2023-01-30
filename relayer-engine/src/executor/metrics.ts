@@ -1,5 +1,6 @@
 import { Counter, Gauge, Histogram } from "prom-client";
 
+// todo: labels: chain, executorNodeId?
 export const inProgressWorkflowsGauge = new Gauge({
   name: "in_progress_workflows",
   help: "Gauge for number of workflows that are currently being executed",

@@ -17,7 +17,7 @@ import {
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { parseVaa } from "@certusone/wormhole-sdk";
-import { SignedVaa } from "@certusone/wormhole-sdk";
+import { randomInt } from "./utils";
 
 export interface DummyPluginConfig {
   spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -37,9 +37,6 @@ interface WorkflwoPayloadDeserialized {
   vaa: ParsedVaaWithBytes;
   count: number;
 }
-
-const randomInt = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min + 1) + min);
 
 export class DummyPlugin implements Plugin<WorkflowPayload> {
   readonly shouldSpy: boolean;
