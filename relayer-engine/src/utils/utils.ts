@@ -9,14 +9,18 @@ import {
 import { ethers } from "ethers";
 import { ParsedVaaWithBytes } from "relayer-plugin-interface";
 
-export const second = 1000
-export const minute = 60 * second
-export const hour = 60 * minute
+export const second = 1000;
+export const minute = 60 * second;
+export const hour = 60 * minute;
 
 export class EngineError extends Error {
   constructor(msg: string, public args?: Record<any, any>) {
     super(msg);
   }
+}
+
+export function maybeConcat<T>(...arrs: (T[] | undefined)[]): T[] {
+  return arrs.flatMap(arr => (arr ? arr : []));
 }
 
 export function nnull<T>(x: T | undefined | null, errMsg?: string): T {

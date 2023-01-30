@@ -12,7 +12,7 @@
   "supportedChains": [
     {
       "chainId": 1,
-      "chainName": "Solana",
+      "chainName": "Solana Devnet",
       "nodeUrl": "https://api.devnet.solana.com",
       "tokenBridgeAddress": "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
       "bridgeAddress": "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5",

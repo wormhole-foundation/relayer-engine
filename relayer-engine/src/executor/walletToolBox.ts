@@ -23,8 +23,12 @@ export function createWalletToolbox(
         providers,
         new Uint8Array(JSON.parse(privateKey)),
       );
+    default:
+      return {
+        ...providers,
+        wallet: { ...providers.untyped[chainId], privateKey },
+      };
   }
-  throw new Error(`Spawned worker for unknown chainId ${chainId}`);
 }
 
 function createEVMWalletToolBox(
@@ -51,6 +55,3 @@ function createSolanaWalletToolBox(
   };
 }
 
-function maybeConcat<T>(...arrs: (T[] | undefined)[]): T[] {
-  return arrs.flatMap(arr => (arr ? arr : []));
-}

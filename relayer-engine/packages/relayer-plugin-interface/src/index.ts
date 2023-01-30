@@ -70,29 +70,32 @@ export interface Action<T, W extends Wallet> {
 
 export type WorkflowId = string;
 
-export type StagingArea = Object; // Next action to be executed
 /*
  * Wallets and Providers
  */
 
+export type UntypedProvider = {
+  rpcUrl: string;
+};
 export type EVMWallet = ethers.Wallet;
-export type Wallet = EVMWallet | SolanaWallet | CosmWallet;
-
-export interface WalletToolBox<T extends Wallet> extends Providers {
-  wallet: T;
-}
-
+export type UntypedWallet = UntypedProvider & {
+  privateKey: string;
+};
 export type SolanaWallet = {
   conn: solana.Connection;
   payer: solana.Keypair;
 };
 
-export type CosmWallet = {};
+export type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
+
+export interface WalletToolBox<T extends Wallet> extends Providers {
+  wallet: T;
+}
 
 export interface Providers {
-  evm: { [id in EVMChainId]: ethers.providers.Provider };
+  untyped: Record<ChainId, UntypedProvider>;
+  evm: Record<EVMChainId, ethers.providers.Provider>;
   solana: solana.Connection;
-  // todo: rest of supported chain providers
 }
 
 export interface ParsedVaaWithBytes extends ParsedVaa {
