@@ -20,50 +20,10 @@ import { EngineError, nnull } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
 import { RedisConfig, RedisWrapper } from "./redisStore";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { CommonEnv, StoreType } from "../config";
+import { CommonEnv } from "../config";
 import { constantsWithNamespace } from './dbConstants';
 
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
-
-type CreationArgs = {
-  plugins: Plugin[]
-  config: CommonEnv
-  nodeId: string
-  logger: Logger
-}
-
-function validateAndGetRedisConfig(config: CommonEnv) {
-  const redisConfig = config as RedisConfig;
-  if (!redisConfig.redisHost || !redisConfig.redisPort) {
-    throw new EngineError(
-      "Redis config values must be present if redis store type selected",
-    );
-  }
-  return redisConfig;
-}
-
-async function createRedisStorage({ plugins, config, nodeId, logger}: CreationArgs) {
-  const redisConfig = validateAndGetRedisConfig(config);
-  const { defaultWorkflowOptions, namespace } = config;
-  return new Storage(
-    await RedisWrapper.fromConfig(redisConfig),
-    plugins,
-    defaultWorkflowOptions,
-    nodeId,
-    logger,
-    namespace
-  );
-}
-
-function createInvalidStorage({ config: { storeType } } : CreationArgs) {
-  throw new EngineError(`Unrecognized storage type ${storeType}`);
-}
-
-function getFactory({ storeType }: CommonEnv, factories = {
-  [StoreType.Redis]: createRedisStorage
-}) {
-  return factories[storeType] || createInvalidStorage;
-}
 
 export async function createStorage(
   plugins: Plugin[],
@@ -71,8 +31,20 @@ export async function createStorage(
   nodeId: string,
   logger: Logger = getLogger(),
 ): Promise<Storage> {
-  const create = getFactory(config);
-  return create({ plugins, config, nodeId, logger });
+  const redisConfig = config as RedisConfig;
+  if (!redisConfig.redisHost || !redisConfig.redisPort) {
+    throw new EngineError(
+      "Redis config values must be present if redis store type selected",
+    );
+  }
+  return new Storage(
+    await RedisWrapper.fromConfig(redisConfig),
+    plugins,
+    config.defaultWorkflowOptions,
+    nodeId,
+    logger,
+    config.namespace
+  );
 }
 
 function sanitize(dirtyString: string): string {
