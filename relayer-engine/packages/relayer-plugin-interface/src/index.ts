@@ -144,9 +144,9 @@ export interface Plugin<WorkflowData = any> {
     providers: Providers,
     extraData?: any[],
   ): Promise<{
-    workflowData?: WorkflowData;
+    workflowData: WorkflowData;
     workflowOptions?: WorkflowOptions;
-  }>;
+  } | undefined>;
   handleWorkflow(
     workflow: Workflow<WorkflowData>,
     providers: Providers,

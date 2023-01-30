@@ -36,13 +36,14 @@ export async function consumeEventHarness(
   try {
     receivedEventsCounter.labels({ plugin: plugin.pluginName }).inc();
     const parsedVaa = parseVaaWithBytes(vaa);
-    const { workflowData, workflowOptions } = await plugin.consumeEvent(
+    const result = await plugin.consumeEvent(
       parsedVaa,
       storage.getStagingAreaKeyLock(plugin.pluginName),
       providers,
       extraData,
     );
-    if (workflowData) {
+    if (result && result.workflowData) {
+      const { workflowData, workflowOptions } = result;
       logger().info(
         `Received workflow data from plugin ${plugin.pluginName}, adding workflow...`,
       );
