@@ -88,9 +88,9 @@ export interface Plugin<WorkflowData = any> {
     getFilters(): ContractFilter[];
     consumeEvent(// Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: ParsedVaaWithBytes, stagingArea: StagingAreaKeyLock, providers: Providers, extraData?: any[]): Promise<{
-        workflowData?: WorkflowData;
+        workflowData: WorkflowData;
         workflowOptions?: WorkflowOptions;
-    }>;
+    } | undefined>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }
 export declare type EventSource = (event: SignedVaa, extraData?: any[]) => Promise<void>;
