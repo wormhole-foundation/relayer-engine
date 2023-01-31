@@ -38,6 +38,7 @@ export enum Mode {
 export type NodeURI = string;
 
 export interface CommonEnv {
+  namespace?: string;
   logLevel?: string;
   promPort?: number;
   readinessPort?: number;

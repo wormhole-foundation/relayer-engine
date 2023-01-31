@@ -24,6 +24,7 @@ type ConfigPrivateKey = {
 
 export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
   return {
+    namespace: raw.namespace,
     logLevel: raw.logLevel,
     storeType: validateStringEnum<StoreType>(StoreType, raw.storeType),
     redisHost: raw.redisHost,
