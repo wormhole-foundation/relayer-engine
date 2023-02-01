@@ -77,8 +77,8 @@ async function createConnection(
       client = clusterConn.masters[0].client!;
     } else {
       client = createClient(options);
+      await client.connect();
     }
-    await client.connect();
 
     await client.set("{gr}test-key", 5);
     logger.debug(
