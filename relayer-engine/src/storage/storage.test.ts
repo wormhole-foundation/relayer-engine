@@ -41,8 +41,8 @@ const TEST_ID = "test-id";
 describe("Storage tests", () => {
   beforeAll(async () => {
     store = await RedisWrapper.fromConfig({
-      redisHost: "localhost",
-      redisPort: 6301,
+      host: "localhost",
+      port: 6301,
     });
     if (!store) {
       throw new Error("Could not conect to redis");

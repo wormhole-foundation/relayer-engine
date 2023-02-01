@@ -4,21 +4,16 @@ import { Logger } from "winston";
 import { IRedis, WriteOp, Op } from ".";
 import { getScopedLogger } from "../helpers/logHelper";
 import { nnull } from "../utils/utils";
+import { RedisConfig } from "../config";
 
 // type RedisClientType = Awaited<ReturnType<typeof createConnection>>;
-export interface RedisConfig {
-  redisHost: string;
-  redisPort: number;
-}
 
 export class RedisWrapper {
   private backlog: WriteOp[] = [];
   private mutex = new Mutex();
   constructor(readonly redis: IRedis, readonly logger: Logger) {}
 
-  static async fromConfig(
-    config: RedisConfig,
-  ): Promise<RedisWrapper> {
+  static async fromConfig(config: RedisConfig): Promise<RedisWrapper> {
     const logger = getScopedLogger(["RedisWrapper"]);
     const redis = await createConnection(config, logger);
     return new RedisWrapper(redis, logger);
@@ -54,15 +49,18 @@ export class RedisWrapper {
 }
 
 async function createConnection(
-  { redisHost, redisPort }: RedisConfig,
+  { host, port, username, password, tls }: RedisConfig,
   logger: Logger,
 ): Promise<IRedis> {
   try {
     let client = createClient({
       socket: {
-        host: redisHost,
-        port: redisPort,
+        host: host,
+        port: port,
+        tls: tls,
       },
+      username,
+      password,
       isolationPoolOptions: {
         min: 2,
       },
@@ -72,9 +70,9 @@ async function createConnection(
       if (err) {
         logger.error(
           "connectToRedis: failed to connect to host [" +
-            redisHost +
+            host +
             "], port [" +
-            redisPort +
+            port +
             "]: %o",
           err,
         );
@@ -86,9 +84,9 @@ async function createConnection(
   } catch (e) {
     logger.error(
       "connectToRedis: failed to connect to host [" +
-        redisHost +
+        host +
         "], port [" +
-        redisPort +
+        port +
         "]: %o",
       e,
     );

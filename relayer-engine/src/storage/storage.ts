@@ -18,10 +18,10 @@ import {
 import { getLogger, getScopedLogger } from "../helpers/logHelper";
 import { EngineError, nnull } from "../utils/utils";
 import { MAX_ACTIVE_WORKFLOWS } from "../executor/executorHarness";
-import { RedisConfig, RedisWrapper } from "./redisStore";
+import { RedisWrapper } from "./redisStore";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { CommonEnv } from "../config";
-import { constantsWithNamespace } from './dbConstants';
+import { CommonEnv, RedisConfig } from "../config";
+import { constantsWithNamespace } from "./dbConstants";
 
 type SerializedWorkflowKeys = { [k in keyof Workflow]: string | number };
 
@@ -31,8 +31,8 @@ export async function createStorage(
   nodeId: string,
   logger: Logger = getLogger(),
 ): Promise<Storage> {
-  const redisConfig = config as RedisConfig;
-  if (!redisConfig.redisHost || !redisConfig.redisPort) {
+  const redisConfig = config.redis as RedisConfig;
+  if (!redisConfig.host || !redisConfig.port) {
     throw new EngineError(
       "Redis config values must be present if redis store type selected",
     );
@@ -43,7 +43,7 @@ export async function createStorage(
     config.defaultWorkflowOptions,
     nodeId,
     logger,
-    config.namespace
+    config.namespace,
   );
 }
 
@@ -75,12 +75,14 @@ export class Storage {
     private readonly _defaultWorkflowOptions: WorkflowOptions,
     private readonly nodeId: string,
     logger: Logger,
-    private readonly namespace: string = ""
+    private readonly namespace: string = "",
   ) {
     this.logger = getScopedLogger([`GlobalStorage`], logger);
     this.plugins = new Map(plugins.map(p => [p.pluginName, p]));
     if (!this.namespace) {
-      this.logger.warn('You are starting a relayer without a namespace, which could cause issues if you run multiple relayer over the same Redis instance');
+      this.logger.warn(
+        "You are starting a relayer without a namespace, which could cause issues if you run multiple relayers using the same Redis instance",
+      );
     }
     this.constants = constantsWithNamespace(this.namespace);
   }
@@ -138,7 +140,11 @@ export class Storage {
 
         // only set the record if we are able to aquire the lock
         if (await this.acquireUnsafeLock(redis, key, 50)) {
-          await redis.hSet(this.constants.EMITTER_KEY, key, JSON.stringify(record));
+          await redis.hSet(
+            this.constants.EMITTER_KEY,
+            key,
+            JSON.stringify(record),
+          );
           await this.releaseUnsafeLock(redis, key);
           this.logger.debug(
             `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
@@ -185,15 +191,21 @@ export class Storage {
 
   // Number of active workflows currently being executed
   numActiveWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.lLen(this.constants.ACTIVE_WORKFLOWS_QUEUE));
+    return this.store.withRedis(redis =>
+      redis.lLen(this.constants.ACTIVE_WORKFLOWS_QUEUE),
+    );
   }
 
   numEnqueuedWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.lLen(this.constants.READY_WORKFLOW_QUEUE));
+    return this.store.withRedis(redis =>
+      redis.lLen(this.constants.READY_WORKFLOW_QUEUE),
+    );
   }
 
   numDelayedWorkflows(): Promise<number> {
-    return this.store.withRedis(redis => redis.lLen(this.constants.DELAYED_WORKFLOWS_QUEUE));
+    return this.store.withRedis(redis =>
+      redis.lLen(this.constants.DELAYED_WORKFLOWS_QUEUE),
+    );
   }
 
   private serializeWorkflow(workflow: Workflow): Record<string, any> {
@@ -372,7 +384,12 @@ export class Storage {
   }
 
   getStagingAreaKeyLock(pluginName: string): StagingAreaKeyLock {
-    return new DefaultStagingAreaKeyLock(this.store, this.constants, this.logger, pluginName);
+    return new DefaultStagingAreaKeyLock(
+      this.store,
+      this.constants,
+      this.logger,
+      pluginName,
+    );
   }
 
   // this is a simple lock which under the wrong conditions cannot guarantee exclusivity
@@ -508,7 +525,9 @@ export class Storage {
         }
 
         const aMinuteAgo = new Date(Date.now() - 60000);
-        const executors = await redis.hGetAll(this.constants.EXECUTORS_HEARTBEAT_HASH);
+        const executors = await redis.hGetAll(
+          this.constants.EXECUTORS_HEARTBEAT_HASH,
+        );
         const deadExecutors: Record<string, boolean> = {};
         for (const executorId of Object.keys(executors)) {
           const lastHeartbeat = new Date(executors[executorId]);
@@ -575,7 +594,9 @@ export class Storage {
   }
 
   private _workflowKey(workflow: { id: string; pluginName: string }): string {
-    return this.namespace ? `${this.namespace}/${workflow.pluginName}/${workflow.id}` : `${workflow.pluginName}/${workflow.id}`
+    return this.namespace
+      ? `${this.namespace}/${workflow.pluginName}/${workflow.id}`
+      : `${workflow.pluginName}/${workflow.id}`;
   }
 }
 
@@ -587,7 +608,9 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
     readonly logger: Logger,
     pluginName: string,
   ) {
-    this.stagingAreaKey = `${this.constants.STAGING_AREA_KEY}/${sanitize(pluginName)}`;
+    this.stagingAreaKey = `${this.constants.STAGING_AREA_KEY}/${sanitize(
+      pluginName,
+    )}`;
   }
 
   getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV> {

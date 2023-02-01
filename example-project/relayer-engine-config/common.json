@@ -3,8 +3,10 @@
   "storeType": "Redis",
   "readinessPort": 2000,
   "numGuardians": 1,
-  "redisPort": 6379,
-  "redisHost": "localhost",
+  "redis": {
+    "port": 6379,
+    "host": "localhost"
+  },
   "defaultWorkflowOptions": {
     "maxRetries": 10
   },
