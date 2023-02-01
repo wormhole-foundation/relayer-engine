@@ -42,7 +42,7 @@ export interface RedisConfig {
   port: number;
   username?: string;
   password?: string;
-  tls: boolean;
+  tls?: boolean;
 }
 
 export interface CommonEnv {
