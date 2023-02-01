@@ -81,7 +81,7 @@ export class Storage {
     this.plugins = new Map(plugins.map(p => [p.pluginName, p]));
     if (!this.namespace) {
       this.logger.warn(
-        "You are starting a relayer without a namespace, which could cause issues if you run multiple relayer over the same Redis instance",
+        "You are starting a relayer without a namespace, which could cause issues if you run multiple relayers using the same Redis instance",
       );
     }
     this.constants = constantsWithNamespace(this.namespace);
