@@ -3,7 +3,7 @@ import {
   ParsedVaaWithBytes,
   Plugin,
   Providers,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
 import {

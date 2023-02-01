@@ -10,7 +10,7 @@ import {
   ChainConfigInfo,
   Providers,
   UntypedProvider,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 
 export function providersFromChainConfig(
   chainConfigs: ChainConfigInfo[],

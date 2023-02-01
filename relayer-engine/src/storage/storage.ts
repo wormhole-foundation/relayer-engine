@@ -5,7 +5,7 @@ import {
   Workflow,
   WorkflowId,
   WorkflowOptions,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 import { Logger } from "winston";
 import {
   Direction,

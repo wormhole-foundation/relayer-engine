@@ -1,6 +1,6 @@
 import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
 import * as wh from "@certusone/wormhole-sdk";
-import { Plugin, Providers } from "relayer-plugin-interface";
+import { Plugin, Providers } from "../../packages/relayer-plugin-interface";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
 import {
@@ -78,7 +78,9 @@ export async function nextVaaFetchingWorker(
       await tryFetchVaasForEmitter(key, storage, providers);
     }
     // wait 5 minutes between fetching next vaa
-    logger().debug(`nextVaaFetchingWorker loop completed, sleeping ${timeout} ms...`);
+    logger().debug(
+      `nextVaaFetchingWorker loop completed, sleeping ${timeout} ms...`,
+    );
     await sleep(timeout);
   }
 }

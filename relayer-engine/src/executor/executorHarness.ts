@@ -10,7 +10,7 @@ import {
   Wallet,
   ActionFunc,
   Workflow,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 import { Storage } from "../storage";
 import * as wh from "@certusone/wormhole-sdk";
 import { ChainId } from "@certusone/wormhole-sdk";
