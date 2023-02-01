@@ -37,6 +37,8 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
       username: raw.redis?.username,
       password: raw.redis?.password,
       tls: raw.redis?.tls && assertBool(raw.redis?.tls, "redis.tls"),
+      cluster:
+        raw.redis?.cluster && assertBool(raw.redis?.cluster, "redis.cluster"),
     },
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
     mode: validateStringEnum<Mode>(Mode, raw.mode),

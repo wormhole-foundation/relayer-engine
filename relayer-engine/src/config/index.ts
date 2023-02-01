@@ -43,6 +43,7 @@ export interface RedisConfig {
   username?: string;
   password?: string;
   tls?: boolean;
+  cluster?: boolean;
 }
 
 export interface CommonEnv {

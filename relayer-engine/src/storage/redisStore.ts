@@ -1,5 +1,5 @@
 import { Mutex } from "async-mutex";
-import { createClient } from "redis";
+import { createClient, createCluster } from "redis";
 import { Logger } from "winston";
 import { IRedis, WriteOp, Op } from ".";
 import { getScopedLogger } from "../helpers/logHelper";
@@ -49,11 +49,11 @@ export class RedisWrapper {
 }
 
 async function createConnection(
-  { host, port, username, password, tls }: RedisConfig,
+  { host, port, username, password, tls, cluster }: RedisConfig,
   logger: Logger,
 ): Promise<IRedis> {
   try {
-    let client = createClient({
+    const options = {
       socket: {
         host: host,
         port: port,
@@ -64,30 +64,27 @@ async function createConnection(
       isolationPoolOptions: {
         min: 2,
       },
-    });
+    };
+    let client;
+    if (cluster) {
+      const clusterConn = createCluster({ rootNodes: [options] });
+      await clusterConn.connect();
+      logger.info(
+        `connected to cluster. Masters found: ${clusterConn
+          .getMasters()
+          .map(m => m.id)
+          .join(",")}`,
+      );
+      client = clusterConn.getMasters()[0].client;
+    } else {
+      client = createClient(options);
+      await client.connect();
+    }
 
-    client.on("connect", function (err) {
-      if (err) {
-        logger.error(
-          "connectToRedis: failed to connect to host [" +
-            host +
-            "], port [" +
-            port +
-            "]: %o",
-          err,
-        );
-      }
-    });
-
-    await client.connect();
     return nnull(client);
   } catch (e) {
     logger.error(
-      "connectToRedis: failed to connect to host [" +
-        host +
-        "], port [" +
-        port +
-        "]: %o",
+      `connectToRedis: failed to connect to host [${host}], port [${port}]: %o`,
       e,
     );
     throw new Error("Could not connect to Redis");
