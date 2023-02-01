@@ -1,5 +1,5 @@
 import { Mutex } from "async-mutex";
-import { createClient, createCluster } from "redis";
+import { createClient, createCluster, RedisClientType } from "redis";
 import { Logger } from "winston";
 import { IRedis, WriteOp, Op } from ".";
 import { getScopedLogger } from "../helpers/logHelper";
@@ -65,21 +65,25 @@ async function createConnection(
         min: 2,
       },
     };
-    let client;
+    let client: any;
     if (cluster) {
       const clusterConn = createCluster({ rootNodes: [options] });
       await clusterConn.connect();
       logger.info(
-        `connected to cluster. Masters found: ${clusterConn
-          .getMasters()
+        `connected to cluster. Masters found: ${clusterConn.masters
           .map(m => m.id)
           .join(",")}`,
       );
-      client = clusterConn.getMasters()[0].client;
+      client = clusterConn.masters[0].client!;
     } else {
       client = createClient(options);
-      await client.connect();
     }
+    await client.connect();
+
+    await client.set("{gr}test-key", 5);
+    logger.debug(
+      `Result of redis connection test: ${await client.get("{gr}test-key")}`,
+    );
 
     return nnull(client);
   } catch (e) {
