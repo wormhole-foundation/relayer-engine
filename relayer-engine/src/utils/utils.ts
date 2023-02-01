@@ -7,7 +7,7 @@ import {
   SignedVaa,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
-import { ParsedVaaWithBytes } from "relayer-plugin-interface";
+import { ParsedVaaWithBytes } from "../../packages/relayer-plugin-interface";
 
 export const second = 1000;
 export const minute = 60 * second;

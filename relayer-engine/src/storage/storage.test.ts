@@ -6,7 +6,7 @@ import {
   Providers,
   Workflow,
   ActionExecutor,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 import { createLogger, transports } from "winston";
 import { dbg, IRedis, Plugin, sleep, minute } from "..";
 import { RedisWrapper } from "./redisStore";

@@ -5,7 +5,7 @@ import {
   Providers,
   SolanaWallet,
   WalletToolBox,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 import * as solana from "@solana/web3.js";
 import { dbg } from "../helpers/logHelper";
 
@@ -54,4 +54,3 @@ function createSolanaWalletToolBox(
     },
   };
 }
-

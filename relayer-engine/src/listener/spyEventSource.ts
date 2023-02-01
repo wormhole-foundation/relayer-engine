@@ -4,7 +4,11 @@ import {
 } from "@certusone/wormhole-spydk";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
 import LRUCache = require("lru-cache");
-import { ContractFilter, Plugin, Providers } from "relayer-plugin-interface";
+import {
+  ContractFilter,
+  Plugin,
+  Providers,
+} from "../../packages/relayer-plugin-interface";
 import { Storage } from "../storage";
 import { sleep } from "../utils/utils";
 import * as wormholeSdk from "@certusone/wormhole-sdk";

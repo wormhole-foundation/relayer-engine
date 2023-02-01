@@ -1,5 +1,5 @@
 import { RedisClientType } from "redis";
-import { Plugin, Workflow } from "relayer-plugin-interface";
+import { Plugin, Workflow } from "../../packages/relayer-plugin-interface";
 import { RedisCommandRawReply } from "@node-redis/client/dist/lib/commands";
 import { ChainId } from "@certusone/wormhole-sdk";
 

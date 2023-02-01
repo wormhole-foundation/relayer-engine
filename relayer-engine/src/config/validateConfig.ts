@@ -1,7 +1,10 @@
 /*
  * Takes in untyped, resolved config objects and sets typed config objects
  */
-import { ChainConfigInfo, EnvType } from "relayer-plugin-interface";
+import {
+  ChainConfigInfo,
+  EnvType,
+} from "../../packages/relayer-plugin-interface";
 import {
   ChainId,
   CHAIN_ID_SOLANA,

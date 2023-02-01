@@ -4,7 +4,7 @@ import {
   CommonPluginEnv,
   EnvType,
   WorkflowOptions,
-} from "relayer-plugin-interface";
+} from "../../packages/relayer-plugin-interface";
 import { loadUntypedEnvs } from "./loadConfig";
 import {
   transformPrivateKeys,

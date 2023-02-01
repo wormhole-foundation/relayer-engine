@@ -1,7 +1,7 @@
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
 // import Koa from "koa";
 // import koaBody from 'koa-body'
-import { Plugin, Providers } from "relayer-plugin-interface";
+import { Plugin, Providers } from "../../packages/relayer-plugin-interface";
 import { Storage } from "../storage";
 
 export interface RestConfig {

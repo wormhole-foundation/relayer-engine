@@ -1,6 +1,9 @@
 import { getCommonEnv, getListenerEnv } from "../config";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
-import { ContractFilter, Plugin } from "relayer-plugin-interface";
+import {
+  ContractFilter,
+  Plugin,
+} from "../../packages/relayer-plugin-interface";
 import { Storage } from "../storage";
 import { providersFromChainConfig } from "../utils/providers";
 import { createSpyEventSource } from "./spyEventSource";
