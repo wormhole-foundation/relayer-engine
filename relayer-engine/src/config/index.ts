@@ -52,7 +52,7 @@ export interface CommonEnv {
   readinessPort?: number;
   logDir?: string;
   storeType: StoreType;
-  redis: RedisConfig;
+  redis?: RedisConfig;
   pluginURIs?: NodeURI[];
   numGuardians?: number;
   wormholeRpc: string;

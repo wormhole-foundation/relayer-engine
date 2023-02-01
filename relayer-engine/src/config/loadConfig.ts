@@ -45,6 +45,9 @@ export async function loadUntypedEnvs(
 async function loadCommon(dir: string): Promise<any> {
   const obj = await loadFileAndParseToObject(`${dir}/common.json`);
   if (obj.redis) {
+    if (process.env.RELAYER_ENGINE_REDIS_HOST) {
+      obj.redis.host = process.env.RELAYER_ENGINE_REDIS_HOST;
+    }
     if (process.env.RELAYER_ENGINE_REDIS_USERNAME) {
       obj.redis.username = process.env.RELAYER_ENGINE_REDIS_USERNAME;
     }

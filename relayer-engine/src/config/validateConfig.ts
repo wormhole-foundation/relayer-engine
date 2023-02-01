@@ -33,7 +33,7 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
       port: raw.redis?.port && assertInt(raw.redis?.port, "redis.port"),
       username: raw.redis?.username,
       password: raw.redis?.password,
-      tls: raw.redis?.tls && assertBool(raw.redis?.tls, "redis.bool"),
+      tls: raw.redis?.tls && assertBool(raw.redis?.tls, "redis.tls"),
     },
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
     mode: validateStringEnum<Mode>(Mode, raw.mode),
