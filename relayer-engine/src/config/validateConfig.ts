@@ -11,6 +11,7 @@ import {
 import { CommonEnv, ExecutorEnv, ListenerEnv, Mode, StoreType } from ".";
 import {
   assertArray,
+  assertBool,
   assertInt,
   assertStr,
   EngineError,
@@ -27,8 +28,13 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
     namespace: raw.namespace,
     logLevel: raw.logLevel,
     storeType: validateStringEnum<StoreType>(StoreType, raw.storeType),
-    redisHost: raw.redisHost,
-    redisPort: raw.redisPort && assertInt(raw.redisPort, "redisPort"),
+    redis: {
+      host: raw.redis?.host,
+      port: raw.redis?.port && assertInt(raw.redis?.port, "redis.port"),
+      username: raw.redis?.username,
+      password: raw.redis?.password,
+      tls: raw.redis?.tls && assertBool(raw.redis?.tls, "redis.bool"),
+    },
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
     mode: validateStringEnum<Mode>(Mode, raw.mode),
     promPort: raw.promPort && assertInt(raw.promPort, "promPort"),

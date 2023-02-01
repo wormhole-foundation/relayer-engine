@@ -5,7 +5,7 @@
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import * as nodePath from "path";
-import { CommonEnv, ExecutorEnv, Mode, PrivateKeys } from ".";
+import { CommonEnv, ExecutorEnv, Mode, PrivateKeys, RedisConfig } from ".";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { dbg } from "../helpers/logHelper";
 
@@ -21,7 +21,7 @@ export async function loadUntypedEnvs(
   rawListenerEnv: any;
   rawExecutorEnv: any;
 }> {
-  const rawCommonEnv = await loadCommon(dir, mode);
+  const rawCommonEnv = await loadCommon(dir);
   rawCommonEnv.mode = mode;
   console.log("Successfully loaded the common config file.");
 
@@ -42,9 +42,16 @@ export async function loadUntypedEnvs(
   };
 }
 
-async function loadCommon(dir: string, mode: Mode): Promise<any> {
+async function loadCommon(dir: string): Promise<any> {
   const obj = await loadFileAndParseToObject(`${dir}/common.json`);
-  obj.mode = mode;
+  if (obj.redis) {
+    if (process.env.RELAYER_ENGINE_REDIS_USERNAME) {
+      obj.redis.username = process.env.RELAYER_ENGINE_REDIS_USERNAME;
+    }
+    if (process.env.RELAYER_ENGINE_REDIS_PASSWORD) {
+      obj.redis.password = process.env.RELAYER_ENGINE_REDIS_PASSWORD;
+    }
+  }
   return obj;
 }
 

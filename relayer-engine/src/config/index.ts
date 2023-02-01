@@ -37,6 +37,14 @@ export enum Mode {
 }
 export type NodeURI = string;
 
+export interface RedisConfig {
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  tls: boolean;
+}
+
 export interface CommonEnv {
   namespace?: string;
   logLevel?: string;
@@ -44,8 +52,7 @@ export interface CommonEnv {
   readinessPort?: number;
   logDir?: string;
   storeType: StoreType;
-  redisHost?: string;
-  redisPort?: number;
+  redis: RedisConfig;
   pluginURIs?: NodeURI[];
   numGuardians?: number;
   wormholeRpc: string;
