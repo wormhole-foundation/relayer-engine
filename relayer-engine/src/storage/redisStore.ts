@@ -69,6 +69,14 @@ async function createConnection(
     if (cluster) {
       const clusterConn = createCluster({ rootNodes: [options] });
       await clusterConn.connect();
+      logger.debug("Attempting to set get in redis with cluster conn...");
+      await clusterConn.set("{gr}cluster-conn-test-key", 10);
+      logger.debug("Set key in redis with clusterconn, attempting to read it back..");
+      logger.debug(
+        `Result of redis cluster connection test: ${await clusterConn.get(
+          "{gr}cluster-conn-test-key",
+        )}`,
+      );
       logger.info(
         `connected to cluster. Masters found: ${clusterConn.masters
           .map(m => m.id)
@@ -79,8 +87,9 @@ async function createConnection(
       client = createClient(options);
       await client.connect();
     }
-
+    logger.debug("Attempting to set get in redis...");
     await client.set("{gr}test-key", 5);
+    logger.debug("Set key in redis, attempting to read it back..");
     logger.debug(
       `Result of redis connection test: ${await client.get("{gr}test-key")}`,
     );
