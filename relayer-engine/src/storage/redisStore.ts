@@ -53,25 +53,31 @@ async function createConnection(
   logger: Logger,
 ): Promise<IRedis> {
   try {
-    const options = {
-      socket: {
-        host: host,
-        port: port,
-        tls: tls,
-      },
-      username,
-      password,
-      isolationPoolOptions: {
-        min: 2,
-      },
-    };
     let client: any;
     if (cluster) {
-      const clusterConn = createCluster({ rootNodes: [options] });
+      const clusterConn = createCluster({
+        rootNodes: [
+          {
+            url: `redis://${host}:${port}`,
+          },
+        ],
+        defaults: {
+          socket: {
+            tls: tls,
+          },
+          username,
+          password,
+          isolationPoolOptions: {
+            min: 2,
+          },
+        },
+      });
       await clusterConn.connect();
       logger.debug("Attempting to set get in redis with cluster conn...");
       await clusterConn.set("{gr}cluster-conn-test-key", 10);
-      logger.debug("Set key in redis with clusterconn, attempting to read it back..");
+      logger.debug(
+        "Set key in redis with clusterconn, attempting to read it back..",
+      );
       logger.debug(
         `Result of redis cluster connection test: ${await clusterConn.get(
           "{gr}cluster-conn-test-key",
@@ -84,7 +90,18 @@ async function createConnection(
       );
       client = clusterConn.masters[0].client!;
     } else {
-      client = createClient(options);
+      client = createClient({
+        socket: {
+          host: host,
+          port: port,
+          tls: tls,
+        },
+        username,
+        password,
+        isolationPoolOptions: {
+          min: 2,
+        },
+      });
       await client.connect();
     }
     logger.debug("Attempting to set get in redis...");
