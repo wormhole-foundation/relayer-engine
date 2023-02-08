@@ -1,5 +1,6 @@
 import { WatchError } from "redis";
 import {
+  OpaqueTx,
   Plugin,
   StagingAreaKeyLock,
   Workflow,
@@ -633,16 +634,17 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
 
   async withKey<T, KV extends Record<string, any>>(
     keys: string[],
-    f: (kvs: KV) => Promise<{ newKV: KV; val: T }>,
+    f: (kvs: KV, ctx: OpaqueTx) => Promise<{ newKV: KV; val: T }>,
+    tx?: OpaqueTx,
   ): Promise<T> {
     try {
-      return await this.store.withRedis(async redis => {
+      const op = async (redis: IRedis) => {
         // watch keys so that no other listners can alter
         await redis.watch(keys.map(key => `${this.stagingAreaKey}/${key}`));
 
         const kvs = await this.getKeysInternal<KV>(redis, keys);
 
-        const { newKV, val } = await f(kvs);
+        const { newKV, val } = await f(kvs, { redis } as OpaqueTx);
 
         let multi = redis.multi();
         for (const [k, v] of Object.entries(newKV)) {
@@ -651,7 +653,10 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
         await multi.exec(true);
 
         return val;
-      });
+      };
+      return tx
+        ? await op((tx as unknown as Tx).redis)
+        : this.store.withRedis(op);
     } catch (e) {
       if (e instanceof WatchError) {
         // todo: retry in this case?
@@ -664,3 +669,5 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
     }
   }
 }
+
+type Tx = { redis: IRedis };

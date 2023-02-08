@@ -69,6 +69,7 @@ async function createConnection(
           password,
           isolationPoolOptions: {
             min: 2,
+            max: 10,
           },
         },
       });
@@ -90,6 +91,7 @@ async function createConnection(
         password,
         isolationPoolOptions: {
           min: 2,
+          max: 10,
         },
       });
       await client.connect();
