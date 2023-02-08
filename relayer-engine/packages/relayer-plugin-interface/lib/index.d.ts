@@ -38,24 +38,24 @@ export interface ActionExecutor {
     onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
     onEVM<T>(action: Action<T, EVMWallet>): Promise<T>;
 }
-export declare type ActionFunc<T, W extends Wallet> = (walletToolBox: WalletToolBox<W>, chaidId: ChainId) => Promise<T>;
+export type ActionFunc<T, W extends Wallet> = (walletToolBox: WalletToolBox<W>, chaidId: ChainId) => Promise<T>;
 export interface Action<T, W extends Wallet> {
     chainId: ChainId;
     f: ActionFunc<T, W>;
 }
-export declare type WorkflowId = string;
-export declare type UntypedProvider = {
+export type WorkflowId = string;
+export type UntypedProvider = {
     rpcUrl: string;
 };
-export declare type EVMWallet = ethers.Wallet;
-export declare type UntypedWallet = UntypedProvider & {
+export type EVMWallet = ethers.Wallet;
+export type UntypedWallet = UntypedProvider & {
     privateKey: string;
 };
-export declare type SolanaWallet = {
+export type SolanaWallet = {
     conn: solana.Connection;
     payer: solana.Keypair;
 };
-export declare type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
+export type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
 export interface WalletToolBox<T extends Wallet> extends Providers {
     wallet: T;
 }
@@ -74,7 +74,7 @@ export interface PluginDefinition<PluginConfig, PluginType extends Plugin<Workfl
     };
     pluginName: string;
 }
-export declare type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
+export type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
 export interface WorkflowOptions {
     maxRetries?: number;
 }
@@ -96,15 +96,16 @@ export interface Plugin<WorkflowData = any> {
     } | undefined>;
     handleWorkflow(workflow: Workflow<WorkflowData>, providers: Providers, execute: ActionExecutor): Promise<void>;
 }
-export declare type EventSource = (event: SignedVaa, extraData?: any[]) => Promise<void>;
-export declare type ContractFilter = {
+export type EventSource = (event: SignedVaa, extraData?: any[]) => Promise<void>;
+export type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
 };
 export interface StagingAreaKeyLock {
-    withKey<T, KV extends Record<string, any>>(keys: string[], f: (kv: KV) => Promise<{
+    withKey<T, KV extends Record<string, any>>(keys: string[], f: (kvs: KV, ctx: OpaqueTx) => Promise<{
         newKV: KV;
         val: T;
-    }>): Promise<T>;
+    }>, tx?: OpaqueTx): Promise<T>;
     getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }
+export type OpaqueTx = never;

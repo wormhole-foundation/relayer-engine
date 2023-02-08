@@ -146,10 +146,13 @@ export interface Plugin<WorkflowData = any> {
     stagingArea: StagingAreaKeyLock,
     providers: Providers,
     extraData?: any[],
-  ): Promise<{
-    workflowData: WorkflowData;
-    workflowOptions?: WorkflowOptions;
-  } | undefined>;
+  ): Promise<
+    | {
+        workflowData: WorkflowData;
+        workflowOptions?: WorkflowOptions;
+      }
+    | undefined
+  >;
   handleWorkflow(
     workflow: Workflow<WorkflowData>,
     providers: Providers,
@@ -170,7 +173,10 @@ export type ContractFilter = {
 export interface StagingAreaKeyLock {
   withKey<T, KV extends Record<string, any>>(
     keys: string[],
-    f: (kv: KV) => Promise<{ newKV: KV; val: T }>,
+    f: (kvs: KV, ctx: OpaqueTx) => Promise<{ newKV: KV; val: T }>,
+    tx?: OpaqueTx,
   ): Promise<T>;
   getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }
+
+export type OpaqueTx = never;
