@@ -46,15 +46,23 @@ export async function consumeEventWithMissedVaaDetection(
   );
 
   if (emitterRecord) {
-    await fetchAndConsumeMissedVaas(
-      plugin,
-      storage,
-      providers,
-      chainId,
-      emitterAddress,
-      emitterRecord.lastSeenSequence,
-      Number(parsedVaa.sequence),
-    );
+    // this failing shouldn't block consumption of the vaa.
+    try {
+      await fetchAndConsumeMissedVaas(
+        plugin,
+        storage,
+        providers,
+        chainId,
+        emitterAddress,
+        emitterRecord.lastSeenSequence,
+        Number(parsedVaa.sequence),
+      );
+    } catch (e) {
+      if (e instanceof Error) {
+        logger().error(`Attempting to fetch missed vaas failed: ${e.message}`);
+        logger().error(e.stack);
+      }
+    }
   }
   await consumeEventHarness(vaa, plugin, storage, providers, extraData);
 }
@@ -136,6 +144,8 @@ async function tryFetchAndConsumeVaa(
       emitterAddress,
       sequence.toString(),
       { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
+      100,
+      2,
     );
 
     if (!resp?.vaaBytes) {

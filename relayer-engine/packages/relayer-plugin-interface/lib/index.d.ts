@@ -29,6 +29,8 @@ export interface Workflow<D = any> {
     maxRetries?: number;
     data: D;
     failedAt?: Date;
+    errorMessage?: string;
+    errorStacktrace?: string;
     completedAt?: Date;
     startedProcessingAt?: Date;
     processingBy?: string;

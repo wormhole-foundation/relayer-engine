@@ -211,6 +211,10 @@ async function spawnWorkflow(
       );
       completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
     } catch (e) {
+      if (e instanceof Error) {
+        workflow.errorMessage = e.message;
+        workflow.errorStacktrace = e.stack;
+      }
       logger.warn(
         `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
       );

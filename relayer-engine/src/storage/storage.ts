@@ -263,6 +263,8 @@ export class Storage {
         .hSet(key, <SerializedWorkflowKeys>{
           processingBy: "",
           startedProcessingAt: "",
+          errorMessage: workflow.errorMessage,
+          errorStacktrace: workflow.errorStacktrace,
         })
         .hIncrBy(key, "retryCount", 1);
       op =
@@ -294,6 +296,8 @@ export class Storage {
           completedAt: now.toString(),
           processingBy: "",
           startedProcessingAt: "",
+          errorMessage: "",
+          errorStacktrace: "",
         })
         .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
         .exec(true);
@@ -303,6 +307,8 @@ export class Storage {
   failWorkflow(workflow: {
     id: WorkflowId;
     pluginName: string;
+    errorMessage?: string;
+    errorStacktrace?: string;
   }): Promise<void> {
     const key = this._workflowKey(workflow);
     return this.store.runOpWithRetry(async redis => {
@@ -314,8 +320,10 @@ export class Storage {
       const now = new Date();
       await redis
         .multi()
-        .hSet(key, <SerializedWorkflowKeys>{
+        .hSet(key, <Partial<SerializedWorkflowKeys>>{
           failedAt: now.toString(),
+          failedMessage: workflow.errorMessage,
+          failedStacktrace: workflow.errorStacktrace,
           processingBy: "",
           startedProcessingAt: "",
         })
