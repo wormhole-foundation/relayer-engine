@@ -192,26 +192,24 @@ export async function fetchAndConsumeMissedVaas(
   }
 }
 
-async function getEmitterKeys(plugins: Plugin[]): Promise<
+function getEmitterKeys(plugins: Plugin[]): Promise<
   {
     plugin: Plugin;
     chainId: wh.ChainId;
     emitterAddress: string;
   }[]
 > {
-  return await Promise.all(
-    plugins.map(async plugin => {
-      const rawFilters = plugin.getFilters();
-      return await Promise.all(
-        rawFilters.map(async x => {
-          return {
-            ...(await transformEmitterFilter(x)),
-            plugin,
-          };
-        }),
-      );
-    }),
-  ).then(x => x.flatMap(y => y));
+  const nestedEmitters = plugins.map(plugin => {
+    const rawFilters = plugin.getFilters();
+    return rawFilters.map(async x => {
+      return {
+        ...(await transformEmitterFilter(x)),
+        plugin,
+      };
+    });
+  });
+
+  return Promise.all(nestedEmitters.flatMap(x => x));
 }
 
 function getTimeout(): number {
