@@ -78,7 +78,7 @@ describe("Storage tests", () => {
     const key = workflowKey(workflow);
 
     it("adds workflows", async () => {
-      await expect(await storage.numActiveWorkflows()).toBe(0);
+      await expect(storage.numActiveWorkflows()).resolves.toBe(0);
       await storage.addWorkflow(workflow);
       const workflowAndPlugin = await storage.getWorkflow(workflow);
       expect(workflowAndPlugin).not.toBeNull();
@@ -94,7 +94,7 @@ describe("Storage tests", () => {
 
     it("gets next workflow", async () => {
       const res = await storage.getNextWorkflow(1);
-      await expect(res).toBeTruthy();
+      expect(res).toBeTruthy();
       logger.info(res);
       expect(res!.workflow).toEqual(workflow);
       expect(await redis.lLen("__activeWorkflows")).toBe(1);

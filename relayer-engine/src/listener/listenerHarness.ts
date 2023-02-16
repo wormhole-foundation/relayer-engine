@@ -60,10 +60,10 @@ async function encodeEmitterAddress(
     myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
     myChainId === wormholeSdk.CHAIN_ID_PYTHNET
   ) {
-    return await wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
+    return wormholeSdk.getEmitterAddressSolana(emitterAddressStr);
   }
   if (wormholeSdk.isTerraChain(myChainId)) {
-    return await wormholeSdk.getEmitterAddressTerra(emitterAddressStr);
+    return wormholeSdk.getEmitterAddressTerra(emitterAddressStr);
   }
   if (wormholeSdk.isEVMChain(myChainId)) {
     return wormholeSdk.getEmitterAddressEth(emitterAddressStr);

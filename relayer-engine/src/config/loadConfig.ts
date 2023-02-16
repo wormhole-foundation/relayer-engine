@@ -72,7 +72,7 @@ async function loadExecutor(
     if (privateKeyEnv) {
       rawExecutorEnv.privateKeys = Object.assign(
         (rawExecutorEnv as ExecutorEnv).privateKeys,
-        await privateKeyEnvVarLoader(
+        privateKeyEnvVarLoader(
           (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
         ),
       );
@@ -84,7 +84,7 @@ async function loadExecutor(
 
 async function loadListener(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.LISTENER || mode == Mode.BOTH) {
-    return await loadFileAndParseToObject(
+    return loadFileAndParseToObject(
       `${dir}/${Mode.LISTENER.toLowerCase()}.json`,
     );
   }
