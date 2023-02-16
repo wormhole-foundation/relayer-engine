@@ -94,8 +94,8 @@ export class Storage {
     chainId: ChainId,
     emitterAddress: string,
   ): Promise<EmitterRecord | null> {
-    return this.store.withRedis(async redis => {
-      return await this.getEmitterRecordInner(
+    return this.store.withRedis(redis => {
+      return this.getEmitterRecordInner(
         redis,
         emitterRecordKey(pluginName, chainId, emitterAddress),
       );
@@ -257,7 +257,7 @@ export class Storage {
         );
         multi = multi.hSet(key, <SerializedWorkflowKeys>{ completedAt: "" });
       }
-      let op = await multi
+      let op = multi
         .lRem(this.constants.READY_WORKFLOW_QUEUE, 0, key) // ensure key is not present in queue already
         .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key) // remove key from workflow queue if present
         .hSet(key, <SerializedWorkflowKeys>{
@@ -435,7 +435,7 @@ export class Storage {
       return null;
     };
 
-    return await op(redis);
+    return op(redis);
   }
 
   private async releaseUnsafeLock(
