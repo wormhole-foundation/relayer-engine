@@ -43,7 +43,7 @@ export async function loadUntypedEnvs(
 }
 
 async function loadCommon(dir: string): Promise<any> {
-  const obj = await loadFileAndParseToObject(`${dir}/common.json`);
+  const obj = await loadFileAndParseToObject(nodePath.join(dir, `common.json`));
   if (obj.redis) {
     if (process.env.RELAYER_ENGINE_REDIS_HOST) {
       obj.redis.host = process.env.RELAYER_ENGINE_REDIS_HOST;
@@ -66,7 +66,7 @@ async function loadExecutor(
 ): Promise<any> {
   if (mode == Mode.EXECUTOR || mode == Mode.BOTH) {
     const rawExecutorEnv = await loadFileAndParseToObject(
-      `${dir}/${Mode.EXECUTOR.toLowerCase()}.json`,
+      nodePath.join(dir, `${Mode.EXECUTOR.toLowerCase()}.json`)
     );
 
     if (privateKeyEnv) {
@@ -85,7 +85,7 @@ async function loadExecutor(
 async function loadListener(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.LISTENER || mode == Mode.BOTH) {
     return loadFileAndParseToObject(
-      `${dir}/${Mode.LISTENER.toLowerCase()}.json`,
+      nodePath.join(dir, `${Mode.LISTENER.toLowerCase()}.json`)
     );
   }
   return undefined;
