@@ -8,6 +8,7 @@ import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { Storage } from "../storage";
 import {
   assertChainId,
+  minute,
   parseVaaWithBytes,
   wormholeBytesToHex,
 } from "../utils/utils";
@@ -26,6 +27,11 @@ const logger = () => {
   return _logger;
 };
 
+type VaaHash = string;
+type Timestamp = number;
+// todo: consider putting this into redis to support multi-node listeners
+const inProgress = new Map<VaaHash, Timestamp>();
+
 export async function consumeEventHarness(
   vaa: SignedVaa | ParsedVaaWithBytes,
   plugin: Plugin,
@@ -36,12 +42,26 @@ export async function consumeEventHarness(
   try {
     receivedEventsCounter.labels({ plugin: plugin.pluginName }).inc();
     const parsedVaa = parseVaaWithBytes(vaa);
+    const hash = parsedVaa.hash.toString("base64");
+    const isInProgress = inProgress.get(hash);
+    // if event is already being processed and processing started less than 5 minutes ago
+    if (isInProgress && isInProgress > Date.now() - 5 * minute) {
+      // skip
+      logger().warn(
+        `Attempted to process event, but id ${hash} already in progress, skipping...`,
+        { id: hash },
+      );
+      return;
+    }
+
+    inProgress.set(hash, Date.now());
     const result = await plugin.consumeEvent(
       parsedVaa,
       storage.getStagingAreaKeyLock(plugin.pluginName),
       providers,
       extraData,
     );
+
     if (result && result.workflowData) {
       const { workflowData, workflowOptions } = result;
       logger().info(
@@ -49,7 +69,7 @@ export async function consumeEventHarness(
       );
       await storage.addWorkflow({
         data: workflowData,
-        id: parsedVaa.hash.toString("base64"),
+        id: hash,
         pluginName: plugin.pluginName,
         maxRetries: workflowOptions?.maxRetries ?? plugin.maxRetries,
         retryCount: 0,
@@ -66,6 +86,7 @@ export async function consumeEventHarness(
       emitterAddress,
       Number(parsedVaa.sequence),
     );
+    inProgress.delete(hash);
   } catch (e) {
     const l = logger();
     l.error(`Encountered error consumingEvent for plugin ${plugin.pluginName}`);
