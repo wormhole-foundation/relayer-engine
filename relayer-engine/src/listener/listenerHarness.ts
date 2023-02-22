@@ -68,5 +68,17 @@ async function encodeEmitterAddress(
   if (wormholeSdk.isEVMChain(myChainId)) {
     return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
   }
-  throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
+  if (wormholeSdk.CHAIN_ID_ALGORAND === myChainId) {
+    return wormholeSdk.getEmitterAddressAlgorand(BigInt(emitterAddressStr))
+  }
+  if (wormholeSdk.CHAIN_ID_INJECTIVE === myChainId) {
+    return wormholeSdk.getEmitterAddressInjective(emitterAddressStr)
+  }
+  if (wormholeSdk.CHAIN_ID_NEAR === myChainId) {
+    return wormholeSdk.getEmitterAddressNear(emitterAddressStr)
+  }
+  if (wormholeSdk.CHAIN_ID_XPLA === myChainId) {
+    return wormholeSdk.getEmitterAddressXpla(emitterAddressStr)
+  }
+  throw new Error(`Encoding emitter address not implemented for wormhole chainId ${myChainId}`);
 }
