@@ -40,19 +40,19 @@ export async function consumeEventHarness(
   extraData?: any[],
 ): Promise<void> {
   try {
-    receivedEventsCounter.labels({ plugin: plugin.pluginName }).inc();
     const parsedVaa = parseVaaWithBytes(vaa);
     const hash = parsedVaa.hash.toString("base64");
     const isInProgress = inProgress.get(hash);
-    // if event is already being processed and processing started less than 5 minutes ago
+    // skip if event is already being processed and processing started less than 5 minutes ago
     if (isInProgress && isInProgress > Date.now() - 5 * minute) {
-      // skip
       logger().warn(
         `Attempted to process event, but id ${hash} already in progress, skipping...`,
         { id: hash },
       );
       return;
     }
+
+    receivedEventsCounter.labels({ plugin: plugin.pluginName }).inc();
 
     inProgress.set(hash, Date.now());
     const result = await plugin.consumeEvent(
