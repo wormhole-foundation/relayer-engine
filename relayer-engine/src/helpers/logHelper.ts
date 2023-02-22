@@ -85,23 +85,7 @@ export function initLogger(logConfig?: LogConfig): winston.Logger {
   const logConfiguration: winston.LoggerOptions = {
     // NOTE: do not specify labels in defaultMeta, as it cannot be overridden
     transports: [transport],
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.splat(),
-      winston.format.simple(),
-      winston.format.timestamp({
-        format: "YYYY-MM-DD HH:mm:ss.SSS",
-      }),
-      winston.format.errors({ stack: true }),
-      winston.format.printf(
-        (info: any) =>
-          `${[info.timestamp]}|${info.level}|${
-            info.labels && info.labels.length > 0
-              ? info.labels.join("|")
-              : "main"
-          }: ${info.message} ${info.stack ? "\n" + info.stack : ""} `,
-      ),
-    ),
+    format: winston.format.json(),
   };
 
   logger = winston.createLogger(logConfiguration);

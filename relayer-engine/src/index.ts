@@ -104,21 +104,22 @@ export async function run(args: RunArgs): Promise<void> {
 
   switch (commonEnv.mode) {
     case Mode.LISTENER:
-      logger.info("Running in listener mode");
+      logger.info("Running in listener mode", { env: commonEnv });
       await listenerHarness.run(plugins, storage);
       break;
     case Mode.EXECUTOR:
-      logger.info("Running in executor mode");
+      logger.info("Running in executor mode", { env: commonEnv });
       await executorHarness.run(plugins, storage);
       break;
     case Mode.BOTH:
-      logger.info("Running as both executor and listener");
+      logger.info("Running as both executor and listener", { env: commonEnv });
       await Promise.all([
         executorHarness.run(plugins, storage),
         listenerHarness.run(plugins, storage),
       ]);
       break;
     default:
+      logger.error(`Invalid running mode as argument: ${process.env.MODE}`, { env: process.env });
       throw new Error(
         "Expected MODE env var to be listener or executor, instead got: " +
           process.env.MODE,
@@ -137,7 +138,7 @@ export async function run(args: RunArgs): Promise<void> {
     app.use(router.allowedMethods());
     app.use(router.routes());
     app.listen(commonEnv.promPort, () =>
-      logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
+      logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`, { env: commonEnv }),
     );
   }
 }
