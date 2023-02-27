@@ -108,19 +108,6 @@ export interface ParsedVaaWithBytes extends ParsedVaa {
  *  Plugin interfaces
  */
 
-// Must be the default export for the plugin package
-export interface PluginDefinition<
-  PluginConfig,
-  PluginType extends Plugin<WorkflowData>,
-  WorkflowData = any,
-> {
-  init(pluginConfig: any | PluginConfig): {
-    fn: EngineInitFn<PluginType>;
-    pluginName: string;
-  };
-  pluginName: string;
-}
-
 // Function signature passed to the relayer-engine's `run` function
 // The engine will provide the config and a scoped logger
 export type EngineInitFn<PluginType extends Plugin> = (

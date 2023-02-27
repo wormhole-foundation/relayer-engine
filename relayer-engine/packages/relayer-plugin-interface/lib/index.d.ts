@@ -69,13 +69,6 @@ export interface Providers {
 export interface ParsedVaaWithBytes extends ParsedVaa {
     bytes: SignedVaa;
 }
-export interface PluginDefinition<PluginConfig, PluginType extends Plugin<WorkflowData>, WorkflowData = any> {
-    init(pluginConfig: any | PluginConfig): {
-        fn: EngineInitFn<PluginType>;
-        pluginName: string;
-    };
-    pluginName: string;
-}
 export type EngineInitFn<PluginType extends Plugin> = (engineConfig: CommonPluginEnv, logger: winston.Logger) => PluginType;
 export interface WorkflowOptions {
     maxRetries?: number;
