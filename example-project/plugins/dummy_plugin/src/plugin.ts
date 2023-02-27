@@ -1,13 +1,10 @@
 import {
   ActionExecutor,
   assertArray,
-  assertBool,
   CommonPluginEnv,
   ContractFilter,
-  EngineInitFn,
   ParsedVaaWithBytes,
   Plugin,
-  PluginDefinition,
   Providers,
   sleep,
   StagingAreaKeyLock,
@@ -17,12 +14,9 @@ import {
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { parseVaa } from "@certusone/wormhole-sdk";
-import { SignedVaa } from "@certusone/wormhole-sdk";
 
 export interface DummyPluginConfig {
   spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
-  shouldRest: boolean;
-  shouldSpy: boolean;
 }
 
 // Serialized version of WorkloadPayload
@@ -42,11 +36,14 @@ const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
 export class DummyPlugin implements Plugin<WorkflowPayload> {
-  readonly shouldSpy: boolean;
-  readonly shouldRest: boolean;
+  // configuration fields used by engine
+  readonly shouldSpy: boolean = true;
+  readonly shouldRest: boolean = false;
+  readonly maxRetries = 10;
   static readonly pluginName: string = "DummyPlugin";
   readonly pluginName = DummyPlugin.pluginName;
-  private static pluginConfig: DummyPluginConfig | undefined;
+
+  // config used by plugin
   pluginConfig: DummyPluginConfig;
 
   constructor(
@@ -58,8 +55,6 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     console.log(`Plugin Env: ${JSON.stringify(pluginConfigRaw, undefined, 2)}`);
 
     this.pluginConfig = DummyPlugin.validateConfig(pluginConfigRaw);
-    this.shouldRest = this.pluginConfig.shouldRest;
-    this.shouldSpy = this.pluginConfig.shouldSpy;
   }
 
   // Validate the plugin's config
@@ -70,8 +65,6 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
       spyServiceFilters:
         pluginConfigRaw.spyServiceFilters &&
         assertArray(pluginConfigRaw.spyServiceFilters, "spyServiceFilters"),
-      shouldRest: assertBool(pluginConfigRaw.shouldRest, "shouldRest"),
-      shouldSpy: assertBool(pluginConfigRaw.shouldSpy, "shouldSpy"),
     };
   }
 
@@ -86,8 +79,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     workflowData: WorkflowPayload;
     workflowOptions?: WorkflowOptions;
   }> {
-    this.logger.debug("Parsing VAA...");
-    this.logger.debug(`Parsed VAA: ${vaa.hash.toString("base64")}`);
+    this.logger.debug(`VAA hash: ${vaa.hash.toString("base64")}`);
 
     // Example of reading and updating a key exclusively
     // This allows multiple listeners to run in separate processes safely
@@ -155,25 +147,4 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
       count: workflow.data.count as number,
     };
   }
-
-  maxRetries = 10;
 }
-
-// The interface passed to the engine that allows it to instantiate the plugin
-class Definition implements PluginDefinition<DummyPluginConfig, DummyPlugin> {
-  pluginName: string = DummyPlugin.pluginName;
-
-  init(pluginConfig: any): {
-    fn: EngineInitFn<DummyPlugin>;
-    pluginName: string;
-  } {
-    const pluginConfigParsed: DummyPluginConfig =
-      DummyPlugin.validateConfig(pluginConfig);
-    return {
-      fn: (env, logger) => new DummyPlugin(env, pluginConfigParsed, logger),
-      pluginName: DummyPlugin.pluginName,
-    };
-  }
-}
-
-export default new Definition();

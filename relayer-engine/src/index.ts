@@ -13,15 +13,14 @@ import {
   validateEnvs,
 } from "./config";
 import { getLogger, getScopedLogger } from "./helpers/logHelper";
-import { createStorage } from "./storage";
+import { createStorage, Storage } from "./storage";
 export * from "./config";
 export * from "./utils/utils";
 export * from "./storage";
 import * as listenerHarness from "./listener/listenerHarness";
 import * as executorHarness from "./executor/executorHarness";
 import { providersFromChainConfig } from "./utils/providers";
-import { Gauge } from "prom-client";
-import { pluginsConfiguredGauge } from "./metrics";
+import { registerGauges } from "./metrics";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { consumeEventHarness } from "./listener/eventHarness";
 import { randomUUID } from "crypto";
@@ -46,61 +45,22 @@ export interface RunArgs {
         listenerEnv?: ListenerEnv;
       };
   mode: Mode;
-  plugins: { fn: EngineInitFn<Plugin>; pluginName: string }[];
+  plugins: { [pluginName: string]: EngineInitFn<Plugin> };
 }
 
 export async function run(args: RunArgs): Promise<void> {
   await readAndValidateEnv(args);
   const commonEnv = getCommonEnv();
   const logger = getLogger(commonEnv);
-  const plugins = args.plugins.map(({ fn, pluginName }) =>
-    fn(commonEnv, getScopedLogger([pluginName])),
+  const plugins = Object.entries(args.plugins).map(
+    ([pluginName, constructor]) =>
+      constructor(commonEnv, getScopedLogger([pluginName])),
   );
   const nodeId = randomUUID();
   const storage = await createStorage(plugins, commonEnv, nodeId);
 
-  // run each plugins afterSetup lifecycle hook to gain access to
-  // providers for each chain and the eventSource hook that allows
-  // plugins to create their own events that the listener will respond to
-  const providers = providersFromChainConfig(commonEnv.supportedChains);
-  await Promise.all(
-    plugins.map(
-      p =>
-        p.afterSetup &&
-        p.afterSetup(
-          providers,
-          commonEnv.mode === Mode.LISTENER || commonEnv.mode === Mode.BOTH
-            ? {
-                eventSource: (event: SignedVaa, extraData?: any[]) =>
-                  consumeEventHarness(event, p, storage, providers, extraData),
-                db: storage.getStagingAreaKeyLock(p.pluginName),
-              }
-            : undefined,
-        ),
-    ),
-  );
-
-  pluginsConfiguredGauge.set(plugins.length);
-
-  new Gauge({
-    name: "enqueued_workflows",
-    help: "Count of workflows waiting to be executed.",
-    async collect() {
-      // Invoked when the registry collects its metrics' values.
-      const currentValue = await storage.numEnqueuedWorkflows();
-      this.set(currentValue);
-    },
-  });
-
-  new Gauge({
-    name: "delayed_workflows",
-    help: "Count of workflows waiting to be requeued after erroring out.",
-    async collect() {
-      // Invoked when the registry collects its metrics' values.
-      const currentValue = await storage.numDelayedWorkflows();
-      this.set(currentValue);
-    },
-  });
+  registerGauges(storage, plugins.length);
+  await invokeAfterSetupHooks(commonEnv, plugins, storage);
 
   switch (commonEnv.mode) {
     case Mode.LISTENER:
@@ -126,19 +86,7 @@ export async function run(args: RunArgs): Promise<void> {
   }
   // Will need refactor when we implement rest listeners and readiness probes
   if (commonEnv.promPort) {
-    const app = new Koa();
-    const router = new Router();
-
-    router.get("/metrics", async (ctx, next) => {
-      let metrics = await register.metrics();
-      ctx.body = metrics;
-    });
-
-    app.use(router.allowedMethods());
-    app.use(router.routes());
-    app.listen(commonEnv.promPort, () =>
-      logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
-    );
+    await launchMetricsServer(commonEnv);
   }
 }
 
@@ -168,4 +116,47 @@ async function readAndValidateEnv({
     rawListenerEnv: configs.listenerEnv,
     rawExecutorEnv: configs.executorEnv,
   });
+}
+
+// run each plugins afterSetup lifecycle hook to gain access to
+// providers for each chain and the eventSource hook that allows
+// plugins to create their own events that the listener will respond to
+async function invokeAfterSetupHooks(
+  commonEnv: CommonEnv,
+  plugins: Plugin[],
+  storage: Storage,
+) {
+  const providers = providersFromChainConfig(commonEnv.supportedChains);
+  const promises = plugins.map(
+    p =>
+      p.afterSetup &&
+      p.afterSetup(
+        providers,
+        commonEnv.mode === Mode.LISTENER || commonEnv.mode === Mode.BOTH
+          ? {
+              eventSource: (event: SignedVaa, extraData?: any[]) =>
+                consumeEventHarness(event, p, storage, providers, extraData),
+              db: storage.getStagingAreaKeyLock(p.pluginName),
+            }
+          : undefined,
+      ),
+  );
+  await Promise.all(promises);
+}
+
+async function launchMetricsServer(commonEnv: CommonEnv) {
+  const app = new Koa();
+  const router = new Router();
+  const logger = getScopedLogger(["MetricsServer"]);
+
+  router.get("/metrics", async (ctx, next) => {
+    let metrics = await register.metrics();
+    ctx.body = metrics;
+  });
+
+  app.use(router.allowedMethods());
+  app.use(router.routes());
+  app.listen(commonEnv.promPort, () =>
+    logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
+  );
 }
