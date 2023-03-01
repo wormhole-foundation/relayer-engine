@@ -24,6 +24,7 @@ import { registerGauges } from "./metrics";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { consumeEventHarness } from "./listener/eventHarness";
 import { randomUUID } from "crypto";
+import { WorkflowsController } from "./api/controller";
 export {
   getLogger,
   getScopedLogger,
@@ -86,7 +87,10 @@ export async function run(args: RunArgs): Promise<void> {
   }
   // Will need refactor when we implement rest listeners and readiness probes
   if (commonEnv.promPort) {
-    await launchMetricsServer(commonEnv);
+    launchMetricsServer(commonEnv);
+  }
+  if (commonEnv.apiPort) {
+    launchApiServer(commonEnv, storage);
   }
 }
 
@@ -158,5 +162,24 @@ async function launchMetricsServer(commonEnv: CommonEnv) {
   app.use(router.routes());
   app.listen(commonEnv.promPort, () =>
     logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
+  );
+}
+
+async function launchApiServer(commonEnv: CommonEnv, storageServ: Storage) {
+  const app = new Koa();
+  const logger = getScopedLogger(["ApiServer"]);
+  const workflowsCtrl = new WorkflowsController(storageServ);
+
+  const workflows = new Router();
+
+  workflows.prefix("/workflows");
+  workflows.get("/", workflowsCtrl.getWorkflow);
+  workflows.post("/retry", workflowsCtrl.moveFailedWorkflowToReady);
+  workflows.get("/:status", workflowsCtrl.getWorkflowsByStatus);
+
+  app.use(workflows.allowedMethods());
+  app.use(workflows.routes());
+  app.listen(commonEnv.apiPort, () =>
+    logger.info(`Api running on port ${commonEnv.apiPort}`),
   );
 }

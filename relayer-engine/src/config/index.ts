@@ -50,6 +50,7 @@ export interface CommonEnv {
   namespace?: string;
   logLevel?: string;
   promPort?: number;
+  apiPort?: number;
   readinessPort?: number;
   logDir?: string;
   storeType: StoreType;

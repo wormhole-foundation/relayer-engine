@@ -209,6 +209,84 @@ export class Storage {
     );
   }
 
+  async getReadyWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.READY_WORKFLOW_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async getFailedWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.DEAD_LETTER_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async getInProgressWorkflows(
+    start: number,
+    end: number,
+  ): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.ACTIVE_WORKFLOWS_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async getDelayedWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.DELAYED_WORKFLOWS_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async moveFailedWorkflowToReady(workflowId: {
+    pluginName: string;
+    id: string;
+  }) {
+    const workflowKey = this._workflowKey(workflowId);
+    return this.store.withRedis(async redis => {
+      const [removedFromDelayed, removedFromDeadLetter] = await Promise.all([
+        redis.lRem(this.constants.DELAYED_WORKFLOWS_QUEUE, 0, workflowKey),
+        redis.lRem(this.constants.DEAD_LETTER_QUEUE, 0, workflowKey),
+      ]);
+      if (!removedFromDeadLetter && !removedFromDelayed) {
+        throw new Error("workflow wasn't failed or retrying");
+      }
+      await redis.hSet(workflowKey, <SerializedWorkflowKeys>{
+        failedAt: "",
+        processingBy: "",
+        errorMessage: "",
+        errorStacktrace: "",
+        startedProcessingAt: "",
+        retryCount: 0,
+        completedAt: "",
+      });
+      await redis.lPush(this.constants.READY_WORKFLOW_QUEUE, workflowKey);
+      const raw = await redis.hGetAll(workflowKey);
+      return this.rawObjToWorkflow(raw);
+    });
+  }
+
+  async getWorkflowsInQueue(
+    queueName: string,
+    start: number,
+    end: number,
+  ): Promise<Workflow[]> {
+    return this.store.withRedis(async redis => {
+      const activeWorkflowsIds = await redis.lRange(queueName, start, end);
+
+      const rawWorkflows = await Promise.all(
+        activeWorkflowsIds.map(id => redis.hGetAll(id)),
+      );
+      return rawWorkflows.map(raw => this.rawObjToWorkflow(raw));
+    });
+  }
+
   private serializeWorkflow(workflow: Workflow): Record<string, any> {
     const data = JSON.stringify(workflow.data);
     const serialized = JSON.parse(JSON.stringify(workflow));

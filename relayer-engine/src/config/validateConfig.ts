@@ -43,6 +43,7 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
     mode: validateStringEnum<Mode>(Mode, raw.mode),
     promPort: raw.promPort && assertInt(raw.promPort, "promPort"),
+    apiPort: raw.apiPort && assertInt(raw.apiPort, "apiPort"),
     defaultWorkflowOptions: {
       maxRetries: assertInt(raw.defaultWorkflowOptions.maxRetries),
     },
