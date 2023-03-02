@@ -6,6 +6,7 @@ let logger: winston.Logger | undefined;
 export interface LogConfig {
   logLevel?: string;
   logDir?: string;
+  logFormat?: string;
 }
 
 export function dbg<T>(x: T, msg?: string): T {
@@ -47,9 +48,10 @@ export function getScopedLogger(
 }
 
 export function initLogger(logConfig?: LogConfig): winston.Logger {
-  const { logDir, logLevel } = logConfig || {
+  const { logDir, logLevel, logFormat } = logConfig || {
     logLevel: "info",
     logDir: undefined,
+    logFormat: "",
   };
   let useConsole = true;
   let logFileName;
@@ -85,23 +87,26 @@ export function initLogger(logConfig?: LogConfig): winston.Logger {
   const logConfiguration: winston.LoggerOptions = {
     // NOTE: do not specify labels in defaultMeta, as it cannot be overridden
     transports: [transport],
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.splat(),
-      winston.format.simple(),
-      winston.format.timestamp({
-        format: "YYYY-MM-DD HH:mm:ss.SSS",
-      }),
-      winston.format.errors({ stack: true }),
-      winston.format.printf(
-        (info: any) =>
-          `${[info.timestamp]}|${info.level}|${
-            info.labels && info.labels.length > 0
-              ? info.labels.join("|")
-              : "main"
-          }: ${info.message} ${info.stack ? "\n" + info.stack : ""} `,
-      ),
-    ),
+    format:
+      logFormat === "json"
+        ? winston.format.json()
+        : winston.format.combine(
+            winston.format.colorize(),
+            winston.format.splat(),
+            winston.format.simple(),
+            winston.format.timestamp({
+              format: "YYYY-MM-DD HH:mm:ss.SSS",
+            }),
+            winston.format.errors({ stack: true }),
+            winston.format.printf(
+              (info: any) =>
+                `${[info.timestamp]}|${info.level}|${
+                  info.labels && info.labels.length > 0
+                    ? info.labels.join("|")
+                    : "main"
+                }: ${info.message} ${info.stack ? "\n" + info.stack : ""} `,
+            ),
+          ),
   };
 
   logger = winston.createLogger(logConfiguration);

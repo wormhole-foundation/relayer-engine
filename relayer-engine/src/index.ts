@@ -1,5 +1,6 @@
-import * as Koa from "koa";
-import * as Router from "koa-router";
+import Koa from "koa";
+import Router from "koa-router";
+import auth from "koa-basic-auth";
 import { register } from "prom-client";
 import * as dotenv from "dotenv";
 import { EngineInitFn, Plugin } from "../packages/relayer-plugin-interface";
@@ -80,6 +81,7 @@ export async function run(args: RunArgs): Promise<void> {
       ]);
       break;
     default:
+      logger.error(`Invalid running mode as argument: ${process.env.MODE}`);
       throw new Error(
         "Expected MODE env var to be listener or executor, instead got: " +
           process.env.MODE,
@@ -176,6 +178,10 @@ async function launchApiServer(commonEnv: CommonEnv, storageServ: Storage) {
   workflows.get("/", workflowsCtrl.getWorkflow);
   workflows.post("/retry", workflowsCtrl.moveFailedWorkflowToReady);
   workflows.get("/:status", workflowsCtrl.getWorkflowsByStatus);
+
+  if (commonEnv.apiKey) {
+    app.use(auth({ name: "admin", pass: commonEnv.apiKey }));
+  }
 
   app.use(workflows.allowedMethods());
   app.use(workflows.routes());

@@ -7,7 +7,10 @@ class WorkflowsController {
   getWorkflow = async (ctx: Context) => {
     const { pluginName, id } = ctx.query;
     if (typeof pluginName !== "string" || typeof id !== "string") {
-      throw new Error("Invalid plugin name or id provided in query parameters");
+      // TODO implement error handling and better api error codes
+      ctx.body = "Invalid plugin name or id provided in query parameters";
+      ctx.status = 404;
+      return;
     }
     const workflow = await this.storage.getWorkflow({ pluginName, id });
     ctx.body = workflow;
@@ -30,7 +33,9 @@ class WorkflowsController {
         workflows = await this.storage.getDelayedWorkflows(0, -1);
         break;
       default:
-        ctx.status = 404;
+        ctx.status = 400;
+        ctx.body =
+          "Wrong status, allowed values are: reattempting, ready, failed, inprogress";
         return;
     }
     ctx.body = workflows;

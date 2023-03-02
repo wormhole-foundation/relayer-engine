@@ -78,6 +78,7 @@ export async function run(plugins: Plugin[], storage: Storage) {
       return [chain.chainId, workerInfos];
     }),
   );
+  logger.debug("Finished gathering worker infos.", { info: workerInfoMap });
 
   maxActiveWorkflowsGauge.set(MAX_ACTIVE_WORKFLOWS);
   spawnStaleJobsWorker(storage, 1000, logger);
@@ -106,7 +107,7 @@ async function spawnRequeueWorker(
   while (true) {
     const jobsMoved = await storage.moveDelayedWorkflowsToReadyQueue();
     if (jobsMoved > 0) {
-      logger.info(`Moved ${jobsMoved} to the ready queue.`);
+      logger.info(`Moved ${jobsMoved} to the ready queue.`, {jobsMoved: jobsMoved});
     }
     await sleep(checkEveryInMs);
   }
@@ -120,7 +121,7 @@ async function spawnStaleJobsWorker(
   while (true) {
     const jobsMoved = await storage.cleanupStaleActiveWorkflows();
     if (jobsMoved > 0) {
-      logger.info(`Moved ${jobsMoved} stale jobs.`);
+      logger.info(`Moved ${jobsMoved} stale jobs.`, {jobsMoves: jobsMoved});
     }
     await sleep(checkEveryInMs);
   }
@@ -149,7 +150,7 @@ async function spawnExecutor(
         logger.debug("No new workflows found");
         continue;
       }
-      logger.debug("New workflow found");
+      logger.debug("New workflow found", {workflow: res});
       const { workflow, plugin } = res;
 
       await spawnWorkflow(
@@ -190,6 +191,7 @@ async function spawnWorkflow(
   });
   logger.info(
     `Starting workflow ${workflow.id} for plugin ${workflow.pluginName}`,
+    { workflow: workflow, plugin: plugin }
   );
   // Record metrics
   executedWorkflows.labels({ plugin: plugin.pluginName }).inc();
@@ -208,6 +210,7 @@ async function spawnWorkflow(
       await storage.completeWorkflow(workflow);
       logger.info(
         `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
+        { workflow: workflow, plugin: plugin }
       );
       completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
     } catch (e) {
@@ -215,10 +218,13 @@ async function spawnWorkflow(
         workflow.errorMessage = e.message;
         workflow.errorStacktrace = e.stack;
       }
+      // FIXME: Unsure of how to relate these two logs. If they are logging the same event,
+      //  should we just fire the most critical one?
       logger.warn(
         `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
+        {workflow: workflow, plugin: plugin}
       );
-      logger.error(e);
+      logger.error("", {workflow: workflow, plugin: plugin, error: e});
       failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
       if (workflow.maxRetries! > workflow.retryCount) {
         const waitFor = exponentialBackoff(workflow.retryCount, 300, 10 * min);
@@ -226,11 +232,13 @@ async function spawnWorkflow(
         await storage.requeueWorkflow(workflow, reExecuteAt);
         logger.error(
           `Workflow: ${workflow.id} failed. Requeued with a delay of ${waitFor}ms. Attempt ${workflow.retryCount} of ${workflow.maxRetries}`,
+          { workflow: workflow, plugin: plugin, delay: waitFor }
         );
       } else {
         await storage.failWorkflow(workflow);
         logger.error(
           `Workflow: ${workflow.id} failed. Reached maxRetries. Moving to dead letter queue.`,
+          { workflow: workflow }
         );
       }
     } finally {
@@ -249,7 +257,7 @@ function makeExecuteFunc(
     return new Promise((resolve, reject) => {
       const maybeQueue = actionQueues.get(action.chainId);
       if (!maybeQueue) {
-        logger.error("Chain not supported: " + action.chainId);
+        logger.error("Chain not supported: " + action.chainId, {action: action});
         return reject("Chain not supported");
       }
       maybeQueue.enqueue({
@@ -308,22 +316,22 @@ async function spawnWalletWorker(
         continue;
       }
       const actionWithCont = actionQueue.dequeue();
-      logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`);
+      logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`, {action: actionWithCont});
 
       try {
         const result = await actionWithCont.action.f(
           walletToolBox,
           workerInfo.targetChainId,
         );
-        logger.info(`Action ${actionWithCont.pluginName} completed`);
+        logger.info(`Action ${actionWithCont.pluginName} completed`, {action: actionWithCont});
         actionWithCont.resolve(result);
       } catch (e) {
-        logger.error(e);
-        logger.warn(`Unexpected error while executing chain action:`);
+        logger.warn(`Unexpected error while executing chain action:`, {action: actionWithCont});
+        logger.error("", { action: actionWithCont, error: e });
         actionWithCont.reject(e);
       }
     } catch (e) {
-      logger.error(e);
+      logger.error("", { error: e });
       // wait longer between loop iterations on error
       await sleep(DEFAULT_WORKER_RESTART_MS);
     }

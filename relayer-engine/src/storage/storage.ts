@@ -123,18 +123,25 @@ export class Storage {
     lastSeenSequence: number,
   ): Promise<void> {
     return this.store.runOpWithRetry(async redis => {
-      this.logger.debug(`setEmitterRecord`);
+      this.logger.debug(`setEmitterRecord`, {
+        chainId: chainId,
+        emitterAddress: emitterAddress,
+        lastSeenSequence: lastSeenSequence,
+      });
       while (true) {
         const record: EmitterRecord = { lastSeenSequence, time: new Date() };
         const key = emitterRecordKey(pluginName, chainId, emitterAddress);
 
         const entry = await this.getEmitterRecordInner(redis, key);
-        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}`);
+        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}`, {
+          entry: entry,
+        });
 
         if (entry && entry.lastSeenSequence >= lastSeenSequence) {
           this.logger.debug(
             "no need to update if lastSeenSeq has moved past what we are trying to set " +
               key,
+            { lastSeenSequence: lastSeenSequence, entry: entry },
           );
           return;
         }
@@ -149,10 +156,14 @@ export class Storage {
           await this.releaseUnsafeLock(redis, key);
           this.logger.debug(
             `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
+            { key: key, record: record },
           );
           return;
         }
-        this.logger.debug("Failed to acquire lock for key, retrying... " + key);
+        this.logger.debug(
+          "Failed to acquire lock for key, retrying... " + key,
+          { key: key },
+        );
       }
     });
   }
@@ -160,7 +171,6 @@ export class Storage {
   // Fetch all emitter records from redis
   getAllEmitterRecords(): Promise<EmitterRecordWithKey[]> {
     return this.store.withRedis(async redis => {
-      this.logger.debug(`getAllEmitterRecords`);
       const res = await redis.hGetAll(this.constants.EMITTER_KEY);
       this.logger.debug(`getAllEmitterRecords raw: ${JSON.stringify(res)}`);
       return Object.entries(res).map(([key, value]) => {
@@ -332,6 +342,7 @@ export class Storage {
         // requeue completed workflow if mistakenly completed
         this.logger.info(
           "requeueing workflow that is marked complete: " + workflow.id,
+          { workflowId: workflow.id },
         );
         multi = multi.hSet(key, <SerializedWorkflowKeys>{ completedAt: "" });
       }
@@ -670,6 +681,7 @@ export class Storage {
         const count = staleWorkflows.length;
         this.logger.info(
           `Found ${count} state jobs. Moved them back to ready queue`,
+          { count: count },
         );
         return count;
       });
