@@ -106,7 +106,9 @@ async function runPluginSpyListener(
           return;
         }
         if (vaaHashCache.get(hash)) {
-          logger().debug(`Duplicate founds for hash ${hash}`);
+          logger().debug(
+            `Received the same VAA more than once, skipping... Hash: ${hash}`,
+          );
           return;
         }
         vaaHashCache.set(hash, true);

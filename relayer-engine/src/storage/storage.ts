@@ -687,7 +687,7 @@ export class Storage {
       });
       return movedWorkflows;
     } catch (e) {
-      this.logger.warn(e);
+      this.logger.error("Error cleaning up stale workflows", e);
       return 0;
     }
   }

@@ -84,29 +84,31 @@ export function initLogger(logConfig?: LogConfig): winston.Logger {
     });
   }
 
+  const cliFormat = winston.format.combine(
+    winston.format.colorize(),
+    winston.format.splat(),
+    winston.format.simple(),
+    winston.format.timestamp({
+      format: "YYYY-MM-DD HH:mm:ss.SSS",
+    }),
+    winston.format.errors({ stack: true }),
+    winston.format.printf(
+      (info: any) =>
+        `${[info.timestamp]}|${info.level}|${
+          info.labels && info.labels.length > 0 ? info.labels.join("|") : "main"
+        }: ${info.message} ${info.stack ? "\n" + info.stack : ""} `,
+    ),
+  );
+
+  const jsonFormat = winston.format.combine(
+    winston.format.json(),
+    winston.format.errors({ stack: true }),
+  );
+
   const logConfiguration: winston.LoggerOptions = {
     // NOTE: do not specify labels in defaultMeta, as it cannot be overridden
     transports: [transport],
-    format:
-      logFormat === "json"
-        ? winston.format.json()
-        : winston.format.combine(
-            winston.format.colorize(),
-            winston.format.splat(),
-            winston.format.simple(),
-            winston.format.timestamp({
-              format: "YYYY-MM-DD HH:mm:ss.SSS",
-            }),
-            winston.format.errors({ stack: true }),
-            winston.format.printf(
-              (info: any) =>
-                `${[info.timestamp]}|${info.level}|${
-                  info.labels && info.labels.length > 0
-                    ? info.labels.join("|")
-                    : "main"
-                }: ${info.message} ${info.stack ? "\n" + info.stack : ""} `,
-            ),
-          ),
+    format: logFormat === "json" ? jsonFormat : cliFormat,
   };
 
   logger = winston.createLogger(logConfiguration);

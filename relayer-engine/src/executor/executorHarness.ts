@@ -60,7 +60,6 @@ export async function run(plugins: Plugin[], storage: Storage) {
 
   const providers = providersFromChainConfig(commonEnv.supportedChains);
 
-  logger.debug("Gathering chain worker infos...");
   const workerInfoMap = new Map<ChainId, WorkerInfo[]>(
     commonEnv.supportedChains.map(chain => {
       //TODO update for all ecosystems
@@ -85,7 +84,6 @@ export async function run(plugins: Plugin[], storage: Storage) {
   spawnRequeueWorker(storage, 150, logger);
   spawnHeartbeatWorker(storage, 1000, logger);
   spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
-  logger.debug("End of executor harness run function");
 }
 
 async function spawnHeartbeatWorker(
@@ -107,7 +105,7 @@ async function spawnRequeueWorker(
   while (true) {
     const jobsMoved = await storage.moveDelayedWorkflowsToReadyQueue();
     if (jobsMoved > 0) {
-      logger.info(`Moved ${jobsMoved} to the ready queue.`, {jobsMoved: jobsMoved});
+      logger.info(`Moved ${jobsMoved} to the ready queue.`);
     }
     await sleep(checkEveryInMs);
   }
@@ -121,7 +119,7 @@ async function spawnStaleJobsWorker(
   while (true) {
     const jobsMoved = await storage.cleanupStaleActiveWorkflows();
     if (jobsMoved > 0) {
-      logger.info(`Moved ${jobsMoved} stale jobs.`, {jobsMoves: jobsMoved});
+      logger.info(`Moved ${jobsMoved} stale jobs.`);
     }
     await sleep(checkEveryInMs);
   }
@@ -147,24 +145,31 @@ async function spawnExecutor(
       }
       const res = await storage.getNextWorkflow(1);
       if (!res) {
-        logger.debug("No new workflows found");
+        logger.debug("No new workflows found.");
         continue;
       }
-      logger.debug("New workflow found", {workflow: res});
+      const workflowLogger = logger.child({
+        workflowId: res.workflow.id,
+        pluginName: res.plugin.pluginName,
+      });
+
+      workflowLogger.debug("New workflow found");
       const { workflow, plugin } = res;
 
-      await spawnWorkflow(
-        storage,
-        workflow,
-        plugin,
-        providers,
-        actionQueues,
-        logger,
-      );
+      try {
+        await spawnWorkflow(
+          storage,
+          workflow,
+          plugin,
+          providers,
+          actionQueues,
+          workflowLogger,
+        );
+      } catch (e) {
+        workflowLogger.error("Workflow failed to spawn", e);
+      }
     } catch (e) {
-      getLogger().error("Workflow failed to spawn");
-      getLogger().error(e);
-      getLogger().error(JSON.stringify(e));
+      getLogger().error("Workflow failed to spawn", e);
     }
   }
 }
@@ -184,65 +189,61 @@ async function spawnWorkflow(
   plugin: Plugin,
   providers: Providers,
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
-  logger: ScopedLogger,
+  workflowLogger: ScopedLogger,
 ): Promise<void> {
-  const finishedExecuting = executingTimeSeconds.startTimer({
+  workflowLogger.info(`Starting workflow.`);
+  // Metrics: Start execution timer & record time in queue.
+  const stopExecutionTimer = executingTimeSeconds.startTimer({
     plugin: plugin.pluginName,
   });
-  logger.info(
-    `Starting workflow ${workflow.id} for plugin ${workflow.pluginName}`,
-    { workflow: workflow, plugin: plugin }
-  );
-  // Record metrics
   executedWorkflows.labels({ plugin: plugin.pluginName }).inc();
   if (workflow.scheduledAt) {
     let now = new Date();
     const timeInQueue = (now.getTime() - workflow.scheduledAt.getTime()) / 1000;
     inQueueTimeSeconds.observe(timeInQueue);
   }
+  // End metrics setup.
 
-  const execute = makeExecuteFunc(actionQueues, plugin.pluginName, logger);
+  const execute = makeExecuteFunc(
+    actionQueues,
+    plugin.pluginName,
+    workflowLogger,
+  );
 
   // fire off workflow and avoid blocking
   const result = (async () => {
     try {
       await plugin.handleWorkflow(workflow, providers, execute);
+
       await storage.completeWorkflow(workflow);
-      logger.info(
-        `Finished workflow ${workflow.id} for plugin ${workflow.pluginName}`,
-        { workflow: workflow, plugin: plugin }
-      );
+
+      // Metrics & logging
+      workflowLogger.info(`Finished executing workflow.`);
       completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
-    } catch (e) {
-      if (e instanceof Error) {
-        workflow.errorMessage = e.message;
-        workflow.errorStacktrace = e.stack;
+    } catch (err) {
+      if (err instanceof Error) {
+        workflow.errorMessage = err.message;
+        workflow.errorStacktrace = err.stack;
       }
-      // FIXME: Unsure of how to relate these two logs. If they are logging the same event,
-      //  should we just fire the most critical one?
-      logger.warn(
-        `Workflow ${workflow.id} for plugin ${workflow.pluginName} errored:`,
-        {workflow: workflow, plugin: plugin}
-      );
-      logger.error("", {workflow: workflow, plugin: plugin, error: e});
+
+      workflowLogger.error(`Workflow errored`, err);
       failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
+
       if (workflow.maxRetries! > workflow.retryCount) {
         const waitFor = exponentialBackoff(workflow.retryCount, 300, 10 * min);
         const reExecuteAt = new Date(Date.now() + waitFor);
         await storage.requeueWorkflow(workflow, reExecuteAt);
-        logger.error(
-          `Workflow: ${workflow.id} failed. Requeued with a delay of ${waitFor}ms. Attempt ${workflow.retryCount} of ${workflow.maxRetries}`,
-          { workflow: workflow, plugin: plugin, delay: waitFor }
+        workflowLogger.error(
+          `Workflow failed. Requeued with a delay of ${waitFor}ms. Attempt ${workflow.retryCount} of ${workflow.maxRetries}`,
         );
       } else {
         await storage.failWorkflow(workflow);
-        logger.error(
-          `Workflow: ${workflow.id} failed. Reached maxRetries. Moving to dead letter queue.`,
-          { workflow: workflow }
+        workflowLogger.error(
+          `Workflow failed. Reached maxRetries (${workflow.maxRetries}). Moving to dead letter queue.`,
         );
       }
     } finally {
-      finishedExecuting();
+      stopExecutionTimer();
     }
   })();
 }
@@ -257,7 +258,9 @@ function makeExecuteFunc(
     return new Promise((resolve, reject) => {
       const maybeQueue = actionQueues.get(action.chainId);
       if (!maybeQueue) {
-        logger.error("Chain not supported: " + action.chainId, {action: action});
+        logger.error("Chain not supported: " + action.chainId, {
+          action: action,
+        });
         return reject("Chain not supported");
       }
       maybeQueue.enqueue({
@@ -316,22 +319,23 @@ async function spawnWalletWorker(
         continue;
       }
       const actionWithCont = actionQueue.dequeue();
-      logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`, {action: actionWithCont});
+      logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`);
 
       try {
         const result = await actionWithCont.action.f(
           walletToolBox,
           workerInfo.targetChainId,
         );
-        logger.info(`Action ${actionWithCont.pluginName} completed`, {action: actionWithCont});
+        logger.info(`Action ${actionWithCont.pluginName} completed`, {
+          action: actionWithCont,
+        });
         actionWithCont.resolve(result);
       } catch (e) {
-        logger.warn(`Unexpected error while executing chain action:`, {action: actionWithCont});
-        logger.error("", { action: actionWithCont, error: e });
+        logger.error(`Unexpected error while executing chain action:`, e);
         actionWithCont.reject(e);
       }
     } catch (e) {
-      logger.error("", { error: e });
+      logger.error("", e);
       // wait longer between loop iterations on error
       await sleep(DEFAULT_WORKER_RESTART_MS);
     }
