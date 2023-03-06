@@ -18,6 +18,7 @@ const cliFormat = winston.format.combine(
 );
 
 const jsonFormat = winston.format.combine(
+  winston.format.timestamp(),
   winston.format.json(),
   winston.format.errors({ stack: true }),
 );
