@@ -27,4 +27,14 @@ export function registerGauges(storage: Storage, numPlugins: number) {
       this.set(currentValue);
     },
   });
+
+  new Gauge({
+    name: "failed_workflows",
+    help: "Count of workflows in the dead letter queue.",
+    async collect() {
+      // Invoked when the registry collects its metrics' values.
+      const currentValue = await storage.numFailedWorkflows();
+      this.set(currentValue);
+    },
+  });
 }

@@ -232,6 +232,12 @@ export class Storage {
     );
   }
 
+  numFailedWorkflows(): Promise<number> {
+    return this.store.withRedis(redis =>
+      redis.lLen(this.constants.DEAD_LETTER_QUEUE),
+    );
+  }
+
   async getReadyWorkflows(start: number, end: number): Promise<Workflow[]> {
     return this.getWorkflowsInQueue(
       this.constants.READY_WORKFLOW_QUEUE,

@@ -17,6 +17,7 @@ import { consumeEventHarness } from "./eventHarness";
 import { getCommonEnv, getListenerEnv } from "../config";
 import { transformEmitterFilter } from "./listenerHarness";
 import { consumeEventWithMissedVaaDetection } from "./missedVaaFetching";
+import { Gauge } from "prom-client";
 
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
@@ -52,6 +53,11 @@ export async function createSpyEventSource(
     }
   });
 }
+
+const spyConnectionsGauge = new Gauge({
+  name: "spy_connections_open",
+  help: "Number of open connections to the wormhole spy",
+});
 
 //used for both rest & spy relayer for now
 async function runPluginSpyListener(
@@ -121,6 +127,7 @@ async function runPluginSpyListener(
       });
 
       let connected = true;
+      spyConnectionsGauge.inc(1);
       stream.on("error", (err: any) => {
         logger().error("spy service returned an error: %o", err);
         connected = false;
@@ -138,6 +145,7 @@ async function runPluginSpyListener(
       while (connected) {
         await sleep(1000);
       }
+      spyConnectionsGauge.dec(1); // only gets here if the connection drops. If it errors out and closes we don't want to decrement twice.
     } catch (e) {
       logger().error("spy service threw an exception: %o", e);
     }
