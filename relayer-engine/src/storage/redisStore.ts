@@ -78,6 +78,7 @@ async function createConnection(
         `connected to cluster. Masters found: ${clusterConn.masters
           .map(m => m.id)
           .join(",")}`,
+        { cluster: clusterConn }
       );
       client = clusterConn.masters[0].client!;
     } else {

@@ -1,5 +1,6 @@
-import * as Koa from "koa";
-import * as Router from "koa-router";
+import Koa from "koa";
+import Router from "koa-router";
+import auth from "koa-basic-auth";
 import { register } from "prom-client";
 import * as dotenv from "dotenv";
 import { EngineInitFn, Plugin } from "../packages/relayer-plugin-interface";
@@ -24,6 +25,7 @@ import { registerGauges } from "./metrics";
 import { SignedVaa } from "@certusone/wormhole-sdk";
 import { consumeEventHarness } from "./listener/eventHarness";
 import { randomUUID } from "crypto";
+import { WorkflowsController } from "./api/controller";
 export {
   getLogger,
   getScopedLogger,
@@ -79,6 +81,7 @@ export async function run(args: RunArgs): Promise<void> {
       ]);
       break;
     default:
+      logger.error(`Invalid running mode as argument: ${process.env.MODE}`);
       throw new Error(
         "Expected MODE env var to be listener or executor, instead got: " +
           process.env.MODE,
@@ -86,7 +89,10 @@ export async function run(args: RunArgs): Promise<void> {
   }
   // Will need refactor when we implement rest listeners and readiness probes
   if (commonEnv.promPort) {
-    await launchMetricsServer(commonEnv);
+    launchMetricsServer(commonEnv);
+  }
+  if (commonEnv.apiPort) {
+    launchApiServer(commonEnv, storage);
   }
 }
 
@@ -158,5 +164,28 @@ async function launchMetricsServer(commonEnv: CommonEnv) {
   app.use(router.routes());
   app.listen(commonEnv.promPort, () =>
     logger.info(`Prometheus metrics running on port ${commonEnv.promPort}`),
+  );
+}
+
+async function launchApiServer(commonEnv: CommonEnv, storageServ: Storage) {
+  const app = new Koa();
+  const logger = getScopedLogger(["ApiServer"]);
+  const workflowsCtrl = new WorkflowsController(storageServ);
+
+  const workflows = new Router();
+
+  workflows.prefix("/workflows");
+  workflows.get("/", workflowsCtrl.getWorkflow);
+  workflows.post("/retry", workflowsCtrl.moveFailedWorkflowToReady);
+  workflows.get("/:status", workflowsCtrl.getWorkflowsByStatus);
+
+  if (commonEnv.apiKey) {
+    app.use(auth({ name: "admin", pass: commonEnv.apiKey }));
+  }
+
+  app.use(workflows.allowedMethods());
+  app.use(workflows.routes());
+  app.listen(commonEnv.apiPort, () =>
+    logger.info(`Api running on port ${commonEnv.apiPort}`),
   );
 }

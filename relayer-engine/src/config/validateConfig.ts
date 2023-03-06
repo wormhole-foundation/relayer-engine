@@ -43,12 +43,15 @@ export function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
     pluginURIs: raw.pluginURIs && assertArray(raw.pluginURIs, "pluginURIs"),
     mode: validateStringEnum<Mode>(Mode, raw.mode),
     promPort: raw.promPort && assertInt(raw.promPort, "promPort"),
+    apiPort: raw.apiPort && assertInt(raw.apiPort, "apiPort"),
+    apiKey: raw.apiKey || process.env.RELAYER_ENGINE_API_KEY,
     defaultWorkflowOptions: {
       maxRetries: assertInt(raw.defaultWorkflowOptions.maxRetries),
     },
     readinessPort:
       raw.readinessPort && assertInt(raw.readinessPort, "readinessPort"),
     logDir: raw.logDir,
+    logFormat: raw.logFormat,
     supportedChains: assertArray<Keys<ChainConfigInfo>>(
       raw.supportedChains,
       "supportedChains",

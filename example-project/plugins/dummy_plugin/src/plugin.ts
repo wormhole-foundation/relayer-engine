@@ -75,10 +75,13 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   async consumeEvent(
     vaa: ParsedVaaWithBytes,
     stagingArea: StagingAreaKeyLock,
-  ): Promise<{
-    workflowData: WorkflowPayload;
-    workflowOptions?: WorkflowOptions;
-  }> {
+  ): Promise<
+    | {
+        workflowData: WorkflowPayload;
+        workflowOptions?: WorkflowOptions;
+      }
+    | undefined
+  > {
     this.logger.debug(`VAA hash: ${vaa.hash.toString("base64")}`);
 
     // Example of reading and updating a key exclusively
@@ -109,7 +112,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     providers: Providers,
     execute: ActionExecutor,
   ): Promise<void> {
-    this.logger.info("Got workflow");
+    this.logger.info("Got workflow", { workflowId: workflow.id });
     this.logger.debug(JSON.stringify(workflow, undefined, 2));
 
     const { vaa, count } = this.parseWorkflowPayload(workflow);
@@ -121,8 +124,11 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
         const pubkey = wallet.wallet.address;
         this.logger.info(
           `Inside action, have wallet pubkey ${pubkey} on chain ${chainId}`,
+          { pubKey: pubkey, chainId: chainId },
         );
-        this.logger.info(`Also have parsed vaa. seq: ${vaa.sequence}`);
+        this.logger.info(`Also have parsed vaa. seq: ${vaa.sequence}`, {
+          vaa: vaa,
+        });
         return pubkey;
       },
     });
@@ -130,7 +136,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     // Simulate different processing times for metrics
     await sleep(randomInt(0, 4000));
 
-    let PROBABILITY_OF_FAILURE = 0.1;
+    let PROBABILITY_OF_FAILURE = 0.01;
     if (Math.random() < PROBABILITY_OF_FAILURE) {
       throw new Error("Simulating workflow failure");
     }

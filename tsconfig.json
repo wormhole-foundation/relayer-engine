@@ -12,6 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "isolatedModules": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "sourceMap": true

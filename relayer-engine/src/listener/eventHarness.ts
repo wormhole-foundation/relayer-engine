@@ -17,7 +17,7 @@ import {
   erroredEventsCounter,
   receivedEventsCounter,
 } from "./metrics";
-import { fetchAndConsumeMissedVaas } from "./missedVaaFetching";
+import { randomUUID } from "crypto";
 
 let _logger: ScopedLogger;
 const logger = () => {
@@ -67,9 +67,13 @@ export async function consumeEventHarness(
       logger().info(
         `Received workflow data from plugin ${plugin.pluginName}, adding workflow...`,
       );
+      const hashFirstDigits = parsedVaa?.hash.toString("hex").substring(0, 5);
+      const emitterAddress = parsedVaa?.emitterAddress.toString("hex");
       await storage.addWorkflow({
         data: workflowData,
-        id: hash,
+        id: parsedVaa
+          ? `${parsedVaa.emitterChain}/${emitterAddress}/${parsedVaa.sequence}/${hashFirstDigits}`
+          : randomUUID(),
         pluginName: plugin.pluginName,
         maxRetries: workflowOptions?.maxRetries ?? plugin.maxRetries,
         retryCount: 0,

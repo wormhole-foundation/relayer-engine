@@ -120,39 +120,63 @@ export class Storage {
     pluginName: string,
     chainId: ChainId,
     emitterAddress: string,
-    lastSeenSequence: number,
+    newLastSeenSequence: number,
   ): Promise<void> {
     return this.store.runOpWithRetry(async redis => {
-      this.logger.debug(`setEmitterRecord`);
+      const logger = this.logger.child({
+        chainId,
+        emitterAddress,
+        sequence: newLastSeenSequence,
+      });
+      logger.debug(`Updating emitter record last seen sequence.`);
       while (true) {
-        const record: EmitterRecord = { lastSeenSequence, time: new Date() };
         const key = emitterRecordKey(pluginName, chainId, emitterAddress);
 
         const entry = await this.getEmitterRecordInner(redis, key);
-        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}`);
 
-        if (entry && entry.lastSeenSequence >= lastSeenSequence) {
-          this.logger.debug(
-            "no need to update if lastSeenSeq has moved past what we are trying to set " +
-              key,
-          );
-          return;
+        if (entry) {
+          logger.debug(`Found emitterRecord`, {
+            lastUpdatedAt: entry.time,
+            lastSeenSequence: entry.lastSeenSequence,
+          });
+          if (entry.lastSeenSequence >= newLastSeenSequence) {
+            logger.debug(
+              "no need to update if lastSeenSeq has moved past what we are trying to set " +
+                key,
+              {
+                newLastSeenSequence: newLastSeenSequence,
+                lastSeenSequence: entry.lastSeenSequence,
+              },
+            );
+            return;
+          }
         }
 
         // only set the record if we are able to aquire the lock
         if (await this.acquireUnsafeLock(redis, key, 50)) {
+          const record: EmitterRecord = {
+            lastSeenSequence: newLastSeenSequence,
+            time: new Date(),
+          };
           await redis.hSet(
             this.constants.EMITTER_KEY,
             key,
             JSON.stringify(record),
           );
           await this.releaseUnsafeLock(redis, key);
-          this.logger.debug(
+          logger.debug(
             `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
+            {
+              key: key,
+              timestamp: record.time,
+              updatedSequence: record.lastSeenSequence,
+            },
           );
           return;
         }
-        this.logger.debug("Failed to acquire lock for key, retrying... " + key);
+        logger.debug("Failed to acquire lock for key, retrying... ", {
+          key: key,
+        });
       }
     });
   }
@@ -160,7 +184,6 @@ export class Storage {
   // Fetch all emitter records from redis
   getAllEmitterRecords(): Promise<EmitterRecordWithKey[]> {
     return this.store.withRedis(async redis => {
-      this.logger.debug(`getAllEmitterRecords`);
       const res = await redis.hGetAll(this.constants.EMITTER_KEY);
       this.logger.debug(`getAllEmitterRecords raw: ${JSON.stringify(res)}`);
       return Object.entries(res).map(([key, value]) => {
@@ -209,6 +232,84 @@ export class Storage {
     );
   }
 
+  async getReadyWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.READY_WORKFLOW_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async getFailedWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.DEAD_LETTER_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async getInProgressWorkflows(
+    start: number,
+    end: number,
+  ): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.ACTIVE_WORKFLOWS_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async getDelayedWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.DELAYED_WORKFLOWS_QUEUE,
+      start,
+      end,
+    );
+  }
+
+  async moveFailedWorkflowToReady(workflowId: {
+    pluginName: string;
+    id: string;
+  }) {
+    const workflowKey = this._workflowKey(workflowId);
+    return this.store.withRedis(async redis => {
+      const [removedFromDelayed, removedFromDeadLetter] = await Promise.all([
+        redis.lRem(this.constants.DELAYED_WORKFLOWS_QUEUE, 0, workflowKey),
+        redis.lRem(this.constants.DEAD_LETTER_QUEUE, 0, workflowKey),
+      ]);
+      if (!removedFromDeadLetter && !removedFromDelayed) {
+        throw new Error("workflow wasn't failed or retrying");
+      }
+      await redis.hSet(workflowKey, <SerializedWorkflowKeys>{
+        failedAt: "",
+        processingBy: "",
+        errorMessage: "",
+        errorStacktrace: "",
+        startedProcessingAt: "",
+        retryCount: 0,
+        completedAt: "",
+      });
+      await redis.lPush(this.constants.READY_WORKFLOW_QUEUE, workflowKey);
+      const raw = await redis.hGetAll(workflowKey);
+      return this.rawObjToWorkflow(raw);
+    });
+  }
+
+  async getWorkflowsInQueue(
+    queueName: string,
+    start: number,
+    end: number,
+  ): Promise<Workflow[]> {
+    return this.store.withRedis(async redis => {
+      const activeWorkflowsIds = await redis.lRange(queueName, start, end);
+
+      const rawWorkflows = await Promise.all(
+        activeWorkflowsIds.map(id => redis.hGetAll(id)),
+      );
+      return rawWorkflows.map(raw => this.rawObjToWorkflow(raw));
+    });
+  }
+
   private serializeWorkflow(workflow: Workflow): Record<string, any> {
     const data = JSON.stringify(workflow.data);
     const serialized = JSON.parse(JSON.stringify(workflow));
@@ -252,9 +353,9 @@ export class Storage {
         throw new Error("Trying to requeue workflow that doesn't exist");
       } else if (await redis.hGet(key, "completedAt")) {
         // requeue completed workflow if mistakenly completed
-        this.logger.info(
-          "requeueing workflow that is marked complete: " + workflow.id,
-        );
+        this.logger.info("requeueing workflow that is marked complete", {
+          workflowId: workflow.id,
+        });
         multi = multi.hSet(key, <SerializedWorkflowKeys>{ completedAt: "" });
       }
       let op = multi
@@ -592,12 +693,13 @@ export class Storage {
         const count = staleWorkflows.length;
         this.logger.info(
           `Found ${count} state jobs. Moved them back to ready queue`,
+          { count: count },
         );
         return count;
       });
       return movedWorkflows;
     } catch (e) {
-      this.logger.warn(e);
+      this.logger.error("Error cleaning up stale workflows", e);
       return 0;
     }
   }
