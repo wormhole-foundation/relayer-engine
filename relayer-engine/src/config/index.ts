@@ -49,7 +49,7 @@ export interface RedisConfig {
 export interface CommonEnv {
   namespace?: string;
   logLevel?: string;
-  logFormat?: "json" | undefined | "";
+  logFormat?: "json" | "console" | "";
   promPort?: number;
   apiPort?: number;
   apiKey?: string;
