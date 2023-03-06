@@ -161,7 +161,7 @@ export class Storage {
           return;
         }
         this.logger.debug(
-          "Failed to acquire lock for key, retrying... " + key,
+          "Failed to acquire lock for key, retrying... ",
           { key: key },
         );
       }
