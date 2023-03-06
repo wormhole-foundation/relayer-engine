@@ -133,9 +133,7 @@ export class Storage {
         const key = emitterRecordKey(pluginName, chainId, emitterAddress);
 
         const entry = await this.getEmitterRecordInner(redis, key);
-        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}`, {
-          entry: entry,
-        });
+        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}.`);
 
         if (entry && entry.lastSeenSequence >= lastSeenSequence) {
           this.logger.debug(
@@ -160,10 +158,9 @@ export class Storage {
           );
           return;
         }
-        this.logger.debug(
-          "Failed to acquire lock for key, retrying... ",
-          { key: key },
-        );
+        this.logger.debug("Failed to acquire lock for key, retrying... ", {
+          key: key,
+        });
       }
     });
   }
@@ -340,10 +337,9 @@ export class Storage {
         throw new Error("Trying to requeue workflow that doesn't exist");
       } else if (await redis.hGet(key, "completedAt")) {
         // requeue completed workflow if mistakenly completed
-        this.logger.info(
-          "requeueing workflow that is marked complete",
-          { workflowId: workflow.id },
-        );
+        this.logger.info("requeueing workflow that is marked complete", {
+          workflowId: workflow.id,
+        });
         multi = multi.hSet(key, <SerializedWorkflowKeys>{ completedAt: "" });
       }
       let op = multi
