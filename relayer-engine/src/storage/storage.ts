@@ -120,45 +120,61 @@ export class Storage {
     pluginName: string,
     chainId: ChainId,
     emitterAddress: string,
-    lastSeenSequence: number,
+    newLastSeenSequence: number,
   ): Promise<void> {
     return this.store.runOpWithRetry(async redis => {
-      this.logger.debug(`setEmitterRecord`, {
-        chainId: chainId,
-        emitterAddress: emitterAddress,
-        lastSeenSequence: lastSeenSequence,
+      const logger = this.logger.child({
+        chainId,
+        emitterAddress,
+        sequence: newLastSeenSequence,
       });
+      logger.debug(`Updating emitter record last seen sequence.`);
       while (true) {
-        const record: EmitterRecord = { lastSeenSequence, time: new Date() };
         const key = emitterRecordKey(pluginName, chainId, emitterAddress);
 
         const entry = await this.getEmitterRecordInner(redis, key);
-        this.logger.debug(`Got emitterRecord ${JSON.stringify(entry)}.`);
 
-        if (entry && entry.lastSeenSequence >= lastSeenSequence) {
-          this.logger.debug(
-            "no need to update if lastSeenSeq has moved past what we are trying to set " +
-              key,
-            { lastSeenSequence: lastSeenSequence, entry: entry },
-          );
-          return;
+        if (entry) {
+          logger.debug(`Found emitterRecord`, {
+            lastUpdatedAt: entry.time,
+            lastSeenSequence: entry.lastSeenSequence,
+          });
+          if (entry.lastSeenSequence >= newLastSeenSequence) {
+            logger.debug(
+              "no need to update if lastSeenSeq has moved past what we are trying to set " +
+                key,
+              {
+                newLastSeenSequence: newLastSeenSequence,
+                lastSeenSequence: entry.lastSeenSequence,
+              },
+            );
+            return;
+          }
         }
 
         // only set the record if we are able to aquire the lock
         if (await this.acquireUnsafeLock(redis, key, 50)) {
+          const record: EmitterRecord = {
+            lastSeenSequence: newLastSeenSequence,
+            time: new Date(),
+          };
           await redis.hSet(
             this.constants.EMITTER_KEY,
             key,
             JSON.stringify(record),
           );
           await this.releaseUnsafeLock(redis, key);
-          this.logger.debug(
+          logger.debug(
             `Updated emitter record. Key ${key}, ${JSON.stringify(record)}`,
-            { key: key, record: record },
+            {
+              key: key,
+              timestamp: record.time,
+              updatedSequence: record.lastSeenSequence,
+            },
           );
           return;
         }
-        this.logger.debug("Failed to acquire lock for key, retrying... ", {
+        logger.debug("Failed to acquire lock for key, retrying... ", {
           key: key,
         });
       }

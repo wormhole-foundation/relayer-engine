@@ -258,9 +258,9 @@ function makeExecuteFunc(
     return new Promise((resolve, reject) => {
       const maybeQueue = actionQueues.get(action.chainId);
       if (!maybeQueue) {
-        logger.error("Chain not supported: " + action.chainId, {
-          action: action,
-        });
+        logger.error(
+          `Error making execute function. Unsupported chain: ${action.chainId}`,
+        );
         return reject("Chain not supported");
       }
       maybeQueue.enqueue({
