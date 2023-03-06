@@ -67,12 +67,12 @@ export async function consumeEventHarness(
       logger().info(
         `Received workflow data from plugin ${plugin.pluginName}, adding workflow...`,
       );
+      const hashFirstDigits = parsedVaa?.hash.toString("hex").substring(0, 5);
+      const emitterAddress = parsedVaa?.emitterAddress.toString("hex");
       await storage.addWorkflow({
         data: workflowData,
         id: parsedVaa
-          ? `${parsedVaa.emitterChain}/${parsedVaa.emitterAddress.toString(
-              "hex",
-            )}/${parsedVaa.sequence}`
+          ? `${parsedVaa.emitterChain}/${emitterAddress}/${parsedVaa.sequence}/${hashFirstDigits}`
           : randomUUID(),
         pluginName: plugin.pluginName,
         maxRetries: workflowOptions?.maxRetries ?? plugin.maxRetries,
