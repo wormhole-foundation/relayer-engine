@@ -341,7 +341,7 @@ export class Storage {
       } else if (await redis.hGet(key, "completedAt")) {
         // requeue completed workflow if mistakenly completed
         this.logger.info(
-          "requeueing workflow that is marked complete: " + workflow.id,
+          "requeueing workflow that is marked complete",
           { workflowId: workflow.id },
         );
         multi = multi.hSet(key, <SerializedWorkflowKeys>{ completedAt: "" });
