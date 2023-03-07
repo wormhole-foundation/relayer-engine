@@ -18,7 +18,6 @@ import {
   receivedEventsCounter,
 } from "./metrics";
 import { randomUUID } from "crypto";
-import { rootLogger } from "ts-jest";
 
 let _logger: ScopedLogger;
 const harnessLogger = () => {
