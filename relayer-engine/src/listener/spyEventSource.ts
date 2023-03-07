@@ -3,21 +3,16 @@ import {
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
-import LRUCache = require("lru-cache");
-import {
-  ContractFilter,
-  Plugin,
-  Providers,
-} from "../../packages/relayer-plugin-interface";
+import { Plugin, Providers } from "../../packages/relayer-plugin-interface";
 import { Storage } from "../storage";
 import { sleep } from "../utils/utils";
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { ScopedLogger, getScopedLogger } from "../helpers/logHelper";
-import { consumeEventHarness } from "./eventHarness";
+import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { getCommonEnv, getListenerEnv } from "../config";
 import { transformEmitterFilter } from "./listenerHarness";
 import { consumeEventWithMissedVaaDetection } from "./missedVaaFetching";
-import { Gauge } from "prom-client";
+import { spyConnectionsGauge } from "../metrics";
+import LRUCache = require("lru-cache");
 
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
@@ -53,11 +48,6 @@ export async function createSpyEventSource(
     }
   });
 }
-
-const spyConnectionsGauge = new Gauge({
-  name: "spy_connections_open",
-  help: "Number of open connections to the wormhole spy",
-});
 
 //used for both rest & spy relayer for now
 async function runPluginSpyListener(
