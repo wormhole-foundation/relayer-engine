@@ -220,11 +220,9 @@ async function spawnWorkflow(
       // Metrics & logging
       workflowLogger.info(`Finished executing workflow.`);
       completedWorkflows.labels({ plugin: plugin.pluginName }).inc();
-    } catch (err) {
-      if (err instanceof Error) {
-        workflow.errorMessage = err.message;
-        workflow.errorStacktrace = err.stack;
-      }
+    } catch (err: any) {
+      workflow.errorMessage = err.message;
+      workflow.errorStacktrace = err.stack;
 
       workflowLogger.error(`Workflow errored`, err);
       failedWorkflows.labels({ plugin: plugin.pluginName }).inc();
