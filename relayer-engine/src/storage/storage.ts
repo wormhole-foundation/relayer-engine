@@ -496,6 +496,9 @@ export class Storage {
       pluginName: raw.pluginName,
       retryCount: Number(raw.retryCount),
       maxRetries: Number(raw.maxRetries),
+      emitterAddress: raw.emitterAddress,
+      emitterChain: Number(raw.emitterChain),
+      sequence: raw.sequence,
     };
   }
 
@@ -660,16 +663,33 @@ export class Storage {
         let multi = redis.multi();
         for (const key of activeWorkflowsIds) {
           // TODO: READ LESS DATA. You only to read the processingBy field and then set the corresponding metadata.
-          multi.hmGet(key, ["pluginName", "id", "processingBy"]);
+          multi.hmGet(key, [
+            "pluginName",
+            "id",
+            "processingBy",
+            "emitterChain",
+            "emitterAddress",
+            "sequence",
+          ]);
         }
         const rawWorkflows = await multi.exec();
         await redis.watch(lock);
         const activeWorkflows = rawWorkflows.map(
           // @ts-ignore This is a valid array, the type system is wrong.
-          ([pluginName, id, processingBy]) => ({
+          ([
+            pluginName,
+            id,
+            processingBy,
+            emitterChain,
+            emitterAddress,
+            sequence,
+          ]) => ({
             id,
             pluginName,
             processingBy,
+            emitterChain,
+            emitterAddress,
+            sequence,
           }),
         );
         const staleWorkflows = activeWorkflows.filter(
@@ -693,6 +713,10 @@ export class Storage {
             })
             .hIncrBy(key, "retryCount", 1)
             .lPush(this.constants.READY_WORKFLOW_QUEUE, key);
+          this.logger.info(
+            "Attempting to move stale workflow back to ready.",
+            w,
+          );
         }
         await multi.exec();
         // LOG Ids

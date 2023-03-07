@@ -151,6 +151,9 @@ async function spawnExecutor(
       const workflowLogger = logger.child({
         workflowId: res.workflow.id,
         pluginName: res.plugin.pluginName,
+        emitterChain: res.workflow.emitterChain,
+        emitterAddress: res.workflow.emitterAddress,
+        sequence: res.workflow.sequence,
       });
 
       workflowLogger.debug("New workflow found");
