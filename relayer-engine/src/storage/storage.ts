@@ -470,13 +470,12 @@ export class Storage {
       if (!key) {
         return null;
       }
-      const raw = nnull(await redis.hGetAll(key));
-      const workflow = this.rawObjToWorkflow(raw);
-      const now = new Date();
       await redis.hSet(key, {
         processingBy: this.nodeId,
-        startedProcessingAt: now.getTime(),
+        startedProcessingAt: Date.now(),
       });
+      const raw = nnull(await redis.hGetAll(key));
+      const workflow = this.rawObjToWorkflow(raw);
       return { workflow, plugin: nnull(this.plugins.get(workflow.pluginName)) };
     });
   }

@@ -17,12 +17,12 @@ class WorkflowsController {
       ctx.status = 400;
       return;
     }
-    const workflow = await this.storage.getWorkflow({ pluginName, id });
-    if (!workflow) {
+    const res = await this.storage.getWorkflow({ pluginName, id });
+    if (!res) {
       ctx.status = 404;
       return;
     }
-    ctx.body = workflow;
+    ctx.body = res.workflow;
   };
 
   getWorkflowsByStatus = async (ctx: Context) => {
