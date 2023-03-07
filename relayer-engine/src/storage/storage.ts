@@ -279,23 +279,23 @@ export class Storage {
   }) {
     const workflowKey = this._workflowKey(workflowId);
     return this.store.withRedis(async redis => {
-      const [removedFromDelayed, removedFromDeadLetter] = await Promise.all([
-        redis.lRem(this.constants.DELAYED_WORKFLOWS_QUEUE, 0, workflowKey),
-        redis.lRem(this.constants.DEAD_LETTER_QUEUE, 0, workflowKey),
-      ]);
-      if (!removedFromDeadLetter && !removedFromDelayed) {
-        throw new Error("workflow wasn't failed or retrying");
-      }
-      await redis.hSet(workflowKey, <SerializedWorkflowKeys>{
-        failedAt: "",
-        processingBy: "",
-        errorMessage: "",
-        errorStacktrace: "",
-        startedProcessingAt: "",
-        retryCount: 0,
-        completedAt: "",
-      });
-      await redis.lPush(this.constants.READY_WORKFLOW_QUEUE, workflowKey);
+      // TODO: We need to check if workflow is in progress
+      await redis
+        .multi()
+        .lRem(this.constants.READY_WORKFLOW_QUEUE, 0, workflowKey)
+        .zRem(this.constants.DELAYED_WORKFLOWS_QUEUE, workflowKey)
+        .lRem(this.constants.DEAD_LETTER_QUEUE, 0, workflowKey)
+        .hSet(workflowKey, <SerializedWorkflowKeys>{
+          failedAt: "",
+          processingBy: "",
+          errorMessage: "",
+          errorStacktrace: "",
+          startedProcessingAt: "",
+          retryCount: 0,
+          completedAt: "",
+        })
+        .lPush(this.constants.READY_WORKFLOW_QUEUE, workflowKey)
+        .exec(true);
       const raw = await redis.hGetAll(workflowKey);
       return this.rawObjToWorkflow(raw);
     });
@@ -400,7 +400,7 @@ export class Storage {
       await redis
         .multi()
         .hSet(key, <SerializedWorkflowKeys>{
-          completedAt: now.toString(),
+          completedAt: now.toJSON(),
           processingBy: "",
           startedProcessingAt: "",
           errorMessage: "",
