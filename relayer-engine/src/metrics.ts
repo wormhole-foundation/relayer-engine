@@ -6,6 +6,11 @@ export const pluginsConfiguredGauge = new Gauge({
   help: "Number of plugins configured in the host.",
 });
 
+export const spyConnectionsGauge = new Gauge({
+  name: "spy_connections_open",
+  help: "Number of open connections to the wormhole spy",
+});
+
 export function registerGauges(storage: Storage, numPlugins: number) {
   pluginsConfiguredGauge.set(numPlugins);
   new Gauge({
