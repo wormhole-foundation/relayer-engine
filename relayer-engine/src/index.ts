@@ -1,5 +1,6 @@
 import Koa from "koa";
 import Router from "koa-router";
+import bodyParser from "koa-bodyparser";
 import auth from "koa-basic-auth";
 import { register } from "prom-client";
 import * as dotenv from "dotenv";
@@ -169,6 +170,8 @@ async function launchMetricsServer(commonEnv: CommonEnv) {
 
 async function launchApiServer(commonEnv: CommonEnv, storageServ: Storage) {
   const app = new Koa();
+
+  app.use(bodyParser());
   const logger = getScopedLogger(["ApiServer"]);
   const workflowsCtrl = new WorkflowsController(storageServ);
 

@@ -51,7 +51,7 @@ class WorkflowsController {
   };
 
   moveFailedWorkflowToReady = async (ctx: Context) => {
-    const { pluginName, id } = (ctx.req as any).body;
+    const { pluginName, id } = ctx.request.body as any;
     const workflow = await this.storage.moveFailedWorkflowToReady({
       id,
       pluginName,
