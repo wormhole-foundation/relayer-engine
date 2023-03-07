@@ -42,7 +42,7 @@ describe("Storage tests", () => {
   beforeAll(async () => {
     store = await RedisWrapper.fromConfig({
       host: "localhost",
-      port: 6379,
+      port: 6301,
     });
     if (!store) {
       throw new Error("Could not conect to redis");
