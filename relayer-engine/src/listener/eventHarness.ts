@@ -18,9 +18,10 @@ import {
   receivedEventsCounter,
 } from "./metrics";
 import { randomUUID } from "crypto";
+import { rootLogger } from "ts-jest";
 
 let _logger: ScopedLogger;
-const logger = () => {
+const harnessLogger = () => {
   if (!_logger) {
     _logger = getScopedLogger(["eventHarness"]);
   }
@@ -39,13 +40,18 @@ export async function consumeEventHarness(
   providers: Providers,
   extraData?: any[],
 ): Promise<void> {
+  const parsedVaa = parseVaaWithBytes(vaa);
+  const logger = harnessLogger().child({
+    emitterChain: parsedVaa.emitterChain,
+    emitterAddress: parsedVaa.emitterAddress,
+    sequence: parsedVaa.sequence,
+  });
   try {
-    const parsedVaa = parseVaaWithBytes(vaa);
     const hash = parsedVaa.hash.toString("base64");
     const isInProgress = inProgress.get(hash);
     // skip if event is already being processed and processing started less than 5 minutes ago
     if (isInProgress && isInProgress > Date.now() - 5 * minute) {
-      logger().warn(
+      logger.warn(
         `Attempted to process event, but id ${hash} already in progress, skipping...`,
         { id: hash },
       );
@@ -64,19 +70,24 @@ export async function consumeEventHarness(
 
     if (result && result.workflowData) {
       const { workflowData, workflowOptions } = result;
-      logger().info(
+      logger.info(
         `Received workflow data from plugin ${plugin.pluginName}, adding workflow...`,
       );
       const hashFirstDigits = parsedVaa?.hash.toString("hex").substring(0, 5);
       const emitterAddress = parsedVaa?.emitterAddress.toString("hex");
+      const sequence = parsedVaa.sequence.toString();
+
       await storage.addWorkflow({
         data: workflowData,
         id: parsedVaa
-          ? `${parsedVaa.emitterChain}/${emitterAddress}/${parsedVaa.sequence}/${hashFirstDigits}`
+          ? `${parsedVaa.emitterChain}/${emitterAddress}/${sequence}/${hashFirstDigits}`
           : randomUUID(),
         pluginName: plugin.pluginName,
         maxRetries: workflowOptions?.maxRetries ?? plugin.maxRetries,
         retryCount: 0,
+        emitterChain: parsedVaa.emitterChain,
+        emitterAddress: emitterAddress,
+        sequence: sequence,
       });
       createdWorkflowsCounter.labels({ plugin: plugin.pluginName }).inc();
     }
@@ -92,9 +103,10 @@ export async function consumeEventHarness(
     );
     inProgress.delete(hash);
   } catch (e) {
-    const l = logger();
-    l.error(`Encountered error consumingEvent for plugin ${plugin.pluginName}`);
-    l.error(e);
+    logger.error(
+      `Encountered error consumingEvent for plugin ${plugin.pluginName}`,
+      e,
+    );
     erroredEventsCounter.labels({ plugin: plugin.pluginName }).inc();
   }
 }

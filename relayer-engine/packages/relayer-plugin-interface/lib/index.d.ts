@@ -34,6 +34,9 @@ export interface Workflow<D = any> {
     completedAt?: Date;
     startedProcessingAt?: Date;
     processingBy?: string;
+    emitterChain?: number;
+    emitterAddress?: string;
+    sequence?: string;
 }
 export interface ActionExecutor {
     <T, W extends Wallet>(action: Action<T, W>): Promise<T>;
