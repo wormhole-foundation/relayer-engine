@@ -3,20 +3,16 @@ import {
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
-import LRUCache = require("lru-cache");
-import {
-  ContractFilter,
-  Plugin,
-  Providers,
-} from "../../packages/relayer-plugin-interface";
+import { Plugin, Providers } from "../../packages/relayer-plugin-interface";
 import { Storage } from "../storage";
 import { sleep } from "../utils/utils";
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { ScopedLogger, getScopedLogger } from "../helpers/logHelper";
-import { consumeEventHarness } from "./eventHarness";
+import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { getCommonEnv, getListenerEnv } from "../config";
 import { transformEmitterFilter } from "./listenerHarness";
 import { consumeEventWithMissedVaaDetection } from "./missedVaaFetching";
+import { spyConnectionsGauge } from "../metrics";
+import LRUCache = require("lru-cache");
 
 // TODO: get from config or sdk etc.
 const NUM_GUARDIANS = 19;
@@ -121,6 +117,7 @@ async function runPluginSpyListener(
       });
 
       let connected = true;
+      spyConnectionsGauge.inc(1);
       stream.on("error", (err: any) => {
         logger().error("spy service returned an error: %o", err);
         connected = false;
@@ -138,6 +135,7 @@ async function runPluginSpyListener(
       while (connected) {
         await sleep(1000);
       }
+      spyConnectionsGauge.dec(1); // only gets here if the connection drops. If it errors out and closes we don't want to decrement twice.
     } catch (e) {
       logger().error("spy service threw an exception: %o", e);
     }

@@ -69,11 +69,15 @@ describe("Storage tests", () => {
   });
 
   describe("Workflow lifecycle happy path tests using InMemory store", () => {
-    const workflow = {
+    const workflow: Workflow<string> = {
       id: "special_id_11",
       pluginName: TestPlugin.pluginName,
       data: "This is some great data",
       retryCount: 0,
+      maxRetries: 3,
+      emitterAddress: "abc123",
+      emitterChain: 1,
+      sequence: "5",
     };
     const key = workflowKey(workflow);
 

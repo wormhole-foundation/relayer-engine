@@ -43,6 +43,7 @@ export interface IRedis {
   hLen(key: string): Promise<number>;
   hSet(key: string, field: string, val: string): Promise<number>;
   hSet(key: string, fields: HSETObject): Promise<number>;
+  zRem(key: string, element: string | string[]): Promise<number>;
   hIncrBy(key: string, field: string, incr: number): Promise<number>;
   hGet(key: string, field: string): Promise<string | undefined>;
   hGetAll(key: string): Promise<Record<string, string>>;
