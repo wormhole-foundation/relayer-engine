@@ -78,6 +78,11 @@ describe("Storage tests", () => {
       emitterAddress: "abc123",
       emitterChain: 1,
       sequence: "5",
+      completedAt: undefined,
+      failedAt: undefined,
+      errorMessage: undefined,
+      errorStacktrace: undefined,
+      processingBy: "test-id",
     };
     const key = workflowKey(workflow);
 
@@ -100,6 +105,7 @@ describe("Storage tests", () => {
       const res = await storage.getNextWorkflow(1);
       expect(res).toBeTruthy();
       logger.info(res);
+      workflow.startedProcessingAt = res!.workflow.startedProcessingAt;
       expect(res!.workflow).toEqual(workflow);
       expect(await redis.lLen("__activeWorkflows")).toBe(1);
       expect(await redis.lIndex("__activeWorkflows", 0)).toBe(key);
