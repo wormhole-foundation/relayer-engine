@@ -320,13 +320,7 @@ export class Storage {
       const rawWorkflows = await Promise.all(
         activeWorkflowsIds.map(id => redis.hGetAll(id)),
       );
-      const workflows = rawWorkflows.map(raw => this.rawObjToWorkflow(raw));
-      // sort by last workflow to first
-      workflows.sort(
-        (a, b) =>
-          (b.scheduledAt?.getTime() ?? 0) - (a.scheduledAt?.getTime() ?? 0),
-      );
-      return workflows;
+      return rawWorkflows.map(raw => this.rawObjToWorkflow(raw));
     });
   }
 
@@ -451,7 +445,6 @@ export class Storage {
           startedProcessingAt: "",
         })
         .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
-        .lRem(this.constants.COMPLETED_WORKFLOWS_QUEUE, 0, key)
         .lRem(this.constants.COMPLETED_WORKFLOWS_QUEUE, 0, key)
         .zRem(this.constants.DELAYED_WORKFLOWS_QUEUE, key)
         .lPush(this.constants.DEAD_LETTER_QUEUE, key)
