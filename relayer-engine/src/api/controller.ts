@@ -41,10 +41,13 @@ class WorkflowsController {
       case "reattempting":
         workflows = await this.storage.getDelayedWorkflows(0, -1);
         break;
+      case "completed":
+        workflows = await this.storage.getCompletedWorkflows(0, -1);
+        break;
       default:
         ctx.status = 400;
         ctx.body =
-          "Wrong status, allowed values are: reattempting, ready, failed, inprogress";
+          "Wrong status, allowed values are: reattempting, ready, failed, inprogress, completed";
         return;
     }
     ctx.body = workflows;

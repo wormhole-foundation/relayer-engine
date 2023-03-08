@@ -83,6 +83,7 @@ export interface Multi {
   del(key: string): Multi;
   exists(keys: string): Multi;
   lPush(key: string, element: string | string[]): Multi;
+  lTrim(key: string, start: number, end: number): Multi;
   zAdd(key: string, elements: { value: string; score: number }[]): Multi;
   lRem(key: string, count: number, element: string): Multi;
   zRem(key: string, element: string | string[]): Multi;
