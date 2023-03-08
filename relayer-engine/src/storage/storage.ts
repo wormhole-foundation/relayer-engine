@@ -246,6 +246,14 @@ export class Storage {
     );
   }
 
+  async getCompletedWorkflows(start: number, end: number): Promise<Workflow[]> {
+    return this.getWorkflowsInQueue(
+      this.constants.COMPLETED_WORKFLOWS_QUEUE,
+      start,
+      end,
+    );
+  }
+
   async getFailedWorkflows(start: number, end: number): Promise<Workflow[]> {
     return this.getWorkflowsInQueue(
       this.constants.DEAD_LETTER_QUEUE,
@@ -312,7 +320,13 @@ export class Storage {
       const rawWorkflows = await Promise.all(
         activeWorkflowsIds.map(id => redis.hGetAll(id)),
       );
-      return rawWorkflows.map(raw => this.rawObjToWorkflow(raw));
+      const workflows = rawWorkflows.map(raw => this.rawObjToWorkflow(raw));
+      // sort by last workflow to first
+      workflows.sort(
+        (a, b) =>
+          (b.scheduledAt?.getTime() ?? 0) - (a.scheduledAt?.getTime() ?? 0),
+      );
+      return workflows;
     });
   }
 
@@ -407,6 +421,8 @@ export class Storage {
           errorStacktrace: "",
         })
         .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
+        .lPush(this.constants.COMPLETED_WORKFLOWS_QUEUE, key)
+        .lTrim(this.constants.COMPLETED_WORKFLOWS_QUEUE, 0, 100)
         .exec(true);
     });
   }
@@ -435,6 +451,8 @@ export class Storage {
           startedProcessingAt: "",
         })
         .lRem(this.constants.ACTIVE_WORKFLOWS_QUEUE, 0, key)
+        .lRem(this.constants.COMPLETED_WORKFLOWS_QUEUE, 0, key)
+        .lRem(this.constants.COMPLETED_WORKFLOWS_QUEUE, 0, key)
         .zRem(this.constants.DELAYED_WORKFLOWS_QUEUE, key)
         .lPush(this.constants.DEAD_LETTER_QUEUE, key)
         .exec(true);
@@ -470,9 +488,10 @@ export class Storage {
       if (!key) {
         return null;
       }
+      const now = new Date();
       await redis.hSet(key, {
         processingBy: this.nodeId,
-        startedProcessingAt: Date.now(),
+        startedProcessingAt: now.toISOString(),
       });
       const raw = nnull(await redis.hGetAll(key));
       const workflow = this.rawObjToWorkflow(raw);
@@ -492,6 +511,8 @@ export class Storage {
         : undefined,
       scheduledBy: raw.scheduledBy,
       processingBy: raw.processingBy,
+      errorMessage: raw.errorMessage,
+      errorStacktrace: raw.errorStacktrace,
       pluginName: raw.pluginName,
       retryCount: Number(raw.retryCount),
       maxRetries: Number(raw.maxRetries),
