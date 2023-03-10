@@ -15,6 +15,7 @@ import * as winston from "winston";
 // subset of common env that plugins should have access to
 export interface CommonPluginEnv {
   supportedChains: ChainConfigInfo[];
+  wormholeRpc: string;
 }
 
 export enum EnvType {
