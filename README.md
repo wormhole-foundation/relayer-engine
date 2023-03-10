@@ -34,10 +34,10 @@ There are four main components to a relayer:
 
 1. Non-validating guardiand node (spy) that is connected to the Guardian Gossip Network.
 2. Listener that observes filtered signed VAAs pushed from the spy and decides whether to create workflow objects to process these VAAs
-3. Redis database that workflows are enqueued on by the Listener. Can also function with an in-memory store for ease of development
+3. Redis database that workflows are enqueued on by the Listener. 
 4. Executor that pops off workflows from the database and processes them. This module has access to hot wallets and submits transactions on one or more blockchains
 
-The relayer engine modularizes the Listener and Executor component through a [Plugin Interface](./relayer-engine/packages/relayer-plugin-interface/src/index.ts) to enable custom filtering and off-chain processing of VAAs respectively.
+The relayer engine parameterizes the Listener and Executor component through a [Plugin Interface](./relayer-engine/packages/relayer-plugin-interface/src/index.ts) to enable custom filtering and off-chain processing of VAAs respectively.
 
 The **Listener** portion of the Plugin component defines
 
@@ -82,8 +82,13 @@ await relayerEngine.run({
   envType: EnvType.LOCALHOST,
 });
 ```
+Run a local redis db
+```bash
+npm run redis
+# aka: docker run --rm -p 6379:6379 --name redis-docker -d redis
+```
 
-Common relayer engine configurations require a spy node to be running (see above for what this is)
+Common relayer engine configurations require a spy node running (see above for what this is)
 
 ```bash
 npm run mainnet-spy
