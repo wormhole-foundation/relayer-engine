@@ -4,6 +4,7 @@ import { ChainId, EVMChainId, ParsedVaa, SignedVaa } from "@certusone/wormhole-s
 import * as winston from "winston";
 export interface CommonPluginEnv {
     supportedChains: ChainConfigInfo[];
+    wormholeRpc: string;
 }
 export declare enum EnvType {
     MAINNET = "MAINNET",
