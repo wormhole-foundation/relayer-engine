@@ -29,9 +29,6 @@ export interface ChainConfigInfo {
   chainId: ChainId;
   chainName: string;
   nodeUrl: string;
-  tokenBridgeAddress?: string;
-  bridgeAddress?: string;
-  wrappedAsset?: string | null;
 }
 
 /*

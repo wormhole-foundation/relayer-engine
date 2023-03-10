@@ -1,16 +1,8 @@
 /*
- * Takes in untyped, resolved config objects and sets typed config objects
+ * Takes in untyped, resolved config objects, validates them and returns typed config objects
  */
-import {
-  ChainConfigInfo,
-  EnvType,
-} from "../../packages/relayer-plugin-interface";
-import {
-  ChainId,
-  CHAIN_ID_SOLANA,
-  isEVMChain,
-  isTerraChain,
-} from "@certusone/wormhole-sdk";
+import { ChainConfigInfo } from "../../packages/relayer-plugin-interface";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { CommonEnv, ExecutorEnv, ListenerEnv, Mode, StoreType } from ".";
 import {
   assertArray,
@@ -90,20 +82,14 @@ export function validateExecutorEnv(
 export function validateChainConfig(
   supportedChainRaw: Keys<ChainConfigInfo>,
 ): ChainConfigInfo {
-  if (!supportedChainRaw.chainId) {
-    throw new Error("Invalid chain config: " + supportedChainRaw);
-  }
-  if (supportedChainRaw.chainId === CHAIN_ID_SOLANA) {
-    return createSolanaChainConfig(supportedChainRaw);
-  } else if (isTerraChain(supportedChainRaw.chainId)) {
-    return createTerraChainConfig(supportedChainRaw);
-  } else if (isEVMChain(supportedChainRaw.chainId)) {
-    return createEvmChainConfig(supportedChainRaw);
-  } else {
-    throw new Error(
-      `Unrecognized chain ${supportedChainRaw.chainId} ${supportedChainRaw.chainName}`,
-    );
-  }
+  const msg = (fieldName: string) =>
+    `Missing required field in chain config: ${fieldName}`;
+
+  return {
+    chainId: nnull(supportedChainRaw.chainId, msg("chainId")),
+    chainName: nnull(supportedChainRaw.chainName, msg("chainName")),
+    nodeUrl: nnull(supportedChainRaw.nodeUrl, msg("nodeUrl")),
+  };
 }
 
 export function transformPrivateKeys(privateKeys: any): {
@@ -149,46 +135,6 @@ function validatePrivateKeys(
   return privateKeys;
 }
 
-function createSolanaChainConfig(
-  config: Keys<ChainConfigInfo>,
-): ChainConfigInfo {
-  const msg = (fieldName: string) =>
-    `Missing required field in chain config: ${fieldName}`;
-
-  return {
-    chainId: nnull(config.chainId, msg("chainId")),
-    chainName: nnull(config.chainName, msg("chainName")),
-    nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
-    tokenBridgeAddress: config.tokenBridgeAddress,
-    bridgeAddress: nnull(config.bridgeAddress, msg("bridgeAddress")),
-    wrappedAsset: config.wrappedAsset,
-  };
-}
-
-function createTerraChainConfig(config: any): ChainConfigInfo {
-  const msg = (fieldName: string) =>
-    `Missing required field in chain config: ${fieldName}`;
-  return {
-    chainId: nnull(config.chainId, msg("chainId")),
-    chainName: nnull(config.chainName, msg("chainName")),
-    nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
-    tokenBridgeAddress: config.tokenBridgeAddress,
-  };
-}
-
-function createEvmChainConfig(config: any): ChainConfigInfo {
-  const msg = (fieldName: string) =>
-    `Missing required field in chain config: ${fieldName}`;
-  return {
-    chainId: nnull(config.chainId, msg("chainId")),
-    chainName: nnull(config.chainName, msg("chainName")),
-    nodeUrl: nnull(config.nodeUrl, msg("nodeUrl")),
-    tokenBridgeAddress: config.tokenBridgeAddress,
-    bridgeAddress: config.bridgeAddress,
-    wrappedAsset: config.wrappedAsset,
-  };
-}
-
 export type Keys<T> = { [k in keyof T]: any };
 export function validateStringEnum<B>(
   enumObj: Object,
@@ -202,48 +148,3 @@ export function validateStringEnum<B>(
   e.enumVariants = Object.values(enumObj);
   throw e;
 }
-
-/* We should do typesafe key validation, but this may require types specific to the on-disk config format, not the resolved config objects
-
-const commonEnvKeys = createKeys<CommonEnv>({
-  logDir: 1,
-  logLevel: 1,
-  readinessPort: 1,
-  redisHost: 1,
-  redisPort: 1,
-  pluginURIs: 1,
-  promPort: 1,
-  envType: 1,
-});
-const listenerEnvKeys = createKeys<ListenerEnv>({
-  spyServiceFilters: 1,
-  spyServiceHost: 1,
-  numSpyWorkers: 1,
-  restPort: 1,
-});
-const executorEnvKeys = createKeys<ExecutorEnv>({
-  redisHost: 1,
-  redisPort: 1,
-  supportedChains: 1,
-});
-
-function validateKeys<T>(keys: (keyof T)[], obj: Record<string, any>): Keys<T> {
-  for (const key of keys) {
-    if (!obj[key as string]) {
-      throw new Error(`${String(key)} missing from object`);
-    }
-  }
-  if (!Object.keys(obj).every(k => keys.includes(k as any))) {
-    throw new Error(
-      `Object includes keys missing from ${String(
-        keys
-      )}. Obj keys ${Object.keys(obj)}`
-    );
-  }
-  return obj as { [k in keyof T]: any };
-}
-
-function createKeys<T>(keyRecord: Record<keyof T, any>): (keyof T)[] {
-  return Object.keys(keyRecord) as any;
-}
-*/
