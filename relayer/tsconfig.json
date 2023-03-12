@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "outDir": "lib",
+    "target": "ESNext",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2021"],
+    "declaration": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "noImplicitAny": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "downlevelIteration": true,
+    "sourceMap": true
+  },
+  "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "relayer/lib/**/*",
+    "**/__tests__/*",
+    "relayer/src/**/*.test.ts"
+  ]
+}

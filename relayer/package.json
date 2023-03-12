@@ -1,0 +1,27 @@
+{
+  "name": "wormhole-relayer",
+  "version": "0.0.1",
+  "description": "",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Gabriel Zimmermann",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.9",
+    "@certusone/wormhole-spydk": "^0.0.1",
+    "bech32": "^2.0.0",
+    "ethers": "^5.7.0",
+    "prettier": "^2.8.4",
+    "redis": "^4.6.5",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "@types/winston": "^2.4.4"
+  }
+}
