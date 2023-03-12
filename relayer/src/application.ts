@@ -1,5 +1,5 @@
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { ChainId, tryUint8ArrayToNative } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { compose, Middleware, Next } from "./compose.middleware";
 import { Context } from "./context";
 import * as winston from "winston";
@@ -12,6 +12,10 @@ import {
 import { bech32 } from "bech32";
 import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { zeroPad } from "ethers/lib/utils";
+import { Storage, StorageOptions } from "./storage";
+import { KoaAdapter } from "@bull-board/koa";
+import { createBullBoard } from "@bull-board/api";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 
 const defaultLogger = winston.createLogger({
   transports: [
@@ -35,6 +39,7 @@ export class RelayerApp<ContextT extends Context> {
   private chainRouters: Partial<Record<ChainId, ChainRouter<ContextT>>> = {};
   private spyUrl?: string;
   private rootLogger: Logger;
+  storage: Storage<ContextT>;
 
   constructor() {}
 
@@ -77,6 +82,29 @@ export class RelayerApp<ContextT extends Context> {
 
   logger(logger: Logger) {
     this.rootLogger = logger;
+    if (this.storage) {
+      this.storage.logger = logger;
+    }
+  }
+
+  useStorage(storageOptions: StorageOptions) {
+    this.storage = new Storage(this, storageOptions);
+    if (this.rootLogger) {
+      this.storage.logger = this.rootLogger;
+    }
+  }
+
+  storageKoaUI(path: string) {
+    // UI
+    const serverAdapter = new KoaAdapter();
+    serverAdapter.setBasePath(path);
+
+    createBullBoard({
+      queues: [new BullMQAdapter(this.storage.vaaQueue)],
+      serverAdapter: serverAdapter,
+    });
+
+    return serverAdapter.registerPlugin();
   }
 
   private generateChainRoutes(): Middleware<ContextT> {
@@ -95,12 +123,17 @@ export class RelayerApp<ContextT extends Context> {
 
   async listen() {
     this.rootLogger = this.rootLogger ?? defaultLogger;
+    if (this.storage && !this.storage.logger) {
+      this.storage.logger = this.rootLogger;
+    }
     this.use(this.generateChainRoutes());
 
     let filters = await this.spyFilters();
     if (filters.length > 0 && !this.spyUrl) {
       throw new Error("you need to setup the spy url");
     }
+
+    this.storage?.startWorker();
 
     while (true) {
       const client = createSpyRPCServiceClient(this.spyUrl!);
@@ -109,15 +142,21 @@ export class RelayerApp<ContextT extends Context> {
         const stream = await subscribeSignedVAA(client, {
           filters,
         });
+
         this.rootLogger.info("connected to the spy");
+
         for await (const vaa of stream) {
-          this.handleVaa(vaa.vaaBytes);
+          if (this.storage) {
+            this.storage.addVaaToQueue(vaa.vaaBytes);
+          } else {
+            this.handleVaa(vaa.vaaBytes);
+          }
         }
       } catch (err) {
         this.rootLogger.error("error connecting to the spy");
       }
 
-      await sleep(300);
+      await sleep(300); // wait a bit before trying to reconnect.
     }
   }
 }

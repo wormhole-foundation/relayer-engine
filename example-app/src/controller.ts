@@ -1,12 +1,11 @@
-import { LoggingContext } from "wormhole-relay/lib/middleware/logger.middleware";
-import { Next } from "wormhole-relay";
+import { LoggingContext } from "wormhole-relayer/lib/middleware/logger.middleware";
+import { Next } from "wormhole-relayer";
+import { MyRelayerContext } from "./app";
 
 export class ApiController {
-  processFundsTransfer = async (ctx: LoggingContext, next: Next) => {
-    ctx.logger.info("chain middleware");
-    ctx.logger.info(ctx.vaa!.sequence.toString());
-    ctx.logger.info(ctx.vaa!.hash.toString("hex"));
+  processFundsTransfer = async (ctx: MyRelayerContext, next: Next) => {
+    let seq = ctx.vaa!.sequence.toString();
+    ctx.logger.info(`chain middleware - ${seq}`);
     await next();
-    ctx.logger.info("chain middleware - end");
   };
 }

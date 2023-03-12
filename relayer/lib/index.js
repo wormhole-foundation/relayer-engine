@@ -13,4 +13,5 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./application"), exports);
 __exportStar(require("./context"), exports);
 __exportStar(require("./compose.middleware"), exports);
+__exportStar(require("./storage"), exports);
 //# sourceMappingURL=index.js.map

@@ -9,6 +9,10 @@ const wormhole_spydk_1 = require("@certusone/wormhole-spydk");
 const bech32_1 = require("bech32");
 const wormhole_1 = require("@certusone/wormhole-sdk/lib/cjs/solana/wormhole");
 const utils_1 = require("ethers/lib/utils");
+const storage_1 = require("./storage");
+const koa_1 = require("@bull-board/koa");
+const api_1 = require("@bull-board/api");
+const bullMQAdapter_1 = require("@bull-board/api/bullMQAdapter");
 const defaultLogger = winston.createLogger({
     transports: [
         new winston.transports.Console({
@@ -24,6 +28,7 @@ class RelayerApp {
     chainRouters = {};
     spyUrl;
     rootLogger;
+    storage;
     constructor() { }
     use(...middleware) {
         if (this.pipeline) {
@@ -59,6 +64,25 @@ class RelayerApp {
     }
     logger(logger) {
         this.rootLogger = logger;
+        if (this.storage) {
+            this.storage.logger = logger;
+        }
+    }
+    useStorage(storageOptions) {
+        this.storage = new storage_1.Storage(this, storageOptions);
+        if (this.rootLogger) {
+            this.storage.logger = this.rootLogger;
+        }
+    }
+    storageKoaUI(path) {
+        // UI
+        const serverAdapter = new koa_1.KoaAdapter();
+        serverAdapter.setBasePath(path);
+        (0, api_1.createBullBoard)({
+            queues: [new bullMQAdapter_1.BullMQAdapter(this.storage.vaaQueue)],
+            serverAdapter: serverAdapter,
+        });
+        return serverAdapter.registerPlugin();
     }
     generateChainRoutes() {
         let chainRouting = async (ctx, next) => {
@@ -73,11 +97,15 @@ class RelayerApp {
     }
     async listen() {
         this.rootLogger = this.rootLogger ?? defaultLogger;
+        if (this.storage && !this.storage.logger) {
+            this.storage.logger = this.rootLogger;
+        }
         this.use(this.generateChainRoutes());
         let filters = await this.spyFilters();
         if (filters.length > 0 && !this.spyUrl) {
             throw new Error("you need to setup the spy url");
         }
+        this.storage?.startWorker();
         while (true) {
             const client = (0, wormhole_spydk_1.createSpyRPCServiceClient)(this.spyUrl);
             try {
@@ -86,13 +114,18 @@ class RelayerApp {
                 });
                 this.rootLogger.info("connected to the spy");
                 for await (const vaa of stream) {
-                    this.handleVaa(vaa.vaaBytes);
+                    if (this.storage) {
+                        this.storage.addVaaToQueue(vaa.vaaBytes);
+                    }
+                    else {
+                        this.handleVaa(vaa.vaaBytes);
+                    }
                 }
             }
             catch (err) {
                 this.rootLogger.error("error connecting to the spy");
             }
-            await sleep(300);
+            await sleep(300); // wait a bit before trying to reconnect.
         }
     }
 }

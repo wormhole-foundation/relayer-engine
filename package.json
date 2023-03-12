@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@bull-board/api": "^5.0.0",
+    "@bull-board/koa": "^5.0.0",
+    "bullmq": "^3.10.1",
+    "koa": "^2.14.1"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.13.5"
+  }
+}
