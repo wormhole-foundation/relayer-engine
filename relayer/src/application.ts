@@ -1,6 +1,12 @@
 import * as wormholeSdk from "@certusone/wormhole-sdk";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { compose, Middleware, Next } from "./compose.middleware";
+import {
+  compose,
+  composeError,
+  ErrorMiddleware,
+  Middleware,
+  Next,
+} from "./compose.middleware";
 import { Context } from "./context";
 import * as winston from "winston";
 import { Logger } from "winston";
@@ -36,6 +42,7 @@ const defaultLogger = winston.createLogger({
 
 export class RelayerApp<ContextT extends Context> {
   private pipeline?: Middleware<Context>;
+  private errorPipeline?: ErrorMiddleware<Context>;
   private chainRouters: Partial<Record<ChainId, ChainRouter<ContextT>>> = {};
   private spyUrl?: string;
   private rootLogger: Logger;
@@ -43,19 +50,41 @@ export class RelayerApp<ContextT extends Context> {
 
   constructor() {}
 
-  use(...middleware: Middleware<ContextT>[]) {
-    if (this.pipeline) {
-      middleware.unshift(this.pipeline);
+  use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]) {
+    if (!middleware.length) {
+      return;
     }
-    this.pipeline = compose(middleware);
+
+    // adding error middleware
+    if (middleware[0].length > 2) {
+      if (this.errorPipeline) {
+        (middleware as ErrorMiddleware<ContextT>[]).unshift(this.errorPipeline);
+      }
+      this.errorPipeline = composeError(
+        middleware as ErrorMiddleware<ContextT>[]
+      );
+      return;
+    }
+
+    // adding regular middleware
+    if (this.pipeline) {
+      (middleware as Middleware<ContextT>[]).unshift(this.pipeline);
+    }
+    this.pipeline = compose(middleware as Middleware<ContextT>[]);
   }
 
-  handleVaa(vaa: Buffer): Promise<void> {
+  async handleVaa(vaa: Buffer, opts?: any): Promise<void> {
     const parsedVaa = wormholeSdk.parseVaa(vaa);
     let ctx = new Context(this);
+    Object.assign(ctx, opts);
     ctx.vaa = parsedVaa;
     ctx.vaaBytes = vaa;
-    return this.pipeline?.(ctx, () => {});
+    try {
+      await this.pipeline?.(ctx, () => {});
+    } catch (e) {
+      this.errorPipeline?.(e, ctx, () => {});
+      throw e;
+    }
   }
 
   chain(chainId: ChainId): ChainRouter<ContextT> {
@@ -147,9 +176,9 @@ export class RelayerApp<ContextT extends Context> {
 
         for await (const vaa of stream) {
           if (this.storage) {
-            this.storage.addVaaToQueue(vaa.vaaBytes);
+            await this.storage.addVaaToQueue(vaa.vaaBytes);
           } else {
-            this.handleVaa(vaa.vaaBytes);
+            this.handleVaa(vaa.vaaBytes).catch((err) => {}); // error already handled by middleware, catch to swallow remaining error.
           }
         }
       } catch (err) {
@@ -192,7 +221,7 @@ class ChainRouter<ContextT extends Context> {
     let addr = ctx.vaa!.emitterAddress.toString("hex");
     let route = this._routes[addr];
 
-    await route.execute(ctx, next);
+    return route.execute(ctx, next);
   }
 }
 

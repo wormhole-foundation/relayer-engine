@@ -1,18 +1,19 @@
 /// <reference types="node" />
 import { ChainId } from "@certusone/wormhole-sdk";
-import { Middleware, Next } from "./compose.middleware";
+import { ErrorMiddleware, Middleware, Next } from "./compose.middleware";
 import { Context } from "./context";
 import { Logger } from "winston";
 import { Storage, StorageOptions } from "./storage";
 export declare class RelayerApp<ContextT extends Context> {
     private pipeline?;
+    private errorPipeline?;
     private chainRouters;
     private spyUrl?;
     private rootLogger;
     storage: Storage<ContextT>;
     constructor();
-    use(...middleware: Middleware<ContextT>[]): void;
-    handleVaa(vaa: Buffer): Promise<void>;
+    use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]): void;
+    handleVaa(vaa: Buffer, opts?: any): Promise<void>;
     chain(chainId: ChainId): ChainRouter<ContextT>;
     private spyFilters;
     spy(url: string): this;

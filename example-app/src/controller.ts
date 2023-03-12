@@ -6,6 +6,9 @@ export class ApiController {
   processFundsTransfer = async (ctx: MyRelayerContext, next: Next) => {
     let seq = ctx.vaa!.sequence.toString();
     ctx.logger.info(`chain middleware - ${seq}`);
+    if (Math.random() < 0.8) {
+      throw new Error("simulating failure");
+    }
     await next();
   };
 }

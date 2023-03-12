@@ -15,7 +15,7 @@ function logging(logger) {
                 sequence: ctx.vaa.sequence,
             })
             : logger;
-        next();
+        await next();
     };
 }
 exports.logging = logging;

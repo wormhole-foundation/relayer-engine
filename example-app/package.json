@@ -18,6 +18,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/koa-router": "^7.4.4",
-    "@types/yargs": "^17.0.22"
+    "@types/yargs": "^17.0.22",
+    "prettier": "^2.8.4"
   }
 }

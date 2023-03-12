@@ -25,23 +25,43 @@ const defaultLogger = winston.createLogger({
 });
 class RelayerApp {
     pipeline;
+    errorPipeline;
     chainRouters = {};
     spyUrl;
     rootLogger;
     storage;
     constructor() { }
     use(...middleware) {
+        if (!middleware.length) {
+            return;
+        }
+        // adding error middleware
+        if (middleware[0].length > 2) {
+            if (this.errorPipeline) {
+                middleware.unshift(this.errorPipeline);
+            }
+            this.errorPipeline = (0, compose_middleware_1.composeError)(middleware);
+            return;
+        }
+        // adding regular middleware
         if (this.pipeline) {
             middleware.unshift(this.pipeline);
         }
         this.pipeline = (0, compose_middleware_1.compose)(middleware);
     }
-    handleVaa(vaa) {
+    async handleVaa(vaa, opts) {
         const parsedVaa = wormholeSdk.parseVaa(vaa);
         let ctx = new context_1.Context(this);
+        Object.assign(ctx, opts);
         ctx.vaa = parsedVaa;
         ctx.vaaBytes = vaa;
-        return this.pipeline?.(ctx, () => { });
+        try {
+            await this.pipeline?.(ctx, () => { });
+        }
+        catch (e) {
+            this.errorPipeline?.(e, ctx, () => { });
+            throw e;
+        }
     }
     chain(chainId) {
         if (!this.chainRouters[chainId]) {
@@ -115,10 +135,10 @@ class RelayerApp {
                 this.rootLogger.info("connected to the spy");
                 for await (const vaa of stream) {
                     if (this.storage) {
-                        this.storage.addVaaToQueue(vaa.vaaBytes);
+                        await this.storage.addVaaToQueue(vaa.vaaBytes);
                     }
                     else {
-                        this.handleVaa(vaa.vaaBytes);
+                        this.handleVaa(vaa.vaaBytes).catch((err) => { }); // error already handled by middleware, catch to swallow remaining error.
                     }
                 }
             }
@@ -156,7 +176,7 @@ class ChainRouter {
     async process(ctx, next) {
         let addr = ctx.vaa.emitterAddress.toString("hex");
         let route = this._routes[addr];
-        await route.execute(ctx, next);
+        return route.execute(ctx, next);
     }
 }
 class VaaRoute {

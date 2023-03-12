@@ -30,6 +30,10 @@ async function main() {
       fundsCtrl.processFundsTransfer
     );
 
+  relayer.use(async (err, ctx, next) => {
+    ctx.logger.error("error middleware triggered");
+  }); // <-- if you pass in a function with 3 args, it'll be used to process errors (whenever you throw from your middleware)
+
   relayer.listen();
 
   runUI(relayer, opts);
