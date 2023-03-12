@@ -83,7 +83,7 @@ class Storage {
         this.worker = new bullmq_1.Worker(this.storageOptions.queueName, async (job) => {
             await job.log(`processing by..${this.worker.id}`);
             let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-            await this.relayer.handleVaa(vaaBytes);
+            await this.relayer.handleVaa(vaaBytes, { job });
             await job.updateProgress(100);
             return [""];
         }, { prefix: this.prefix });

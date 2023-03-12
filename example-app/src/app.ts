@@ -44,9 +44,10 @@ function runUI(relayer: any, opts: any) {
 
   app.use(relayer.storageKoaUI("/ui"));
 
-  app.listen(opts.port ?? 3000, () => {
-    console.log(`Running on ${opts.port}...`);
-    console.log("For the UI, open http://localhost:3000/ui");
+  let port = opts.port ?? 3000;
+  app.listen(port, () => {
+    console.log(`Running on ${port}...`);
+    console.log(`For the UI, open http://localhost:${port}/ui`);
     console.log("Make sure Redis is running on port 6379 by default");
   });
 }

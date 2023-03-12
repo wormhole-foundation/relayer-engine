@@ -103,7 +103,7 @@ export class Storage<T extends Context> {
       async (job) => {
         await job.log(`processing by..${this.worker.id}`);
         let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-        await this.relayer.handleVaa(vaaBytes);
+        await this.relayer.handleVaa(vaaBytes, { job });
         await job.updateProgress(100);
         return [""];
       },

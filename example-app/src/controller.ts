@@ -7,6 +7,7 @@ export class ApiController {
     let seq = ctx.vaa!.sequence.toString();
     ctx.logger.info(`chain middleware - ${seq}`);
     if (Math.random() < 0.8) {
+      ctx.job.log("failed from processFundsTransfer");
       throw new Error("simulating failure");
     }
     await next();
