@@ -22,6 +22,7 @@ import { Storage, StorageOptions } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 
 const defaultLogger = winston.createLogger({
   transports: [
@@ -40,6 +41,12 @@ const defaultLogger = winston.createLogger({
   ),
 });
 
+export enum Environment {
+  MAINNET = "mainnet",
+  TESTNET = "testnet",
+  DEVNET = "devnet",
+}
+
 export class RelayerApp<ContextT extends Context> {
   private pipeline?: Middleware<Context>;
   private errorPipeline?: ErrorMiddleware<Context>;
@@ -47,8 +54,24 @@ export class RelayerApp<ContextT extends Context> {
   private spyUrl?: string;
   private rootLogger: Logger;
   storage: Storage<ContextT>;
+  public env: Environment = Environment.TESTNET;
+  filters: {
+    emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
+  }[];
 
   constructor() {}
+
+  mainnet() {
+    this.environment(Environment.MAINNET);
+  }
+
+  testnet() {
+    this.environment(Environment.TESTNET);
+  }
+
+  devnet() {
+    this.environment(Environment.DEVNET);
+  }
 
   use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]) {
     if (!middleware.length) {
@@ -73,12 +96,26 @@ export class RelayerApp<ContextT extends Context> {
     this.pipeline = compose(middleware as Middleware<ContextT>[]);
   }
 
-  async handleVaa(vaa: Buffer, opts?: any): Promise<void> {
+  async processVaa(vaa: Buffer, opts?: any) {
+    if (this.storage) {
+      await this.storage.addVaaToQueue(vaa);
+    } else {
+      this.pushVaaThroughPipeline(vaa).catch((err) => {}); // error already handled by middleware, catch to swallow remaining error.
+    }
+  }
+
+  async pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void> {
     const parsedVaa = wormholeSdk.parseVaa(vaa);
-    let ctx = new Context(this);
+    let ctx: Context = {
+      vaa: parsedVaa,
+      vaaBytes: vaa,
+      env: this.env,
+      processVaa: this.processVaa.bind(this),
+      config: {
+        spyFilters: await this.spyFilters(),
+      },
+    };
     Object.assign(ctx, opts);
-    ctx.vaa = parsedVaa;
-    ctx.vaaBytes = vaa;
     try {
       await this.pipeline?.(ctx, () => {});
     } catch (e) {
@@ -94,7 +131,9 @@ export class RelayerApp<ContextT extends Context> {
     return this.chainRouters[chainId]!;
   }
 
-  private async spyFilters() {
+  private async spyFilters(): Promise<
+    { emitterFilter?: { chainId?: ChainID; emitterAddress?: string } }[]
+  > {
     const spyFilters = new Set<any>();
     for (const [chainId, chainRouter] of Object.entries(this.chainRouters)) {
       for (const filter of await chainRouter.spyFilters()) {
@@ -157,8 +196,8 @@ export class RelayerApp<ContextT extends Context> {
     }
     this.use(this.generateChainRoutes());
 
-    let filters = await this.spyFilters();
-    if (filters.length > 0 && !this.spyUrl) {
+    this.filters = await this.spyFilters();
+    if (this.filters.length > 0 && !this.spyUrl) {
       throw new Error("you need to setup the spy url");
     }
 
@@ -169,17 +208,13 @@ export class RelayerApp<ContextT extends Context> {
 
       try {
         const stream = await subscribeSignedVAA(client, {
-          filters,
+          filters: this.filters,
         });
 
         this.rootLogger.info("connected to the spy");
 
         for await (const vaa of stream) {
-          if (this.storage) {
-            await this.storage.addVaaToQueue(vaa.vaaBytes);
-          } else {
-            this.handleVaa(vaa.vaaBytes).catch((err) => {}); // error already handled by middleware, catch to swallow remaining error.
-          }
+          this.processVaa(vaa.vaaBytes).catch();
         }
       } catch (err) {
         this.rootLogger.error("error connecting to the spy");
@@ -187,6 +222,10 @@ export class RelayerApp<ContextT extends Context> {
 
       await sleep(300); // wait a bit before trying to reconnect.
     }
+  }
+
+  public environment(env: Environment) {
+    this.env = env;
   }
 }
 

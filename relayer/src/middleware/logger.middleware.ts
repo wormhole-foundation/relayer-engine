@@ -2,7 +2,7 @@ import { Logger } from "winston";
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 
-export class LoggingContext extends Context {
+export interface LoggingContext extends Context {
   logger: Logger;
 }
 

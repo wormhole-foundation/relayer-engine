@@ -1,7 +1,7 @@
 import { Context } from "./context";
 
 export type Next = (i?: number) => any;
-export type Middleware<ContextT extends Context> = (
+export type Middleware<ContextT extends Context = Context> = (
   ctx: ContextT,
   next: Next
 ) => Promise<void>;

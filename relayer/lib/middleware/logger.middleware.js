@@ -1,11 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logging = exports.LoggingContext = void 0;
-const context_1 = require("../context");
-class LoggingContext extends context_1.Context {
-    logger;
-}
-exports.LoggingContext = LoggingContext;
+exports.logging = void 0;
 function logging(logger) {
     return async (ctx, next) => {
         ctx.logger = ctx.vaa

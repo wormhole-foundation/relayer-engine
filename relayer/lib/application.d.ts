@@ -4,6 +4,12 @@ import { ErrorMiddleware, Middleware, Next } from "./compose.middleware";
 import { Context } from "./context";
 import { Logger } from "winston";
 import { Storage, StorageOptions } from "./storage";
+import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
+export declare enum Environment {
+    MAINNET = "mainnet",
+    TESTNET = "testnet",
+    DEVNET = "devnet"
+}
 export declare class RelayerApp<ContextT extends Context> {
     private pipeline?;
     private errorPipeline?;
@@ -11,9 +17,20 @@ export declare class RelayerApp<ContextT extends Context> {
     private spyUrl?;
     private rootLogger;
     storage: Storage<ContextT>;
+    env: Environment;
+    filters: {
+        emitterFilter?: {
+            chainId?: ChainID;
+            emitterAddress?: string;
+        };
+    }[];
     constructor();
+    mainnet(): void;
+    testnet(): void;
+    devnet(): void;
     use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]): void;
-    handleVaa(vaa: Buffer, opts?: any): Promise<void>;
+    processVaa(vaa: Buffer, opts?: any): Promise<void>;
+    pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void>;
     chain(chainId: ChainId): ChainRouter<ContextT>;
     private spyFilters;
     spy(url: string): this;
@@ -22,6 +39,7 @@ export declare class RelayerApp<ContextT extends Context> {
     storageKoaUI(path: string): any;
     private generateChainRoutes;
     listen(): Promise<void>;
+    environment(env: Environment): void;
 }
 declare class ChainRouter<ContextT extends Context> {
     chainId: ChainId;

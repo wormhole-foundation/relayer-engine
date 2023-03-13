@@ -42,7 +42,7 @@ function deserializeVaa(vaa: Record<string, any>): ParsedVaa {
   };
 }
 
-export class StorageContext extends Context {
+export interface StorageContext extends Context {
   job: Job;
 }
 
@@ -103,7 +103,7 @@ export class Storage<T extends Context> {
       async (job) => {
         await job.log(`processing by..${this.worker.id}`);
         let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-        await this.relayer.handleVaa(vaaBytes, { job });
+        await this.relayer.pushVaaThroughPipeline(vaaBytes, { job });
         await job.updateProgress(100);
         return [""];
       },

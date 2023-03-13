@@ -1,9 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sleep = exports.transformEmitterFilter = exports.RelayerApp = void 0;
+exports.sleep = exports.transformEmitterFilter = exports.RelayerApp = exports.Environment = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
 const compose_middleware_1 = require("./compose.middleware");
-const context_1 = require("./context");
 const winston = require("winston");
 const wormhole_spydk_1 = require("@certusone/wormhole-spydk");
 const bech32_1 = require("bech32");
@@ -23,6 +22,12 @@ const defaultLogger = winston.createLogger({
         format: "YYYY-MM-DD HH:mm:ss.SSS",
     }), winston.format.errors({ stack: true })),
 });
+var Environment;
+(function (Environment) {
+    Environment["MAINNET"] = "mainnet";
+    Environment["TESTNET"] = "testnet";
+    Environment["DEVNET"] = "devnet";
+})(Environment = exports.Environment || (exports.Environment = {}));
 class RelayerApp {
     pipeline;
     errorPipeline;
@@ -30,7 +35,18 @@ class RelayerApp {
     spyUrl;
     rootLogger;
     storage;
+    env = Environment.TESTNET;
+    filters;
     constructor() { }
+    mainnet() {
+        this.environment(Environment.MAINNET);
+    }
+    testnet() {
+        this.environment(Environment.TESTNET);
+    }
+    devnet() {
+        this.environment(Environment.DEVNET);
+    }
     use(...middleware) {
         if (!middleware.length) {
             return;
@@ -49,12 +65,26 @@ class RelayerApp {
         }
         this.pipeline = (0, compose_middleware_1.compose)(middleware);
     }
-    async handleVaa(vaa, opts) {
+    async processVaa(vaa, opts) {
+        if (this.storage) {
+            await this.storage.addVaaToQueue(vaa);
+        }
+        else {
+            this.pushVaaThroughPipeline(vaa).catch((err) => { }); // error already handled by middleware, catch to swallow remaining error.
+        }
+    }
+    async pushVaaThroughPipeline(vaa, opts) {
         const parsedVaa = wormholeSdk.parseVaa(vaa);
-        let ctx = new context_1.Context(this);
+        let ctx = {
+            vaa: parsedVaa,
+            vaaBytes: vaa,
+            env: this.env,
+            processVaa: this.processVaa.bind(this),
+            config: {
+                spyFilters: await this.spyFilters(),
+            },
+        };
         Object.assign(ctx, opts);
-        ctx.vaa = parsedVaa;
-        ctx.vaaBytes = vaa;
         try {
             await this.pipeline?.(ctx, () => { });
         }
@@ -121,8 +151,8 @@ class RelayerApp {
             this.storage.logger = this.rootLogger;
         }
         this.use(this.generateChainRoutes());
-        let filters = await this.spyFilters();
-        if (filters.length > 0 && !this.spyUrl) {
+        this.filters = await this.spyFilters();
+        if (this.filters.length > 0 && !this.spyUrl) {
             throw new Error("you need to setup the spy url");
         }
         this.storage?.startWorker();
@@ -130,16 +160,11 @@ class RelayerApp {
             const client = (0, wormhole_spydk_1.createSpyRPCServiceClient)(this.spyUrl);
             try {
                 const stream = await (0, wormhole_spydk_1.subscribeSignedVAA)(client, {
-                    filters,
+                    filters: this.filters,
                 });
                 this.rootLogger.info("connected to the spy");
                 for await (const vaa of stream) {
-                    if (this.storage) {
-                        await this.storage.addVaaToQueue(vaa.vaaBytes);
-                    }
-                    else {
-                        this.handleVaa(vaa.vaaBytes).catch((err) => { }); // error already handled by middleware, catch to swallow remaining error.
-                    }
+                    this.processVaa(vaa.vaaBytes).catch();
                 }
             }
             catch (err) {
@@ -147,6 +172,9 @@ class RelayerApp {
             }
             await sleep(300); // wait a bit before trying to reconnect.
         }
+    }
+    environment(env) {
+        this.env = env;
     }
 }
 exports.RelayerApp = RelayerApp;

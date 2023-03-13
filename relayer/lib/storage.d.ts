@@ -3,7 +3,7 @@ import { Job, Queue } from "bullmq";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
-export declare class StorageContext extends Context {
+export interface StorageContext extends Context {
     job: Job;
 }
 export interface StorageOptions {

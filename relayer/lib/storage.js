@@ -1,9 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Storage = exports.StorageContext = void 0;
+exports.Storage = void 0;
 const bullmq_1 = require("bullmq");
 const wormhole_sdk_1 = require("@certusone/wormhole-sdk");
-const context_1 = require("./context");
 function serializeVaa(vaa) {
     return {
         sequence: vaa.sequence.toString(),
@@ -40,10 +39,6 @@ function deserializeVaa(vaa) {
         guardianSetIndex: vaa.guardianSetIndex,
     };
 }
-class StorageContext extends context_1.Context {
-    job;
-}
-exports.StorageContext = StorageContext;
 class Storage {
     relayer;
     storageOptions;
@@ -83,7 +78,7 @@ class Storage {
         this.worker = new bullmq_1.Worker(this.storageOptions.queueName, async (job) => {
             await job.log(`processing by..${this.worker.id}`);
             let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-            await this.relayer.handleVaa(vaaBytes, { job });
+            await this.relayer.pushVaaThroughPipeline(vaaBytes, { job });
             await job.updateProgress(100);
             return [""];
         }, { prefix: this.prefix });

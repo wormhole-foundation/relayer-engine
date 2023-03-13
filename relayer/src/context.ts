@@ -1,12 +1,17 @@
 import { ParsedVaa } from "@certusone/wormhole-sdk";
-import { RelayerApp } from "./application";
+import { Environment, RelayerApp } from "./application";
+import { Logger } from "winston";
+import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 
-export class Context {
+export interface Context {
   vaa?: ParsedVaa;
   vaaBytes?: Buffer;
-  handleVaa: (vaa: Buffer) => void;
-
-  constructor(app: RelayerApp<any>) {
-    this.handleVaa = app.handleVaa;
-  }
+  processVaa: (vaa: Buffer) => Promise<void>;
+  env: Environment;
+  logger?: Logger;
+  config: {
+    spyFilters: {
+      emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
+    }[];
+  };
 }
