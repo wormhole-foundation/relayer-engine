@@ -13,20 +13,20 @@
   "author": "Gabriel Zimmermann",
   "license": "ISC",
   "dependencies": {
+    "@bull-board/api": "^5.0.0",
+    "@bull-board/koa": "^5.0.0",
     "@certusone/wormhole-sdk": "^0.9.9",
     "@certusone/wormhole-spydk": "^0.0.1",
     "bech32": "^2.0.0",
-    "ethers": "^5.7.0",
-    "ioredis": "^5.3.1",
-    "prettier": "^2.8.4",
-    "winston": "^3.8.2",
-    "@bull-board/api": "^5.0.0",
-    "@bull-board/koa": "^5.0.0",
     "bullmq": "^3.10.1",
-    "koa": "^2.14.1"
+    "ethers": "^5.7.2",
+    "ioredis": "^5.3.1",
+    "koa": "^2.14.1",
+    "prettier": "^2.8.4",
+    "winston": "^3.8.2"
   },
   "devDependencies": {
-    "@types/winston": "^2.4.4",
-    "@types/koa": "^2.13.5"
+    "@types/koa": "^2.13.5",
+    "@types/winston": "^2.4.4"
   }
 }

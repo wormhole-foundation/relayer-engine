@@ -5,11 +5,13 @@ import { Context } from "./context";
 import { Logger } from "winston";
 import { Storage, StorageOptions } from "./storage";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
+import { UnrecoverableError } from "bullmq";
 export declare enum Environment {
     MAINNET = "mainnet",
     TESTNET = "testnet",
     DEVNET = "devnet"
 }
+export { UnrecoverableError };
 export declare class RelayerApp<ContextT extends Context> {
     private pipeline?;
     private errorPipeline?;
@@ -69,4 +71,3 @@ export declare type ContractFilter = {
 };
 export declare function transformEmitterFilter(x: ContractFilter): ContractFilter;
 export declare function sleep(ms: number): Promise<unknown>;
-export {};

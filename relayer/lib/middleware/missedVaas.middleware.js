@@ -42,8 +42,12 @@ function missedVaas(app, opts) {
                 } // push the missed vaa through all the middleware / storage service if used.
             }
         }
-        await next(); // <-- process the current vaa
-        await setLastSequenceForContract(redis, vaa.emitterChain, vaa.emitterAddress, vaa.sequence, ctx.logger);
+        try {
+            await next(); // <-- process the current vaa
+        }
+        finally {
+            await setLastSequenceForContract(redis, vaa.emitterChain, vaa.emitterAddress, vaa.sequence, ctx.logger);
+        }
     };
 }
 exports.missedVaas = missedVaas;

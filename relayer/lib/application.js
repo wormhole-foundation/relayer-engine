@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sleep = exports.transformEmitterFilter = exports.RelayerApp = exports.Environment = void 0;
+exports.sleep = exports.transformEmitterFilter = exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
 const compose_middleware_1 = require("./compose.middleware");
 const winston = require("winston");
@@ -12,6 +12,8 @@ const storage_1 = require("./storage");
 const koa_1 = require("@bull-board/koa");
 const api_1 = require("@bull-board/api");
 const bullMQAdapter_1 = require("@bull-board/api/bullMQAdapter");
+const bullmq_1 = require("bullmq");
+Object.defineProperty(exports, "UnrecoverableError", { enumerable: true, get: function () { return bullmq_1.UnrecoverableError; } });
 const defaultLogger = winston.createLogger({
     transports: [
         new winston.transports.Console({

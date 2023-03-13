@@ -80,15 +80,17 @@ export function missedVaas(
       }
     }
 
-    await next(); // <-- process the current vaa
-
-    await setLastSequenceForContract(
-      redis,
-      vaa.emitterChain,
-      vaa.emitterAddress,
-      vaa.sequence,
-      ctx.logger
-    );
+    try {
+      await next(); // <-- process the current vaa
+    } finally {
+      await setLastSequenceForContract(
+        redis,
+        vaa.emitterChain,
+        vaa.emitterAddress,
+        vaa.sequence,
+        ctx.logger
+      );
+    }
   };
 }
 
