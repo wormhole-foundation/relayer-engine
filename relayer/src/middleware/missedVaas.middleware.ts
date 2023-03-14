@@ -4,9 +4,10 @@ import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 import Redis, { Cluster, ClusterNode, RedisOptions } from "ioredis";
 import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
-import { Environment, RelayerApp, sleep } from "../application";
+import { Environment, RelayerApp } from "../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
+import { sleep } from "../utils";
 
 export type { RedisOptions };
 interface MissedVaaOpts {

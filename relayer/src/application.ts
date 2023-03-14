@@ -15,15 +15,13 @@ import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
-import { bech32 } from "bech32";
-import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import { zeroPad } from "ethers/lib/utils";
 import { Storage, StorageOptions } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
+import { encodeEmitterAddress, sleep } from "./utils";
 
 const defaultLogger = winston.createLogger({
   transports: [
@@ -262,30 +260,3 @@ export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for
   chainId: ChainId; // Wormhole ChainID to filter for
 };
-
-function encodeEmitterAddress(
-  myChainId: wormholeSdk.ChainId,
-  emitterAddressStr: string
-): string {
-  if (
-    myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
-    myChainId === wormholeSdk.CHAIN_ID_PYTHNET
-  ) {
-    return deriveWormholeEmitterKey(emitterAddressStr)
-      .toBuffer()
-      .toString("hex");
-  }
-  if (wormholeSdk.isTerraChain(myChainId)) {
-    return Buffer.from(
-      zeroPad(bech32.fromWords(bech32.decode(emitterAddressStr).words), 32)
-    ).toString("hex");
-  }
-  if (wormholeSdk.isEVMChain(myChainId)) {
-    return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
-  }
-  throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
-}
-
-export function sleep(ms: number) {
-  return new Promise((resolve, reject) => setTimeout(resolve, ms));
-}

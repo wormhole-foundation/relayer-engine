@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spawnWalletWorker = void 0;
 const walletToolBox_1 = require("./walletToolBox");
-const application_1 = require("../../application");
+const utils_1 = require("../../utils");
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
 const DEFAULT_WORKER_INTERVAL_MS = 500;
 async function spawnWalletWorker(actionQueue, providers, workerInfo, logger) {
@@ -11,7 +11,7 @@ async function spawnWalletWorker(actionQueue, providers, workerInfo, logger) {
     const walletToolBox = (0, walletToolBox_1.createWalletToolbox)(providers, workerInfo.walletPrivateKey, workerInfo.targetChainId);
     while (true) {
         // always sleep between loop iterations
-        await (0, application_1.sleep)(workerIntervalMS);
+        await (0, utils_1.sleep)(workerIntervalMS);
         try {
             if (actionQueue.isEmpty()) {
                 continue;
@@ -33,7 +33,7 @@ async function spawnWalletWorker(actionQueue, providers, workerInfo, logger) {
         catch (e) {
             logger.error("", e);
             // wait longer between loop iterations on error
-            await (0, application_1.sleep)(DEFAULT_WORKER_RESTART_MS);
+            await (0, utils_1.sleep)(DEFAULT_WORKER_RESTART_MS);
         }
     }
 }

@@ -2,8 +2,8 @@ import { Providers } from "../providers.middleware";
 import { Logger } from "winston";
 import { Queue } from "@datastructures-js/queue";
 import { createWalletToolbox } from "./walletToolBox";
-import { sleep } from "../../application";
 import { ActionWithCont, WorkerInfo } from "./wallet.middleware";
+import { sleep } from "../../utils";
 
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
 const DEFAULT_WORKER_INTERVAL_MS = 500;

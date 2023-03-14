@@ -54,4 +54,3 @@ export declare type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
 };
-export declare function sleep(ms: number): Promise<unknown>;

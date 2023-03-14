@@ -1,19 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sleep = exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
+exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
 const compose_middleware_1 = require("./compose.middleware");
 const winston = require("winston");
 const wormhole_spydk_1 = require("@certusone/wormhole-spydk");
-const bech32_1 = require("bech32");
-const wormhole_1 = require("@certusone/wormhole-sdk/lib/cjs/solana/wormhole");
-const utils_1 = require("ethers/lib/utils");
 const storage_1 = require("./storage");
 const koa_1 = require("@bull-board/koa");
 const api_1 = require("@bull-board/api");
 const bullMQAdapter_1 = require("@bull-board/api/bullMQAdapter");
 const bullmq_1 = require("bullmq");
 Object.defineProperty(exports, "UnrecoverableError", { enumerable: true, get: function () { return bullmq_1.UnrecoverableError; } });
+const utils_1 = require("./utils");
 const defaultLogger = winston.createLogger({
     transports: [
         new winston.transports.Console({
@@ -165,7 +163,7 @@ class RelayerApp {
             catch (err) {
                 this.rootLogger.error("error connecting to the spy");
             }
-            await sleep(300); // wait a bit before trying to reconnect.
+            await (0, utils_1.sleep)(300); // wait a bit before trying to reconnect.
         }
     }
     environment(env) {
@@ -180,7 +178,7 @@ class ChainRouter {
         this.chainId = chainId;
     }
     address = (address, ...handlers) => {
-        address = encodeEmitterAddress(this.chainId, address);
+        address = (0, utils_1.encodeEmitterAddress)(this.chainId, address);
         if (!this._addressHandlers[address]) {
             this._addressHandlers[address] = (0, compose_middleware_1.compose)(handlers);
         }
@@ -208,23 +206,4 @@ class ChainRouter {
         return handler?.(ctx, next);
     }
 }
-function encodeEmitterAddress(myChainId, emitterAddressStr) {
-    if (myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
-        myChainId === wormholeSdk.CHAIN_ID_PYTHNET) {
-        return (0, wormhole_1.deriveWormholeEmitterKey)(emitterAddressStr)
-            .toBuffer()
-            .toString("hex");
-    }
-    if (wormholeSdk.isTerraChain(myChainId)) {
-        return Buffer.from((0, utils_1.zeroPad)(bech32_1.bech32.fromWords(bech32_1.bech32.decode(emitterAddressStr).words), 32)).toString("hex");
-    }
-    if (wormholeSdk.isEVMChain(myChainId)) {
-        return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
-    }
-    throw new Error(`Unrecognized wormhole chainId ${myChainId}`);
-}
-function sleep(ms) {
-    return new Promise((resolve, reject) => setTimeout(resolve, ms));
-}
-exports.sleep = sleep;
 //# sourceMappingURL=application.js.map

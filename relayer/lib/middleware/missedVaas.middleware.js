@@ -6,6 +6,7 @@ const ioredis_1 = require("ioredis");
 const wormhole_sdk_1 = require("@certusone/wormhole-sdk");
 const application_1 = require("../application");
 const generic_pool_1 = require("generic-pool");
+const utils_1 = require("../utils");
 const defaultRpcs = {
     [application_1.Environment.MAINNET]: ["https://api.wormscan.io"],
     [application_1.Environment.TESTNET]: [
@@ -161,7 +162,7 @@ async function startMissedVaaWorker(pool, app, opts) {
         catch (e) {
             opts.logger?.error(`error managing redis pool.`, e);
         }
-        await (0, application_1.sleep)(opts.checkForMissedVaasEveryMs);
+        await (0, utils_1.sleep)(opts.checkForMissedVaasEveryMs);
     }
 }
 //# sourceMappingURL=missedVaas.middleware.js.map

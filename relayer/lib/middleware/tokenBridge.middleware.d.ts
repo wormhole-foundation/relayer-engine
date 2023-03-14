@@ -1,12 +1,12 @@
 import { Middleware } from "../compose.middleware";
-import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
+import { ChainName, EVMChainId, ParsedTokenTransferVaa } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
 import { ProviderContext } from "./providers.middleware";
 import { ITokenBridge } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 export interface TokenBridgeContext extends ProviderContext {
     tokenBridge: {
         addresses: {
-            [k in ChainId]?: string;
+            [k in ChainName]?: string;
         };
         contractConstructor: (address: string, signerOrProvider: Signer | ethers.providers.Provider) => ITokenBridge;
         contracts: {
@@ -16,6 +16,7 @@ export interface TokenBridgeContext extends ProviderContext {
                 };
             };
         };
+        vaa?: ParsedTokenTransferVaa;
     };
 }
 export declare type ChainConfigInfo = {
