@@ -93,7 +93,7 @@ async function setLastSequenceForContract(redis, emitterChain, emitterAddress, s
     let lastSeq = await getLastSequenceForContract(redis, emitterChain, emitterAddress, true);
     // step 2. if we have already seen an older seq, skip
     if (lastSeq && BigInt(lastSeq.lastSequence) > seq) {
-        logger?.debug(`Did not update last sequence due to an older one being processed. Last seen${lastSeq.lastSequence.toString()}, Current: ${seq.toString()}.`);
+        logger?.debug(`Did not update last sequence due to an older one being processed. Last seen ${lastSeq.lastSequence.toString()}, Current: ${seq.toString()}.`);
         await redis.unwatch();
         return false;
     }

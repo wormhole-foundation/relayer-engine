@@ -6,7 +6,7 @@ import {
   RelayerApp,
   StorageContext,
 } from "wormhole-relayer";
-import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import {
   logging,
   LoggingContext,
@@ -22,6 +22,11 @@ import {
   StagingAreaContext,
 } from "wormhole-relayer/lib/middleware/staging-area.middleware";
 
+import {
+  wallets,
+  WalletContext,
+} from "wormhole-relayer/lib/middleware/wallet/wallet.middleware";
+
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
@@ -29,7 +34,12 @@ import { Logger } from "winston";
 export type MyRelayerContext = LoggingContext &
   StorageContext &
   TokenBridgeContext &
-  StagingAreaContext;
+  StagingAreaContext &
+  WalletContext;
+
+const privateKeys = {
+  [CHAIN_ID_ETH]: [process.env.ETH_KEY],
+};
 
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
@@ -44,6 +54,7 @@ async function main() {
   app.use(logging(rootLogger)); // <-- logging middleware
   app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
   app.use(providers());
+  // app.use(wallets({ logger: rootLogger, namespace: "simple", privateKeys })); // <-- you need a valid private key to turn on this middleware
   app.use(tokenBridgeContracts());
   app.use(stagingArea());
 
