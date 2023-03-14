@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
+const wormhole_sdk_1 = require("@certusone/wormhole-sdk");
 const compose_middleware_1 = require("./compose.middleware");
 const winston = require("winston");
 const wormhole_spydk_1 = require("@certusone/wormhole-spydk");
@@ -92,6 +93,16 @@ class RelayerApp {
         }
         return this.chainRouters[chainId];
     }
+    tokenBridge(chains, ...handlers) {
+        for (const chainId of chains) {
+            let address = 
+            // @ts-ignore TODO
+            wormhole_sdk_1.CONTRACTS[this.env.toUpperCase()][wormhole_sdk_1.CHAIN_ID_TO_NAME[chainId]]
+                .token_bridge;
+            this.chain(chainId).address(address, ...handlers);
+        }
+        return this;
+    }
     async spyFilters() {
         const spyFilters = new Set();
         for (const [chainId, chainRouter] of Object.entries(this.chainRouters)) {
@@ -145,6 +156,7 @@ class RelayerApp {
         }
         this.use(this.generateChainRoutes());
         this.filters = await this.spyFilters();
+        this.rootLogger.debug(JSON.stringify(this.filters, null, 2));
         if (this.filters.length > 0 && !this.spyUrl) {
             throw new Error("you need to setup the spy url");
         }

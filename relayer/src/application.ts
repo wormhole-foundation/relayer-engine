@@ -1,5 +1,5 @@
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { ChainId } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TO_NAME, ChainId, CONTRACTS } from "@certusone/wormhole-sdk";
 import {
   compose,
   composeError,
@@ -119,6 +119,17 @@ export class RelayerApp<ContextT extends Context> {
     return this.chainRouters[chainId]!;
   }
 
+  tokenBridge(chains: ChainId[], ...handlers: Middleware<ContextT>[]) {
+    for (const chainId of chains) {
+      let address =
+        // @ts-ignore TODO
+        CONTRACTS[this.env.toUpperCase()][CHAIN_ID_TO_NAME[chainId]]
+          .token_bridge;
+      this.chain(chainId).address(address, ...handlers);
+    }
+    return this;
+  }
+
   private async spyFilters(): Promise<
     { emitterFilter?: { chainId?: ChainID; emitterAddress?: string } }[]
   > {
@@ -185,6 +196,7 @@ export class RelayerApp<ContextT extends Context> {
     this.use(this.generateChainRoutes());
 
     this.filters = await this.spyFilters();
+    this.rootLogger.debug(JSON.stringify(this.filters, null, 2));
     if (this.filters.length > 0 && !this.spyUrl) {
       throw new Error("you need to setup the spy url");
     }

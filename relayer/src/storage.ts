@@ -44,7 +44,10 @@ function deserializeVaa(vaa: Record<string, any>): ParsedVaa {
 }
 
 export interface StorageContext extends Context {
-  job: Job;
+  storage: {
+    job: Job;
+    worker: Worker;
+  };
 }
 
 export interface StorageOptions {

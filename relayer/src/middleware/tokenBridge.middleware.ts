@@ -27,7 +27,7 @@ function extractTokenBridgeAddressesFromSdk(env: Environment) {
   );
 }
 
-const addresses = {
+const tokenBridgeAddresses = {
   [Environment.MAINNET]: extractTokenBridgeAddressesFromSdk(
     Environment.MAINNET
   ),
@@ -73,7 +73,7 @@ function instantiateReadEvmContracts(
   for (const [chainIdStr, chainRpc] of Object.entries(chainRpcs)) {
     const chainId = Number(chainIdStr) as EVMChainId;
     // @ts-ignore
-    const address = addresses[env][CHAIN_ID_TO_NAME[chainId]];
+    const address = tokenBridgeAddresses[env][CHAIN_ID_TO_NAME[chainId]];
     const contracts = chainRpc.map((rpc) =>
       ITokenBridge__factory.connect(address, rpc)
     );
@@ -85,16 +85,19 @@ function instantiateReadEvmContracts(
 function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
   let chainId = vaa.emitterChain as ChainId;
   const chainName = CHAIN_ID_TO_NAME[chainId];
-  const envName = env.toUpperCase();
 
   // @ts-ignore TODO remove
-  let tokenBridgeAddress = CONTRACTS[envName][chainName].tokenBridge;
-  if (!tokenBridgeAddress) {
+  let tokenBridgeLocalAddress = tokenBridgeAddresses[env][chainName];
+  if (!tokenBridgeLocalAddress) {
     return false;
   }
 
   const emitterAddress = vaa.emitterAddress.toString("hex");
-  return encodeEmitterAddress(chainId, tokenBridgeAddress) === emitterAddress;
+  let tokenBridgeEmitterAddress = encodeEmitterAddress(
+    chainId,
+    tokenBridgeLocalAddress
+  );
+  return tokenBridgeEmitterAddress === emitterAddress;
 }
 
 export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
@@ -109,7 +112,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
       ctx.providers.evm
     );
     ctx.tokenBridge = {
-      addresses: addresses[ctx.env],
+      addresses: tokenBridgeAddresses[ctx.env],
       contractConstructor: ITokenBridge__factory.connect,
       contracts: {
         read: {

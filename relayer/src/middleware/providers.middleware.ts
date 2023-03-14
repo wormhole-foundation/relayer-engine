@@ -38,7 +38,6 @@ interface ProvidersOpts {
 
 const defaultSupportedChains = {
   [Environment.MAINNET]: {
-    [CHAIN_ID_SOLANA]: { endpoints: [""] },
     [CHAIN_ID_ETH]: { endpoints: ["https://rpc.ankr.com/eth"] },
     [CHAIN_ID_BSC]: { endpoints: ["https://bsc-dataseed1.binance.org/"] },
     [CHAIN_ID_POLYGON]: { endpoints: ["https://rpc.ankr.com/polygon"] },

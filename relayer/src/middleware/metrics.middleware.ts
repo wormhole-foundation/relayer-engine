@@ -18,7 +18,7 @@ const finishedVaasTotal = new Counter({
 
 export function metrics(): Middleware<Context & { job?: Job }> {
   return async (ctx: StorageContext, next) => {
-    const job = ctx.job;
+    const job = ctx.storage?.job;
 
     // disable this metric if storage is enabled because the storage will actually compute the metrics.
     if (job) {

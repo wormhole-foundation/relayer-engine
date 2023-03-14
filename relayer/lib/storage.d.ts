@@ -1,11 +1,14 @@
 /// <reference types="node" />
-import { Job, Queue } from "bullmq";
+import { Job, Queue, Worker } from "bullmq";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
 import { ClusterNode, RedisOptions } from "ioredis";
 export interface StorageContext extends Context {
-    job: Job;
+    storage: {
+        job: Job;
+        worker: Worker;
+    };
 }
 export interface StorageOptions {
     redisCluster?: ClusterNode[];

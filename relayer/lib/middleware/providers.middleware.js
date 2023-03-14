@@ -8,7 +8,6 @@ const application_1 = require("../application");
 const consts_1 = require("@certusone/wormhole-sdk/lib/cjs/utils/consts");
 const defaultSupportedChains = {
     [application_1.Environment.MAINNET]: {
-        [wormhole_sdk_1.CHAIN_ID_SOLANA]: { endpoints: [""] },
         [wormhole_sdk_1.CHAIN_ID_ETH]: { endpoints: ["https://rpc.ankr.com/eth"] },
         [wormhole_sdk_1.CHAIN_ID_BSC]: { endpoints: ["https://bsc-dataseed1.binance.org/"] },
         [consts_1.CHAIN_ID_POLYGON]: { endpoints: ["https://rpc.ankr.com/polygon"] },

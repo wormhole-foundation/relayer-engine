@@ -13,7 +13,7 @@ const finishedVaasTotal = new prom_client_1.Counter({
 });
 function metrics() {
     return async (ctx, next) => {
-        const job = ctx.job;
+        const job = ctx.storage?.job;
         // disable this metric if storage is enabled because the storage will actually compute the metrics.
         if (job) {
             await next();

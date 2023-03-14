@@ -9,7 +9,7 @@ const utils_1 = require("../utils");
 function extractTokenBridgeAddressesFromSdk(env) {
     return Object.fromEntries(Object.entries(wormhole_sdk_1.CONTRACTS[env.toUpperCase()]).map(([chainName, addresses]) => [chainName, addresses.token_bridge]));
 }
-const addresses = {
+const tokenBridgeAddresses = {
     [application_1.Environment.MAINNET]: extractTokenBridgeAddressesFromSdk(application_1.Environment.MAINNET),
     [application_1.Environment.TESTNET]: extractTokenBridgeAddressesFromSdk(application_1.Environment.TESTNET),
     [application_1.Environment.DEVNET]: extractTokenBridgeAddressesFromSdk(application_1.Environment.DEVNET),
@@ -19,7 +19,7 @@ function instantiateReadEvmContracts(env, chainRpcs) {
     for (const [chainIdStr, chainRpc] of Object.entries(chainRpcs)) {
         const chainId = Number(chainIdStr);
         // @ts-ignore
-        const address = addresses[env][wormhole_sdk_1.CHAIN_ID_TO_NAME[chainId]];
+        const address = tokenBridgeAddresses[env][wormhole_sdk_1.CHAIN_ID_TO_NAME[chainId]];
         const contracts = chainRpc.map((rpc) => ethers_contracts_1.ITokenBridge__factory.connect(address, rpc));
         evmChainContracts[chainId] = contracts;
     }
@@ -28,14 +28,14 @@ function instantiateReadEvmContracts(env, chainRpcs) {
 function isTokenBridgeVaa(env, vaa) {
     let chainId = vaa.emitterChain;
     const chainName = wormhole_sdk_1.CHAIN_ID_TO_NAME[chainId];
-    const envName = env.toUpperCase();
     // @ts-ignore TODO remove
-    let tokenBridgeAddress = wormhole_sdk_1.CONTRACTS[envName][chainName].tokenBridge;
-    if (!tokenBridgeAddress) {
+    let tokenBridgeLocalAddress = tokenBridgeAddresses[env][chainName];
+    if (!tokenBridgeLocalAddress) {
         return false;
     }
     const emitterAddress = vaa.emitterAddress.toString("hex");
-    return (0, utils_1.encodeEmitterAddress)(chainId, tokenBridgeAddress) === emitterAddress;
+    let tokenBridgeEmitterAddress = (0, utils_1.encodeEmitterAddress)(chainId, tokenBridgeLocalAddress);
+    return tokenBridgeEmitterAddress === emitterAddress;
 }
 function tokenBridgeContracts() {
     return async (ctx, next) => {
@@ -44,7 +44,7 @@ function tokenBridgeContracts() {
         }
         const evmContracts = instantiateReadEvmContracts(ctx.env, ctx.providers.evm);
         ctx.tokenBridge = {
-            addresses: addresses[ctx.env],
+            addresses: tokenBridgeAddresses[ctx.env],
             contractConstructor: ethers_contracts_1.ITokenBridge__factory.connect,
             contracts: {
                 read: {

@@ -31,6 +31,7 @@ export declare class RelayerApp<ContextT extends Context> {
     processVaa(vaa: Buffer, opts?: any): Promise<void>;
     pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void>;
     chain(chainId: ChainId): ChainRouter<ContextT>;
+    tokenBridge(chains: ChainId[], ...handlers: Middleware<ContextT>[]): this;
     private spyFilters;
     spy(url: string): this;
     logger(logger: Logger): void;
