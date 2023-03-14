@@ -169,8 +169,7 @@ async function setLastSequenceForContract(
   try {
     await redis
       .multi()
-      .hset(
-        "missedVaas",
+      .set(
         getKey(emitterChain, emitterAddress),
         JSON.stringify({ lastSequence: seq.toString(), timestamp: Date.now() })
       )

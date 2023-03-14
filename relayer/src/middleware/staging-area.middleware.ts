@@ -10,16 +10,14 @@ export interface StagingAreaContext extends Context {
 
 export interface StagingAreaOpts {
   redisCluster?: ClusterNode[];
-  redis: RedisOptions;
+  redis?: RedisOptions;
   namespace?: string;
 }
 
 export function stagingArea(
-  opts: StagingAreaOpts
+  opts: StagingAreaOpts = {}
 ): Middleware<StagingAreaContext> {
-  if (!opts.redis && !opts.redisCluster) {
-    throw new Error("You need to pass in redis config");
-  }
+  opts.redis = opts.redis || { host: "localhost", port: 6379 };
 
   // TODO: maybe refactor redis pool for all plugins that rely on it.
   const factory = {

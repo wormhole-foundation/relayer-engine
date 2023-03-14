@@ -3,10 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.stagingArea = void 0;
 const ioredis_1 = require("ioredis");
 const generic_pool_1 = require("generic-pool");
-function stagingArea(opts) {
-    if (!opts.redis && !opts.redisCluster) {
-        throw new Error("You need to pass in redis config");
-    }
+function stagingArea(opts = {}) {
+    opts.redis = opts.redis || { host: "localhost", port: 6379 };
     // TODO: maybe refactor redis pool for all plugins that rely on it.
     const factory = {
         create: async function () {

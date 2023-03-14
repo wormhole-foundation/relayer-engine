@@ -6,10 +6,10 @@ export interface StagingAreaContext extends Context {
 }
 export interface StagingAreaOpts {
     redisCluster?: ClusterNode[];
-    redis: RedisOptions;
+    redis?: RedisOptions;
     namespace?: string;
 }
-export declare function stagingArea(opts: StagingAreaOpts): Middleware<StagingAreaContext>;
+export declare function stagingArea(opts?: StagingAreaOpts): Middleware<StagingAreaContext>;
 export interface StagingAreaKeyLock {
     withKey<T, KV extends Record<string, any>>(keys: string[], f: (kvs: KV, ctx: OpaqueTx) => Promise<{
         newKV: KV;

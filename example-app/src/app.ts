@@ -17,6 +17,10 @@ import {
 } from "wormhole-relayer/lib/middleware/tokenBridge.middleware";
 import { missedVaas } from "wormhole-relayer/lib/middleware/missedVaas.middleware";
 import { providers } from "wormhole-relayer/lib/middleware/providers.middleware";
+import {
+  stagingArea,
+  StagingAreaContext,
+} from "wormhole-relayer/lib/middleware/staging-area.middleware";
 
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
@@ -24,7 +28,8 @@ import { Logger } from "winston";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &
-  TokenBridgeContext;
+  TokenBridgeContext &
+  StagingAreaContext;
 
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
@@ -40,6 +45,7 @@ async function main() {
   app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
   app.use(providers());
   app.use(tokenBridgeContracts());
+  app.use(stagingArea());
 
   app
     .chain(CHAIN_ID_SOLANA)
