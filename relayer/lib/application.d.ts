@@ -13,23 +13,20 @@ export declare enum Environment {
 }
 export { UnrecoverableError };
 export declare class RelayerApp<ContextT extends Context> {
+    env: Environment;
     private pipeline?;
     private errorPipeline?;
     private chainRouters;
     private spyUrl?;
     private rootLogger;
     storage: Storage<ContextT>;
-    env: Environment;
     filters: {
         emitterFilter?: {
             chainId?: ChainID;
             emitterAddress?: string;
         };
     }[];
-    constructor();
-    mainnet(): void;
-    testnet(): void;
-    devnet(): void;
+    constructor(env?: Environment);
     use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]): void;
     processVaa(vaa: Buffer, opts?: any): Promise<void>;
     pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void>;
@@ -45,29 +42,16 @@ export declare class RelayerApp<ContextT extends Context> {
 }
 declare class ChainRouter<ContextT extends Context> {
     chainId: ChainId;
-    _routes: Record<string, VaaRoute<ContextT>>;
+    _addressHandlers: Record<string, Middleware<ContextT>>;
     constructor(chainId: ChainId);
     address: (address: string, ...handlers: Middleware<ContextT>[]) => ChainRouter<ContextT>;
-    spyFilters: () => {
+    spyFilters(): {
         emitterFilter: ContractFilter;
     }[];
-    routes: () => VaaRoute<ContextT>[];
     process(ctx: ContextT, next: Next): Promise<void>;
-}
-declare class VaaRoute<ContextT extends Context> {
-    chainId: ChainId;
-    address: string;
-    private handler;
-    constructor(chainId: ChainId, address: string, handlers: Middleware<ContextT>[]);
-    execute(ctx: ContextT, next: Next): Promise<void>;
-    addMiddleware(handlers: Middleware<ContextT>[]): void;
-    spyFilter(): {
-        emitterFilter: ContractFilter;
-    };
 }
 export declare type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
 };
-export declare function transformEmitterFilter(x: ContractFilter): ContractFilter;
 export declare function sleep(ms: number): Promise<unknown>;

@@ -15,6 +15,7 @@ export function logging(logger: Logger): Middleware<LoggingContext> {
           sequence: ctx.vaa.sequence,
         })
       : logger;
+
     await next();
   };
 }

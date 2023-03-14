@@ -1,6 +1,11 @@
 import yargs from "yargs";
 import * as Koa from "koa";
-import { RelayerApp, StorageContext, Context } from "wormhole-relayer";
+import {
+  Context,
+  Environment,
+  RelayerApp,
+  StorageContext,
+} from "wormhole-relayer";
 import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import {
   logging,
@@ -15,6 +20,7 @@ import { providers } from "wormhole-relayer/lib/middleware/providers.middleware"
 
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
+import { Logger } from "winston";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &
@@ -22,11 +28,11 @@ export type MyRelayerContext = LoggingContext &
 
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
-  const app = new RelayerApp<MyRelayerContext>();
+
+  const app = new RelayerApp<MyRelayerContext>(Environment.TESTNET);
   const fundsCtrl = new ApiController();
 
   // Config
-  app.testnet();
   configRelayer(app);
 
   // Set up middleware
@@ -47,8 +53,7 @@ async function main() {
   }); // <-- if you pass in a function with 3 args, it'll be used to process errors (whenever you throw from your middleware)
 
   app.listen();
-
-  runUI(app, opts);
+  runUI(app, opts, rootLogger);
 }
 
 function configRelayer<T extends Context>(app: RelayerApp<T>) {
@@ -57,16 +62,16 @@ function configRelayer<T extends Context>(app: RelayerApp<T>) {
   app.logger(rootLogger);
 }
 
-function runUI(relayer: any, { port }: any) {
+function runUI(relayer: any, { port }: any, logger: Logger) {
   const app = new Koa();
 
   app.use(relayer.storageKoaUI("/ui"));
 
   port = Number(port) || 3000;
   app.listen(port, () => {
-    console.log(`Running on ${port}...`);
-    console.log(`For the UI, open http://localhost:${port}/ui`);
-    console.log("Make sure Redis is running on port 6379 by default");
+    logger.info(`Running on ${port}...`);
+    logger.info(`For the UI, open http://localhost:${port}/ui`);
+    logger.info("Make sure Redis is running on port 6379 by default");
   });
 }
 

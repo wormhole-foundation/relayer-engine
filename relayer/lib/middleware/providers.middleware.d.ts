@@ -12,11 +12,15 @@ export interface ProviderContext extends Context {
 }
 export declare type ChainConfigInfo = {
     [k in ChainId]: {
-        nodeUrls: string[];
+        endpoints: string[];
     };
 };
 interface ProvidersOpts {
-    supportedChains: ChainConfigInfo;
+    chains: Partial<ChainConfigInfo>;
 }
+/**
+ * providers is a middleware that populates `ctx.providers` with provider information
+ * @param opts
+ */
 export declare function providers(opts?: ProvidersOpts): Middleware<ProviderContext>;
 export {};

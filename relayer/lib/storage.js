@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Storage = void 0;
 const bullmq_1 = require("bullmq");
 const wormhole_sdk_1 = require("@certusone/wormhole-sdk");
+const ioredis_1 = require("ioredis");
 function serializeVaa(vaa) {
     return {
         sequence: vaa.sequence.toString(),
@@ -41,17 +42,24 @@ function deserializeVaa(vaa) {
 }
 class Storage {
     relayer;
-    storageOptions;
+    opts;
     logger;
     vaaQueue;
     worker;
     prefix;
-    constructor(relayer, storageOptions) {
+    redis;
+    constructor(relayer, opts) {
         this.relayer = relayer;
-        this.storageOptions = storageOptions;
-        this.prefix = `{${storageOptions.namespace ?? storageOptions.queueName}}`;
-        this.vaaQueue = new bullmq_1.Queue(storageOptions.queueName, {
+        this.opts = opts;
+        this.prefix = `{${opts.namespace ?? opts.queueName}}`;
+        opts.redis = opts.redis || {};
+        opts.redis.maxRetriesPerRequest = null; //Because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
+        this.redis = opts.redisCluster
+            ? new ioredis_1.Redis.Cluster(opts.redisCluster, opts.redis)
+            : new ioredis_1.Redis(opts.redis);
+        this.vaaQueue = new bullmq_1.Queue(opts.queueName, {
             prefix: this.prefix,
+            connection: this.redis,
         });
     }
     async addVaaToQueue(vaaBytes) {
@@ -65,7 +73,7 @@ class Storage {
             jobId: id,
             removeOnComplete: 1000,
             removeOnFail: 5000,
-            attempts: this.storageOptions.attempts,
+            attempts: this.opts.attempts,
         });
     }
     vaaId(vaa) {
@@ -75,13 +83,15 @@ class Storage {
         return `${vaa.emitterChain}/${emitterAddress}/${sequence}/${hash}`;
     }
     startWorker() {
-        this.worker = new bullmq_1.Worker(this.storageOptions.queueName, async (job) => {
+        this.worker = new bullmq_1.Worker(this.opts.queueName, async (job) => {
             await job.log(`processing by..${this.worker.id}`);
             let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-            await this.relayer.pushVaaThroughPipeline(vaaBytes, { job });
+            await this.relayer.pushVaaThroughPipeline(vaaBytes, {
+                storage: { job, worker: this.worker },
+            });
             await job.updateProgress(100);
             return [""];
-        }, { prefix: this.prefix });
+        }, { prefix: this.prefix, connection: this.redis });
     }
 }
 exports.Storage = Storage;

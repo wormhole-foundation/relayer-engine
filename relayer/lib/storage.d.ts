@@ -3,10 +3,13 @@ import { Job, Queue } from "bullmq";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
+import { ClusterNode, RedisOptions } from "ioredis";
 export interface StorageContext extends Context {
     job: Job;
 }
 export interface StorageOptions {
+    redisCluster?: ClusterNode[];
+    redis?: RedisOptions;
     queueName: string;
     attempts: number;
     namespace?: string;
@@ -17,12 +20,13 @@ export declare type JobData = {
 };
 export declare class Storage<T extends Context> {
     private relayer;
-    private storageOptions;
+    private opts;
     logger: Logger;
     vaaQueue: Queue<JobData, string[], string>;
     private worker;
     private prefix;
-    constructor(relayer: RelayerApp<T>, storageOptions: StorageOptions);
+    private redis;
+    constructor(relayer: RelayerApp<T>, opts: StorageOptions);
     addVaaToQueue(vaaBytes: Buffer): Promise<Job<JobData, string[], string>>;
     private vaaId;
     startWorker(): void;

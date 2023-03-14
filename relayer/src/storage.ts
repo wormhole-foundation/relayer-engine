@@ -3,6 +3,7 @@ import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
+import { Cluster, ClusterNode, Redis, RedisOptions } from "ioredis";
 
 function serializeVaa(vaa: ParsedVaa) {
   return {
@@ -47,6 +48,8 @@ export interface StorageContext extends Context {
 }
 
 export interface StorageOptions {
+  redisCluster?: ClusterNode[];
+  redis?: RedisOptions;
   queueName: string;
   attempts: number;
   namespace?: string;
@@ -60,14 +63,18 @@ export class Storage<T extends Context> {
   vaaQueue: Queue<JobData, string[], string>;
   private worker: Worker<JobData, string[], string>;
   private prefix: string;
+  private redis: Cluster | Redis;
 
-  constructor(
-    private relayer: RelayerApp<T>,
-    private storageOptions: StorageOptions
-  ) {
-    this.prefix = `{${storageOptions.namespace ?? storageOptions.queueName}}`;
-    this.vaaQueue = new Queue(storageOptions.queueName, {
+  constructor(private relayer: RelayerApp<T>, private opts: StorageOptions) {
+    this.prefix = `{${opts.namespace ?? opts.queueName}}`;
+    opts.redis = opts.redis || {};
+    opts.redis.maxRetriesPerRequest = null; //Because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
+    this.redis = opts.redisCluster
+      ? new Redis.Cluster(opts.redisCluster, opts.redis)
+      : new Redis(opts.redis);
+    this.vaaQueue = new Queue(opts.queueName, {
       prefix: this.prefix,
+      connection: this.redis,
     });
   }
 
@@ -85,7 +92,7 @@ export class Storage<T extends Context> {
         jobId: id,
         removeOnComplete: 1000,
         removeOnFail: 5000,
-        attempts: this.storageOptions.attempts,
+        attempts: this.opts.attempts,
       }
     );
   }
@@ -99,15 +106,17 @@ export class Storage<T extends Context> {
 
   startWorker() {
     this.worker = new Worker(
-      this.storageOptions.queueName,
+      this.opts.queueName,
       async (job) => {
         await job.log(`processing by..${this.worker.id}`);
         let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-        await this.relayer.pushVaaThroughPipeline(vaaBytes, { job });
+        await this.relayer.pushVaaThroughPipeline(vaaBytes, {
+          storage: { job, worker: this.worker },
+        });
         await job.updateProgress(100);
         return [""];
       },
-      { prefix: this.prefix }
+      { prefix: this.prefix, connection: this.redis }
     );
   }
 }

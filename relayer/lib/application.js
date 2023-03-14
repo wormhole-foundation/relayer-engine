@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sleep = exports.transformEmitterFilter = exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
+exports.sleep = exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
 const compose_middleware_1 = require("./compose.middleware");
 const winston = require("winston");
@@ -31,23 +31,16 @@ var Environment;
     Environment["DEVNET"] = "devnet";
 })(Environment = exports.Environment || (exports.Environment = {}));
 class RelayerApp {
+    env;
     pipeline;
     errorPipeline;
     chainRouters = {};
     spyUrl;
     rootLogger;
     storage;
-    env = Environment.TESTNET;
     filters;
-    constructor() { }
-    mainnet() {
-        this.environment(Environment.MAINNET);
-    }
-    testnet() {
-        this.environment(Environment.TESTNET);
-    }
-    devnet() {
-        this.environment(Environment.DEVNET);
+    constructor(env = Environment.TESTNET) {
+        this.env = env;
     }
     use(...middleware) {
         if (!middleware.length) {
@@ -182,63 +175,39 @@ class RelayerApp {
 exports.RelayerApp = RelayerApp;
 class ChainRouter {
     chainId;
-    _routes = {};
+    _addressHandlers = {};
     constructor(chainId) {
         this.chainId = chainId;
     }
     address = (address, ...handlers) => {
         address = encodeEmitterAddress(this.chainId, address);
-        if (!this._routes[address]) {
-            const route = new VaaRoute(this.chainId, address, handlers);
-            this._routes[address] = route;
+        if (!this._addressHandlers[address]) {
+            this._addressHandlers[address] = (0, compose_middleware_1.compose)(handlers);
         }
         else {
-            this._routes[address].addMiddleware(handlers);
+            this._addressHandlers[address] = (0, compose_middleware_1.compose)([
+                this._addressHandlers[address],
+                ...handlers,
+            ]);
         }
         return this;
     };
-    spyFilters = () => {
-        return this.routes().map((route) => route.spyFilter());
-    };
-    routes = () => {
-        return Object.values(this._routes);
-    };
+    spyFilters() {
+        let addresses = Object.keys(this._addressHandlers);
+        const filters = addresses.map((address) => ({
+            emitterFilter: { chainId: this.chainId, emitterAddress: address },
+        }));
+        return filters;
+    }
     async process(ctx, next) {
         let addr = ctx.vaa.emitterAddress.toString("hex");
-        let route = this._routes[addr];
-        return route.execute(ctx, next);
+        let handler = this._addressHandlers[addr];
+        if (!handler) {
+            throw new Error("route undefined");
+        }
+        return handler?.(ctx, next);
     }
 }
-class VaaRoute {
-    chainId;
-    address;
-    handler;
-    constructor(chainId, address, handlers) {
-        this.chainId = chainId;
-        this.address = address;
-        this.handler = (0, compose_middleware_1.compose)(handlers);
-    }
-    execute(ctx, next) {
-        return this.handler(ctx, next);
-    }
-    addMiddleware(handlers) {
-        this.handler = (0, compose_middleware_1.compose)([this.handler, ...handlers]);
-    }
-    spyFilter() {
-        const filter = {
-            chainId: this.chainId,
-            emitterAddress: this.address,
-        };
-        return { emitterFilter: filter };
-    }
-}
-function transformEmitterFilter(x) {
-    return {
-        chainId: x.chainId,
-        emitterAddress: encodeEmitterAddress(x.chainId, x.emitterAddress),
-    };
-}
-exports.transformEmitterFilter = transformEmitterFilter;
 function encodeEmitterAddress(myChainId, emitterAddressStr) {
     if (myChainId === wormholeSdk.CHAIN_ID_SOLANA ||
         myChainId === wormholeSdk.CHAIN_ID_PYTHNET) {

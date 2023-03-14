@@ -57,24 +57,11 @@ export class RelayerApp<ContextT extends Context> {
   private spyUrl?: string;
   private rootLogger: Logger;
   storage: Storage<ContextT>;
-  public env: Environment = Environment.TESTNET;
   filters: {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
   }[];
 
-  constructor() {}
-
-  mainnet() {
-    this.environment(Environment.MAINNET);
-  }
-
-  testnet() {
-    this.environment(Environment.TESTNET);
-  }
-
-  devnet() {
-    this.environment(Environment.DEVNET);
-  }
+  constructor(public env: Environment = Environment.TESTNET) {}
 
   use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]) {
     if (!middleware.length) {
@@ -233,7 +220,7 @@ export class RelayerApp<ContextT extends Context> {
 }
 
 class ChainRouter<ContextT extends Context> {
-  _routes: Record<string, VaaRoute<ContextT>> = {};
+  _addressHandlers: Record<string, Middleware<ContextT>> = {};
 
   constructor(public chainId: ChainId) {}
 
@@ -242,56 +229,32 @@ class ChainRouter<ContextT extends Context> {
     ...handlers: Middleware<ContextT>[]
   ): ChainRouter<ContextT> => {
     address = encodeEmitterAddress(this.chainId, address);
-    if (!this._routes[address]) {
-      const route = new VaaRoute(this.chainId, address, handlers);
-      this._routes[address] = route;
+    if (!this._addressHandlers[address]) {
+      this._addressHandlers[address] = compose(handlers);
     } else {
-      this._routes[address]!.addMiddleware(handlers);
+      this._addressHandlers[address] = compose([
+        this._addressHandlers[address],
+        ...handlers,
+      ]);
     }
     return this;
   };
 
-  spyFilters = (): { emitterFilter: ContractFilter }[] => {
-    return this.routes().map((route) => route.spyFilter());
-  };
-
-  routes = (): VaaRoute<ContextT>[] => {
-    return Object.values(this._routes);
-  };
+  spyFilters(): { emitterFilter: ContractFilter }[] {
+    let addresses = Object.keys(this._addressHandlers);
+    const filters = addresses.map((address) => ({
+      emitterFilter: { chainId: this.chainId, emitterAddress: address },
+    }));
+    return filters;
+  }
 
   async process(ctx: ContextT, next: Next): Promise<void> {
     let addr = ctx.vaa!.emitterAddress.toString("hex");
-    let route = this._routes[addr];
-
-    return route.execute(ctx, next);
-  }
-}
-
-class VaaRoute<ContextT extends Context> {
-  private handler: Middleware<ContextT>;
-
-  constructor(
-    public chainId: ChainId,
-    public address: string,
-    handlers: Middleware<ContextT>[]
-  ) {
-    this.handler = compose<ContextT>(handlers);
-  }
-
-  execute(ctx: ContextT, next: Next): Promise<void> {
-    return this.handler(ctx, next);
-  }
-
-  addMiddleware(handlers: Middleware<ContextT>[]) {
-    this.handler = compose<ContextT>([this.handler, ...handlers]);
-  }
-
-  spyFilter(): { emitterFilter: ContractFilter } {
-    const filter = {
-      chainId: this.chainId,
-      emitterAddress: this.address,
-    };
-    return { emitterFilter: filter };
+    let handler = this._addressHandlers[addr];
+    if (!handler) {
+      throw new Error("route undefined");
+    }
+    return handler?.(ctx, next);
   }
 }
 
@@ -299,13 +262,6 @@ export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for
   chainId: ChainId; // Wormhole ChainID to filter for
 };
-
-export function transformEmitterFilter(x: ContractFilter): ContractFilter {
-  return {
-    chainId: x.chainId,
-    emitterAddress: encodeEmitterAddress(x.chainId, x.emitterAddress),
-  };
-}
 
 function encodeEmitterAddress(
   myChainId: wormholeSdk.ChainId,
