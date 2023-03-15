@@ -1,10 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RelayerApp = exports.UnrecoverableError = exports.Environment = void 0;
+exports.RelayerApp = exports.defaultWormholeRpcs = exports.UnrecoverableError = exports.Environment = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
 const wormhole_sdk_1 = require("@certusone/wormhole-sdk");
 const compose_middleware_1 = require("./compose.middleware");
-const winston = require("winston");
 const wormhole_spydk_1 = require("@certusone/wormhole-spydk");
 const storage_1 = require("./storage");
 const koa_1 = require("@bull-board/koa");
@@ -13,22 +12,25 @@ const bullMQAdapter_1 = require("@bull-board/api/bullMQAdapter");
 const bullmq_1 = require("bullmq");
 Object.defineProperty(exports, "UnrecoverableError", { enumerable: true, get: function () { return bullmq_1.UnrecoverableError; } });
 const utils_1 = require("./utils");
-const defaultLogger = winston.createLogger({
-    transports: [
-        new winston.transports.Console({
-            level: "debug",
-        }),
-    ],
-    format: winston.format.combine(winston.format.colorize(), winston.format.splat(), winston.format.simple(), winston.format.timestamp({
-        format: "YYYY-MM-DD HH:mm:ss.SSS",
-    }), winston.format.errors({ stack: true })),
-});
+const grpcWebNodeHttpTransport = require("@improbable-eng/grpc-web-node-http-transport");
+const logging_1 = require("./logging");
 var Environment;
 (function (Environment) {
     Environment["MAINNET"] = "mainnet";
     Environment["TESTNET"] = "testnet";
     Environment["DEVNET"] = "devnet";
 })(Environment = exports.Environment || (exports.Environment = {}));
+exports.defaultWormholeRpcs = {
+    [Environment.MAINNET]: ["https://api.wormscan.io"],
+    [Environment.TESTNET]: [
+        "https://wormhole-v2-testnet-api.certus.one",
+        "https://api.testnet.wormscan.io",
+    ],
+    [Environment.DEVNET]: [""],
+};
+const defaultOpts = (env) => ({
+    wormholeRpcs: exports.defaultWormholeRpcs[env],
+});
 class RelayerApp {
     env;
     pipeline;
@@ -38,8 +40,10 @@ class RelayerApp {
     rootLogger;
     storage;
     filters;
-    constructor(env = Environment.TESTNET) {
+    opts;
+    constructor(env = Environment.TESTNET, opts = {}) {
         this.env = env;
+        this.opts = Object.assign({}, defaultOpts(env), opts);
     }
     use(...middleware) {
         if (!middleware.length) {
@@ -58,6 +62,9 @@ class RelayerApp {
             middleware.unshift(this.pipeline);
         }
         this.pipeline = (0, compose_middleware_1.compose)(middleware);
+    }
+    async fetchVaa(chain, emitterAddress, sequence) {
+        return await (0, wormhole_sdk_1.getSignedVAAWithRetry)(this.opts.wormholeRpcs, Number(chain), emitterAddress.toString("hex"), sequence.toString(), { transport: grpcWebNodeHttpTransport.NodeHttpTransport() }, 100, 2);
     }
     async processVaa(vaa, opts) {
         if (this.storage) {
@@ -150,7 +157,7 @@ class RelayerApp {
         return chainRouting;
     }
     async listen() {
-        this.rootLogger = this.rootLogger ?? defaultLogger;
+        this.rootLogger = this.rootLogger ?? logging_1.defaultLogger;
         if (this.storage && !this.storage.logger) {
             this.storage.logger = this.rootLogger;
         }

@@ -22,10 +22,7 @@ import {
   StagingAreaContext,
 } from "wormhole-relayer/lib/middleware/staging-area.middleware";
 
-import {
-  wallets,
-  WalletContext,
-} from "wormhole-relayer/lib/middleware/wallet/wallet.middleware";
+import { WalletContext } from "wormhole-relayer/lib/middleware/wallet/wallet.middleware";
 
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";

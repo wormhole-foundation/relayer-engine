@@ -15,7 +15,7 @@ export declare type ChainConfigInfo = {
         endpoints: string[];
     };
 };
-interface ProvidersOpts {
+export interface ProvidersOpts {
     chains: Partial<ChainConfigInfo>;
 }
 /**
@@ -23,4 +23,3 @@ interface ProvidersOpts {
  * @param opts
  */
 export declare function providers(opts?: ProvidersOpts): Middleware<ProviderContext>;
-export {};

@@ -6,7 +6,6 @@ const utils_1 = require("../../utils");
 const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
 const DEFAULT_WORKER_INTERVAL_MS = 500;
 async function spawnWalletWorker(actionQueue, providers, workerInfo, logger) {
-    logger.info(`Spawned`);
     const workerIntervalMS = DEFAULT_WORKER_INTERVAL_MS;
     const walletToolBox = (0, walletToolBox_1.createWalletToolbox)(providers, workerInfo.walletPrivateKey, workerInfo.targetChainId);
     while (true) {
@@ -17,10 +16,9 @@ async function spawnWalletWorker(actionQueue, providers, workerInfo, logger) {
                 continue;
             }
             const actionWithCont = actionQueue.dequeue();
-            logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`);
             try {
                 const result = await actionWithCont.action.f(walletToolBox, workerInfo.targetChainId);
-                logger.info(`Action ${actionWithCont.pluginName} completed`, {
+                logger.debug(`Action ${actionWithCont.pluginName} completed`, {
                     action: actionWithCont,
                 });
                 actionWithCont.resolve(result);

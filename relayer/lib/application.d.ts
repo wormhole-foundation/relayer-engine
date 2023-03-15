@@ -12,6 +12,14 @@ export declare enum Environment {
     DEVNET = "devnet"
 }
 export { UnrecoverableError };
+export interface RelayerAppOpts {
+    wormholeRpcs?: string[];
+}
+export declare const defaultWormholeRpcs: {
+    mainnet: string[];
+    testnet: string[];
+    devnet: string[];
+};
 export declare class RelayerApp<ContextT extends Context> {
     env: Environment;
     private pipeline?;
@@ -26,8 +34,10 @@ export declare class RelayerApp<ContextT extends Context> {
             emitterAddress?: string;
         };
     }[];
-    constructor(env?: Environment);
+    private opts;
+    constructor(env?: Environment, opts?: RelayerAppOpts);
     use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]): void;
+    fetchVaa(chain: ChainId | string, emitterAddress: Buffer | string, sequence: bigint | string): Promise<import("@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc").GetSignedVAAResponse>;
     processVaa(vaa: Buffer, opts?: any): Promise<void>;
     pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void>;
     chain(chainId: ChainId): ChainRouter<ContextT>;

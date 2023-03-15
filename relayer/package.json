@@ -15,7 +15,7 @@
   "dependencies": {
     "@bull-board/api": "^5.0.0",
     "@bull-board/koa": "^5.0.0",
-    "@certusone/wormhole-sdk": "^0.9.9",
+    "@certusone/wormhole-sdk": "^0.9.11",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
     "bech32": "^2.0.0",

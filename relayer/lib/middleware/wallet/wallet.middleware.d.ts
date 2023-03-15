@@ -34,7 +34,7 @@ export interface ActionExecutor {
     onEVM<T>(chainId: EVMChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
 }
 export interface WalletContext extends ProviderContext {
-    wallets: any;
+    wallets: ActionExecutor;
 }
 export interface WalletOpts {
     namespace: string;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sleep = exports.encodeEmitterAddress = void 0;
+exports.mergeDeep = exports.isObject = exports.sleep = exports.encodeEmitterAddress = void 0;
 const wormholeSdk = require("@certusone/wormhole-sdk");
 const bech32_1 = require("bech32");
 const wormhole_1 = require("@certusone/wormhole-sdk/lib/cjs/solana/wormhole");
@@ -31,4 +31,37 @@ function sleep(ms) {
     return new Promise((resolve, reject) => setTimeout(resolve, ms));
 }
 exports.sleep = sleep;
+/**
+ * Simple object check.
+ * @param item
+ * @returns {boolean}
+ */
+function isObject(item) {
+    return item && typeof item === "object" && !Array.isArray(item);
+}
+exports.isObject = isObject;
+/**
+ * Deep merge two objects.
+ * @param target
+ * @param ...sources
+ */
+function mergeDeep(target, ...sources) {
+    if (!sources.length)
+        return target;
+    const source = sources.shift();
+    if (isObject(target) && isObject(source)) {
+        for (const key in source) {
+            if (isObject(source[key])) {
+                if (!target[key])
+                    Object.assign(target, { [key]: {} });
+                mergeDeep(target[key], source[key]);
+            }
+            else {
+                Object.assign(target, { [key]: source[key] });
+            }
+        }
+    }
+    return mergeDeep(target, ...sources);
+}
+exports.mergeDeep = mergeDeep;
 //# sourceMappingURL=utils.js.map

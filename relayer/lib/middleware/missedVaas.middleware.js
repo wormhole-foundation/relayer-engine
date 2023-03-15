@@ -7,14 +7,6 @@ const wormhole_sdk_1 = require("@certusone/wormhole-sdk");
 const application_1 = require("../application");
 const generic_pool_1 = require("generic-pool");
 const utils_1 = require("../utils");
-const defaultRpcs = {
-    [application_1.Environment.MAINNET]: ["https://api.wormscan.io"],
-    [application_1.Environment.TESTNET]: [
-        "https://wormhole-v2-testnet-api.certus.one",
-        "https://api.testnet.wormscan.io",
-    ],
-    [application_1.Environment.DEVNET]: [""],
-};
 function missedVaas(app, opts) {
     opts.redis = opts.redis || { host: "localhost", port: 6379 };
     opts.redis.keyPrefix = opts.namespace;
@@ -38,7 +30,7 @@ function missedVaas(app, opts) {
     const redisPool = (0, generic_pool_1.createPool)(factory, poolOpts);
     setTimeout(() => startMissedVaaWorker(redisPool, app, opts), 100); // start worker once config is done.
     return async (ctx, next) => {
-        const wormholeRpcs = opts.wormholeRpcs || defaultRpcs[ctx.env];
+        const wormholeRpcs = opts.wormholeRpcs || application_1.defaultWormholeRpcs[ctx.env];
         let vaa = ctx.vaa;
         if (!vaa) {
             await next();
@@ -49,7 +41,9 @@ function missedVaas(app, opts) {
         if (lastSeenSequence && lastSeenSequence.lastSequence + 1n < vaa.sequence) {
             // possibly missed some vaas
             for (let currentSeq = lastSeenSequence.lastSequence; currentSeq < vaa.sequence; currentSeq++) {
-                const fetchedVaa = await fetchVaa(wormholeRpcs, vaa.emitterChain, vaa.emitterAddress, currentSeq);
+                const fetchedVaa = await fetchVaa(
+                // we could use app.fetchVaa. Considering it.. for now each middleware is mostly self contained
+                wormholeRpcs, vaa.emitterChain, vaa.emitterAddress, currentSeq);
                 let addr = vaa.emitterAddress.toString("hex");
                 let seq = currentSeq.toString();
                 ctx.logger?.info(`Possibly missed a vaa: ${vaa.emitterChain}/${addr}/${seq}. Adding to queue.`);
@@ -114,7 +108,7 @@ async function fetchVaa(rpc, chain, emitterAddress, sequence) {
     return await (0, wormhole_sdk_1.getSignedVAAWithRetry)(rpc, chain, emitterAddress.toString("hex"), sequence.toString(), { transport: grpcWebNodeHttpTransport.NodeHttpTransport() }, 100, 2);
 }
 async function startMissedVaaWorker(pool, app, opts) {
-    const wormholeRpcs = opts.wormholeRpcs || defaultRpcs[app.env];
+    const wormholeRpcs = opts.wormholeRpcs || application_1.defaultWormholeRpcs[app.env];
     while (true) {
         try {
             let redis = await pool.acquire();

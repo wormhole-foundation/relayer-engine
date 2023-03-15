@@ -32,7 +32,7 @@ export type ChainConfigInfo = {
   [k in ChainId]: { endpoints: string[] };
 };
 
-interface ProvidersOpts {
+export interface ProvidersOpts {
   chains: Partial<ChainConfigInfo>;
 }
 

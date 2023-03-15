@@ -4,7 +4,7 @@ import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 import Redis, { Cluster, ClusterNode, RedisOptions } from "ioredis";
 import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
-import { Environment, RelayerApp } from "../application";
+import { defaultWormholeRpcs, Environment, RelayerApp } from "../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
 import { sleep } from "../utils";
@@ -18,15 +18,6 @@ interface MissedVaaOpts {
   namespace: string;
   logger?: Logger;
 }
-
-const defaultRpcs = {
-  [Environment.MAINNET]: ["https://api.wormscan.io"],
-  [Environment.TESTNET]: [
-    "https://wormhole-v2-testnet-api.certus.one",
-    "https://api.testnet.wormscan.io",
-  ],
-  [Environment.DEVNET]: [""],
-};
 
 export function missedVaas(
   app: RelayerApp<any>,
@@ -58,7 +49,7 @@ export function missedVaas(
   setTimeout(() => startMissedVaaWorker(redisPool, app, opts), 100); // start worker once config is done.
 
   return async (ctx: Context, next) => {
-    const wormholeRpcs = opts.wormholeRpcs || defaultRpcs[ctx.env];
+    const wormholeRpcs = opts.wormholeRpcs || defaultWormholeRpcs[ctx.env];
 
     let vaa = ctx.vaa;
     if (!vaa) {
@@ -82,6 +73,7 @@ export function missedVaas(
         currentSeq++
       ) {
         const fetchedVaa = await fetchVaa(
+          // we could use app.fetchVaa. Considering it.. for now each middleware is mostly self contained
           wormholeRpcs,
           vaa.emitterChain as ChainId,
           vaa.emitterAddress,
@@ -203,7 +195,7 @@ async function startMissedVaaWorker(
   app: RelayerApp<any>,
   opts: MissedVaaOpts
 ) {
-  const wormholeRpcs = opts.wormholeRpcs || defaultRpcs[app.env];
+  const wormholeRpcs = opts.wormholeRpcs || defaultWormholeRpcs[app.env];
 
   while (true) {
     try {

@@ -14,7 +14,6 @@ export async function spawnWalletWorker(
   workerInfo: WorkerInfo,
   logger: Logger
 ): Promise<void> {
-  logger.info(`Spawned`);
   const workerIntervalMS = DEFAULT_WORKER_INTERVAL_MS;
   const walletToolBox = createWalletToolbox(
     providers,
@@ -30,14 +29,13 @@ export async function spawnWalletWorker(
         continue;
       }
       const actionWithCont = actionQueue.dequeue();
-      logger.info(`Relaying action for plugin ${actionWithCont.pluginName}...`);
 
       try {
         const result = await actionWithCont.action.f(
           walletToolBox,
           workerInfo.targetChainId
         );
-        logger.info(`Action ${actionWithCont.pluginName} completed`, {
+        logger.debug(`Action ${actionWithCont.pluginName} completed`, {
           action: actionWithCont,
         });
         actionWithCont.resolve(result);

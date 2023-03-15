@@ -1,5 +1,10 @@
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { CHAIN_ID_TO_NAME, ChainId, CONTRACTS } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_TO_NAME,
+  ChainId,
+  CONTRACTS,
+  getSignedVAAWithRetry,
+} from "@certusone/wormhole-sdk";
 import {
   compose,
   composeError,
@@ -8,7 +13,6 @@ import {
   Next,
 } from "./compose.middleware";
 import { Context } from "./context";
-import * as winston from "winston";
 import { Logger } from "winston";
 
 import {
@@ -22,23 +26,8 @@ import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
 import { encodeEmitterAddress, sleep } from "./utils";
-
-const defaultLogger = winston.createLogger({
-  transports: [
-    new winston.transports.Console({
-      level: "debug",
-    }),
-  ],
-  format: winston.format.combine(
-    winston.format.colorize(),
-    winston.format.splat(),
-    winston.format.simple(),
-    winston.format.timestamp({
-      format: "YYYY-MM-DD HH:mm:ss.SSS",
-    }),
-    winston.format.errors({ stack: true })
-  ),
-});
+import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
+import { defaultLogger } from "./logging";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -47,6 +36,23 @@ export enum Environment {
 }
 
 export { UnrecoverableError };
+
+export interface RelayerAppOpts {
+  wormholeRpcs?: string[];
+}
+
+export const defaultWormholeRpcs = {
+  [Environment.MAINNET]: ["https://api.wormscan.io"],
+  [Environment.TESTNET]: [
+    "https://wormhole-v2-testnet-api.certus.one",
+    "https://api.testnet.wormscan.io",
+  ],
+  [Environment.DEVNET]: [""],
+};
+
+const defaultOpts = (env: Environment): RelayerAppOpts => ({
+  wormholeRpcs: defaultWormholeRpcs[env],
+});
 
 export class RelayerApp<ContextT extends Context> {
   private pipeline?: Middleware<Context>;
@@ -58,8 +64,14 @@ export class RelayerApp<ContextT extends Context> {
   filters: {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
   }[];
+  private opts: RelayerAppOpts;
 
-  constructor(public env: Environment = Environment.TESTNET) {}
+  constructor(
+    public env: Environment = Environment.TESTNET,
+    opts: RelayerAppOpts = {}
+  ) {
+    this.opts = Object.assign({}, defaultOpts(env), opts);
+  }
 
   use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]) {
     if (!middleware.length) {
@@ -82,6 +94,22 @@ export class RelayerApp<ContextT extends Context> {
       (middleware as Middleware<ContextT>[]).unshift(this.pipeline);
     }
     this.pipeline = compose(middleware as Middleware<ContextT>[]);
+  }
+
+  async fetchVaa(
+    chain: ChainId | string,
+    emitterAddress: Buffer | string,
+    sequence: bigint | string
+  ) {
+    return await getSignedVAAWithRetry(
+      this.opts.wormholeRpcs,
+      Number(chain) as ChainId,
+      emitterAddress.toString("hex"),
+      sequence.toString(),
+      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
+      100,
+      2
+    );
   }
 
   async processVaa(vaa: Buffer, opts?: any) {

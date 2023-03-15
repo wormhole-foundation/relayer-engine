@@ -87,7 +87,7 @@ function makeExecuteFunc(
 }
 
 export interface WalletContext extends ProviderContext {
-  wallets: any;
+  wallets: ActionExecutor;
 }
 
 export interface WalletOpts {
