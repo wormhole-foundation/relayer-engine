@@ -96,8 +96,8 @@ export interface WalletToolBox<T extends Wallet> extends Providers {
 }
 
 export interface Providers {
-  untyped: Record<ChainId, UntypedProvider>;
-  evm: Record<EVMChainId, ethers.providers.Provider>;
+  untyped: Partial<Record<ChainId, UntypedProvider>>;
+  evm: Partial<Record<EVMChainId, ethers.providers.Provider>>;
   solana: solana.Connection;
 }
 
