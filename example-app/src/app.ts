@@ -62,6 +62,13 @@ async function main() {
       fundsCtrl.processFundsTransfer
     );
 
+  // Another way to do it if you want to listen to multiple addresses on different chaints:
+
+  // let contractAddresses = {
+  //   [CHAIN_ID_SOLANA]: ["DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"],
+  // };
+  // app.multiple(contractAddresses, fundsCtrl.processFundsTransfer);
+
   app.use(async (err, ctx, next) => {
     ctx.logger.error("error middleware triggered");
   }); // <-- if you pass in a function with 3 args, it'll be used to process errors (whenever you throw from your middleware)

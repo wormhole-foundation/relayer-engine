@@ -45,6 +45,14 @@ class RelayerApp {
         this.env = env;
         this.opts = Object.assign({}, defaultOpts(env), opts);
     }
+    multiple(chainsAndAddresses, ...middleware) {
+        for (const [chain, addresses] of Object.entries(chainsAndAddresses)) {
+            const chainRouter = this.chain(Number(chain));
+            for (const address of addresses) {
+                chainRouter.address(address, ...middleware);
+            }
+        }
+    }
     use(...middleware) {
         if (!middleware.length) {
             return;

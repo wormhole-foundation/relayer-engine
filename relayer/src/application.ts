@@ -73,6 +73,18 @@ export class RelayerApp<ContextT extends Context> {
     this.opts = Object.assign({}, defaultOpts(env), opts);
   }
 
+  multiple(
+    chainsAndAddresses: Partial<{ [k in ChainId]: string[] }>,
+    ...middleware: Middleware<ContextT>[]
+  ): void {
+    for (const [chain, addresses] of Object.entries(chainsAndAddresses)) {
+      const chainRouter = this.chain(Number(chain) as ChainId);
+      for (const address of addresses) {
+        chainRouter.address(address, ...middleware);
+      }
+    }
+  }
+
   use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]) {
     if (!middleware.length) {
       return;

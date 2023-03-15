@@ -36,6 +36,9 @@ export declare class RelayerApp<ContextT extends Context> {
     }[];
     private opts;
     constructor(env?: Environment, opts?: RelayerAppOpts);
+    multiple(chainsAndAddresses: Partial<{
+        [k in ChainId]: string[];
+    }>, ...middleware: Middleware<ContextT>[]): void;
     use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]): void;
     fetchVaa(chain: ChainId | string, emitterAddress: Buffer | string, sequence: bigint | string): Promise<import("@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc").GetSignedVAAResponse>;
     processVaa(vaa: Buffer, opts?: any): Promise<void>;
