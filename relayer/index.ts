@@ -1,5 +1,5 @@
 export * from "./application";
-export * from "./standard-relayer";
+export * from "./application-standard";
 export * from "./context";
 export * from "./compose.middleware";
 export * from "./storage";

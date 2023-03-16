@@ -12,4 +12,4 @@ export declare function isObject(item: any): boolean;
  * @param target
  * @param ...sources
  */
-export declare function mergeDeep<T>(target: T, ...sources: Partial<T>[]): T;
+export declare function mergeDeep<T>(target: Partial<T>, ...sources: Partial<T>[]): T;

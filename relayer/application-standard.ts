@@ -51,7 +51,7 @@ export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext
 > extends RelayerApp<ContextT> {
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
-    mergeDeep(opts, defaultOpts);
+    opts = mergeDeep({},defaultOpts, opts);
     opts.logger = opts.logger || defaultLogger;
 
     const { logger, privateKeys, name, spyEndpoint, redis, redisCluster, redisClusterEndpoints } =

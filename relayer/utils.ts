@@ -50,8 +50,10 @@ export function isObject(item: any) {
  * @param target
  * @param ...sources
  */
-export function mergeDeep<T>(target: T, ...sources: Partial<T>[]): T {
-  if (!sources.length) return target;
+export function mergeDeep<T>(target: Partial<T>, ...sources: Partial<T>[]): T {
+  if (!sources.length) { // @ts-ignore
+    return target;
+  }
   const source = sources.shift();
 
   if (isObject(target) && isObject(source)) {
