@@ -4,6 +4,8 @@
   "description": "",
   "scripts": {
     "start": "ts-node src/app.ts",
+    "build": "tsc",
+    "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

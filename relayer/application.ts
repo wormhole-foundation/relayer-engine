@@ -25,7 +25,7 @@ import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
-import { encodeEmitterAddress, sleep } from "./utils";
+import { encodeEmitterAddress, mergeDeep, sleep } from "./utils";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
 
@@ -70,7 +70,7 @@ export class RelayerApp<ContextT extends Context> {
     public env: Environment = Environment.TESTNET,
     opts: RelayerAppOpts = {}
   ) {
-    this.opts = Object.assign({}, defaultOpts(env), opts);
+    this.opts = mergeDeep({},defaultOpts( env ), opts);
   }
 
   multiple(

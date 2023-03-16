@@ -51,10 +51,13 @@ export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext
 > extends RelayerApp<ContextT> {
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
+    // take logger out before merging because of recursive call stack
+    const logger = opts.logger;
+    delete opts.logger;
+    // now we can merge
     opts = mergeDeep({},defaultOpts, opts);
-    opts.logger = opts.logger || defaultLogger;
 
-    const { logger, privateKeys, name, spyEndpoint, redis, redisCluster, redisClusterEndpoints } =
+    const { privateKeys, name, spyEndpoint, redis, redisCluster, redisClusterEndpoints } =
       opts;
     super(env, opts);
     this.spy(spyEndpoint);
@@ -66,8 +69,8 @@ export class StandardRelayerApp<
       namespace: name,
       queueName: `${name}-relays`,
     });
-    this.logger(opts.logger);
-    this.use(logging(opts.logger)); // <-- logging middleware
+    this.logger(logger);
+    this.use(logging(logger)); // <-- logging middleware
     this.use(
       missedVaas(this, { namespace: name, logger, redis, redisCluster, redisClusterEndpoints })
     );

@@ -10,19 +10,19 @@ import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import {
   logging,
   LoggingContext,
-} from "wormhole-relayer/lib/middleware/logger.middleware";
+} from "wormhole-relayer/middleware/logger.middleware";
 import {
   TokenBridgeContext,
   tokenBridgeContracts,
-} from "wormhole-relayer/lib/middleware/tokenBridge.middleware";
-import { missedVaas } from "wormhole-relayer/lib/middleware/missedVaas.middleware";
-import { providers } from "wormhole-relayer/lib/middleware/providers.middleware";
+} from "wormhole-relayer/middleware/tokenBridge.middleware";
+import { missedVaas } from "wormhole-relayer/middleware/missedVaas.middleware";
+import { providers } from "wormhole-relayer/middleware/providers.middleware";
 import {
   stagingArea,
   StagingAreaContext,
-} from "wormhole-relayer/lib/middleware/staging-area.middleware";
+} from "wormhole-relayer/middleware/staging-area.middleware";
 
-import { WalletContext } from "wormhole-relayer/lib/middleware/wallet/wallet.middleware";
+import { WalletContext } from "wormhole-relayer/middleware/wallet/wallet.middleware";
 
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
