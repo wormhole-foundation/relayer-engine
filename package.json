@@ -2,8 +2,8 @@
   "name": "wormhole-relayer",
   "version": "0.0.1",
   "description": "",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "relayer/lib/index.js",
+  "types": "relayer/lib/index.d.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
