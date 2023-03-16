@@ -69,14 +69,13 @@ export class StandardRelayerApp<
     this.logger(opts.logger);
     this.use(logging(opts.logger)); // <-- logging middleware
     this.use(
-      missedVaas(this, { namespace: name, logger, redis, redisCluster })
+      missedVaas(this, { namespace: name, logger, redis, redisCluster, redisClusterEndpoints })
     );
     this.use(providers());
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
-      // <-- you need valid private keys to turn on this middleware
-      this.use(wallets({ logger, namespace: name, privateKeys }));
+      this.use(wallets({ logger, namespace: name, privateKeys })); // <-- you need valid private keys to turn on this middleware
     }
     this.use(tokenBridgeContracts());
-    this.use(stagingArea({ namespace: name, redisCluster, redis }));
+    this.use(stagingArea({ namespace: name, redisCluster, redis, redisClusterEndpoints }));
   }
 }
