@@ -251,7 +251,7 @@ export class RelayerApp<ContextT extends Context> {
           filters: this.filters,
         });
 
-        this.rootLogger.info("connected to the spy");
+        this.rootLogger.info(`connected to the spy at: ${this.spyUrl}`);
 
         for await (const vaa of stream) {
           this.processVaa(vaa.vaaBytes).catch();
