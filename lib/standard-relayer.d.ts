@@ -7,7 +7,7 @@ import { StagingAreaContext } from "./middleware/staging-area.middleware";
 import { Logger } from "winston";
 import { StorageContext } from "./storage";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { ClusterNode, RedisOptions } from "ioredis";
+import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
     name: string;
     spyEndpoint?: string;
@@ -19,7 +19,8 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
         retries: number;
     };
     providers?: ProvidersOpts;
-    redisCluster?: ClusterNode[];
+    redisClusterEndpoints?: ClusterNode[];
+    redisCluster?: ClusterOptions;
     redis?: RedisOptions;
 }
 export type StandardRelayerContext = LoggingContext & StorageContext & TokenBridgeContext & StagingAreaContext & WalletContext;

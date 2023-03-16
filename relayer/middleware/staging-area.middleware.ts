@@ -1,5 +1,5 @@
 import { Logger } from "winston";
-import { Cluster, ClusterNode, Redis, RedisOptions } from "ioredis";
+import { Cluster, ClusterNode, ClusterOptions, Redis, RedisOptions } from "ioredis";
 import { Middleware, Next } from "../compose.middleware";
 import { Context } from "../context";
 import { createPool } from "generic-pool";
@@ -9,7 +9,8 @@ export interface StagingAreaContext extends Context {
 }
 
 export interface StagingAreaOpts {
-  redisCluster?: ClusterNode[];
+  redisClusterEndpoints?: ClusterNode[];
+  redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   namespace?: string;
 }
@@ -23,7 +24,7 @@ export function stagingArea(
   const factory = {
     create: async function () {
       const redis = opts.redisCluster
-        ? new Redis.Cluster(opts.redisCluster, opts.redis)
+        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
         : new Redis(opts.redis);
       return redis;
     },

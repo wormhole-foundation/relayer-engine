@@ -3,7 +3,7 @@ import { Job, Queue, Worker } from "bullmq";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
-import { ClusterNode, RedisOptions } from "ioredis";
+import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 export interface StorageContext extends Context {
     storage: {
         job: Job;
@@ -11,7 +11,8 @@ export interface StorageContext extends Context {
     };
 }
 export interface StorageOptions {
-    redisCluster?: ClusterNode[];
+    redisClusterEndpoints?: ClusterNode[];
+    redisCluster?: ClusterOptions;
     redis?: RedisOptions;
     queueName: string;
     attempts: number;

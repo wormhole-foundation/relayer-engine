@@ -2,7 +2,7 @@ import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-tr
 
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
-import Redis, { Cluster, ClusterNode, RedisOptions } from "ioredis";
+import Redis, { Cluster, ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
 import { defaultWormholeRpcs, Environment, RelayerApp } from "../application";
 import { Logger } from "winston";
@@ -11,7 +11,8 @@ import { sleep } from "../utils";
 
 export type { RedisOptions };
 interface MissedVaaOpts {
-  redisCluster?: ClusterNode[];
+  redisClusterEndpoints?: ClusterNode[];
+  redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   checkForMissedVaasEveryMs?: number;
   wormholeRpcs?: string[];
@@ -30,7 +31,7 @@ export function missedVaas(
   const factory = {
     create: async function () {
       const redis = opts.redisCluster
-        ? new Redis.Cluster(opts.redisCluster, opts.redis)
+        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
         : new Redis(opts.redis);
       return redis;
     },

@@ -1,11 +1,12 @@
-import { ClusterNode, RedisOptions } from "ioredis";
+import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 export interface StagingAreaContext extends Context {
     kv: StagingAreaKeyLock;
 }
 export interface StagingAreaOpts {
-    redisCluster?: ClusterNode[];
+    redisClusterEndpoints?: ClusterNode[];
+    redisCluster?: ClusterOptions;
     redis?: RedisOptions;
     namespace?: string;
 }

@@ -1,10 +1,11 @@
 import { Middleware } from "../compose.middleware";
-import { ClusterNode, RedisOptions } from "ioredis";
+import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { RelayerApp } from "../application";
 import { Logger } from "winston";
 export type { RedisOptions };
 interface MissedVaaOpts {
-    redisCluster?: ClusterNode[];
+    redisClusterEndpoints?: ClusterNode[];
+    redisCluster?: ClusterOptions;
     redis?: RedisOptions;
     checkForMissedVaasEveryMs?: number;
     wormholeRpcs?: string[];

@@ -3,7 +3,7 @@ import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
-import { Cluster, ClusterNode, Redis, RedisOptions } from "ioredis";
+import { Cluster, ClusterNode, ClusterOptions, Redis, RedisOptions } from "ioredis";
 
 function serializeVaa(vaa: ParsedVaa) {
   return {
@@ -51,7 +51,8 @@ export interface StorageContext extends Context {
 }
 
 export interface StorageOptions {
-  redisCluster?: ClusterNode[];
+  redisClusterEndpoints?: ClusterNode[];
+  redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   queueName: string;
   attempts: number;
@@ -72,8 +73,8 @@ export class Storage<T extends Context> {
     this.prefix = `{${opts.namespace ?? opts.queueName}}`;
     opts.redis = opts.redis || {};
     opts.redis.maxRetriesPerRequest = null; //Because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
-    this.redis = opts.redisCluster
-      ? new Redis.Cluster(opts.redisCluster, opts.redis)
+    this.redis = opts.redisClusterEndpoints
+      ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
       : new Redis(opts.redis);
     this.vaaQueue = new Queue(opts.queueName, {
       prefix: this.prefix,

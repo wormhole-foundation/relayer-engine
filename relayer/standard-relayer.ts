@@ -15,7 +15,7 @@ import { Logger } from "winston";
 import { defaultLogger } from "./logging";
 import { StorageContext } from "./storage";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { ClusterNode, RedisOptions } from "ioredis";
+import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
@@ -29,7 +29,8 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
     retries: number;
   };
   providers?: ProvidersOpts;
-  redisCluster?: ClusterNode[];
+  redisClusterEndpoints?: ClusterNode[];
+  redisCluster?: ClusterOptions;
   redis?: RedisOptions;
 }
 
@@ -53,12 +54,13 @@ export class StandardRelayerApp<
     mergeDeep(opts, defaultOpts);
     opts.logger = opts.logger || defaultLogger;
 
-    const { logger, privateKeys, name, spyEndpoint, redis, redisCluster } =
+    const { logger, privateKeys, name, spyEndpoint, redis, redisCluster, redisClusterEndpoints } =
       opts;
     super(env, opts);
     this.spy(spyEndpoint);
     this.useStorage({
       redis,
+      redisClusterEndpoints,
       redisCluster,
       attempts: opts.workflows.retries ?? 3,
       namespace: name,
