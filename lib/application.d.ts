@@ -52,7 +52,7 @@ export declare class RelayerApp<ContextT extends Context> {
     storageKoaUI(path: string): Koa.Middleware<Koa.DefaultState, Koa.DefaultContext, any>;
     private generateChainRoutes;
     listen(): Promise<void>;
-    environment(env: Environment): void;
+    stop(): Promise<void>;
 }
 declare class ChainRouter<ContextT extends Context> {
     chainId: ChainId;

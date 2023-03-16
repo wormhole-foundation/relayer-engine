@@ -34,4 +34,5 @@ export declare class Storage<T extends Context> {
     addVaaToQueue(vaaBytes: Buffer): Promise<Job<JobData, string[], string>>;
     private vaaId;
     startWorker(): void;
+    stopWorker(): Promise<void>;
 }

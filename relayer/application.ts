@@ -265,8 +265,8 @@ export class RelayerApp<ContextT extends Context> {
     }
   }
 
-  public environment(env: Environment) {
-    this.env = env;
+  stop() {
+    return this.storage.stopWorker();
   }
 }
 

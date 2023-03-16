@@ -131,4 +131,8 @@ export class Storage<T extends Context> {
       { prefix: this.prefix, connection: this.redis }
     );
   }
+
+  stopWorker() {
+    return this.worker?.close();
+  }
 }
