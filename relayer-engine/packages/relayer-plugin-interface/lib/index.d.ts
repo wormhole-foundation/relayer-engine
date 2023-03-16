@@ -96,6 +96,7 @@ export type EventSource = (event: SignedVaa, extraData?: any[]) => Promise<void>
 export type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
+    doNotTransform?: boolean;
 };
 export interface StagingAreaKeyLock {
     withKey<T, KV extends Record<string, any>>(keys: string[], f: (kvs: KV, ctx: OpaqueTx) => Promise<{

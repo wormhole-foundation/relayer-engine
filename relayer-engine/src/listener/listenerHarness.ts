@@ -46,6 +46,9 @@ function shouldSpy(plugins: Plugin[]): boolean {
 export async function transformEmitterFilter(
   x: ContractFilter,
 ): Promise<ContractFilter> {
+  if (x.doNotTransform) {
+    return x
+  }
   return {
     chainId: x.chainId,
     emitterAddress: await encodeEmitterAddress(x.chainId, x.emitterAddress),
