@@ -17,7 +17,7 @@ export interface StorageOptions {
     attempts: number;
     namespace?: string;
 }
-export declare type JobData = {
+export type JobData = {
     parsedVaa: any;
     vaaBytes: string;
 };

@@ -19,7 +19,7 @@ export interface TokenBridgeContext extends ProviderContext {
         vaa?: ParsedTokenTransferVaa;
     };
 }
-export declare type ChainConfigInfo = {
+export type ChainConfigInfo = {
     evm: {
         [k in EVMChainId]: {
             contracts: ITokenBridge[];

@@ -22,7 +22,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
     redisCluster?: ClusterNode[];
     redis?: RedisOptions;
 }
-export declare type StandardRelayerContext = LoggingContext & StorageContext & TokenBridgeContext & StagingAreaContext & WalletContext;
+export type StandardRelayerContext = LoggingContext & StorageContext & TokenBridgeContext & StagingAreaContext & WalletContext;
 export declare class StandardRelayerApp<ContextT extends StandardRelayerContext = StandardRelayerContext> extends RelayerApp<ContextT> {
     constructor(env: Environment, opts: StandardRelayerAppOpts);
 }

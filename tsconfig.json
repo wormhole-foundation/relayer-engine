@@ -16,7 +16,7 @@
     "downlevelIteration": true,
     "sourceMap": true
   },
-  "include": ["relayer/src"],
+  "include": ["relayer"],
   "exclude": [
     "node_modules",
     "relayer/lib/**/*",

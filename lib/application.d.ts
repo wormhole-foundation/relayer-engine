@@ -49,7 +49,7 @@ export declare class RelayerApp<ContextT extends Context> {
     spy(url: string): this;
     logger(logger: Logger): void;
     useStorage(storageOptions: StorageOptions): void;
-    storageKoaUI(path: string): any;
+    storageKoaUI(path: string): Koa.Middleware<Koa.DefaultState, Koa.DefaultContext, any>;
     private generateChainRoutes;
     listen(): Promise<void>;
     environment(env: Environment): void;
@@ -64,7 +64,7 @@ declare class ChainRouter<ContextT extends Context> {
     }[];
     process(ctx: ContextT, next: Next): Promise<void>;
 }
-export declare type ContractFilter = {
+export type ContractFilter = {
     emitterAddress: string;
     chainId: ChainId;
 };

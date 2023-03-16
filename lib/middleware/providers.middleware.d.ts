@@ -10,7 +10,7 @@ export interface Providers {
 export interface ProviderContext extends Context {
     providers: Providers;
 }
-export declare type ChainConfigInfo = {
+export type ChainConfigInfo = {
     [k in ChainId]: {
         endpoints: string[];
     };

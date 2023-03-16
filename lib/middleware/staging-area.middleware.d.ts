@@ -17,4 +17,4 @@ export interface StagingAreaKeyLock {
     }>, tx?: OpaqueTx): Promise<T>;
     getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }
-export declare type OpaqueTx = never;
+export type OpaqueTx = never;
