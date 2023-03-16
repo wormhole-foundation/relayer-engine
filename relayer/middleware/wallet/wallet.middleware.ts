@@ -115,6 +115,7 @@ export function wallets(opts: WalletOpts): Middleware<WalletContext> {
   let executeFunction: ActionExecutor;
   return async (ctx: WalletContext, next) => {
     if (!executeFunction) {
+      ctx.logger?.debug(`Initializing wallets...`);
       const actionQueues = new Map<ChainId, Queue<ActionWithCont<any, any>>>();
       for (const [chain, workerInfos] of workerInfoMap.entries()) {
         const actionQueue = new Queue<ActionWithCont<any, any>>();
@@ -128,6 +129,7 @@ export function wallets(opts: WalletOpts): Middleware<WalletContext> {
         opts.namespace ?? "default",
         opts.logger
       );
+      ctx.logger?.debug(`Initialized wallets`);
     }
 
     ctx.wallets = executeFunction;

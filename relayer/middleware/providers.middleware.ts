@@ -81,7 +81,9 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
 
   return async (ctx: ProviderContext, next) => {
     if (!providers) {
+      ctx.logger?.debug(`Providers initializing...`);
       providers = buildProviders(ctx.env, opts);
+      ctx.logger?.debug(`Providers Initialized`);
     }
     ctx.providers = providers;
     await next();

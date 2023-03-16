@@ -101,16 +101,21 @@ function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
 }
 
 export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
+  let evmContracts: Partial<{[k in EVMChainId]: ITokenBridge[]}>;
   return async (ctx: TokenBridgeContext, next) => {
     if (!ctx.providers) {
       throw new UnrecoverableError(
         "You need to first use the providers middleware."
       );
     }
-    const evmContracts = instantiateReadEvmContracts(
-      ctx.env,
-      ctx.providers.evm
-    );
+    if (!evmContracts) {
+      ctx.logger?.debug(`Token Bridge Contracts initializing...`);
+      evmContracts = instantiateReadEvmContracts(
+        ctx.env,
+        ctx.providers.evm
+      );
+      ctx.logger?.debug(`Token Bridge Contracts initialized`);
+    }
     ctx.tokenBridge = {
       addresses: tokenBridgeAddresses[ctx.env],
       contractConstructor: ITokenBridge__factory.connect,

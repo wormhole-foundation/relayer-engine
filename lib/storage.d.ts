@@ -28,8 +28,8 @@ export declare class Storage<T extends Context> {
     logger: Logger;
     vaaQueue: Queue<JobData, string[], string>;
     private worker;
-    private prefix;
-    private redis;
+    private readonly prefix;
+    private readonly redis;
     constructor(relayer: RelayerApp<T>, opts: StorageOptions);
     addVaaToQueue(vaaBytes: Buffer): Promise<Job<JobData, string[], string>>;
     private vaaId;

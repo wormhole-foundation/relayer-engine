@@ -16,6 +16,14 @@ export function logging(logger: Logger): Middleware<LoggingContext> {
         })
       : logger;
 
-    await next();
+    ctx.logger.debug(`Starting VAA processing`);
+    try {
+      await next();
+    } catch (e) {
+      ctx.logger.debug(`Error during VAA processing`, e);
+      throw e;
+    } finally {
+      ctx.logger.debug(`Finished VAA processing`);
+    }
   };
 }

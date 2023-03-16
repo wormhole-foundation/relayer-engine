@@ -66,8 +66,8 @@ export class Storage<T extends Context> {
   logger: Logger;
   vaaQueue: Queue<JobData, string[], string>;
   private worker: Worker<JobData, string[], string>;
-  private prefix: string;
-  private redis: Cluster | Redis;
+  private readonly prefix: string;
+  private readonly redis: Cluster | Redis;
 
   constructor(private relayer: RelayerApp<T>, private opts: StorageOptions) {
     this.prefix = `{${opts.namespace ?? opts.queueName}}`;
@@ -86,6 +86,7 @@ export class Storage<T extends Context> {
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
+    this.logger?.debug(`Adding VAA to queue`, {emitterChain: parsedVaa.emitterChain, emitterAddress: parsedVaa.emitterAddress.toString("hex"), sequence: parsedVaa.sequence.toString()});
     return this.vaaQueue.add(
       idWithoutHash,
       {
@@ -109,9 +110,16 @@ export class Storage<T extends Context> {
   }
 
   startWorker() {
+    this.logger?.debug(`Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`);
     this.worker = new Worker(
       this.opts.queueName,
       async (job) => {
+        let parsedVaa = job.data?.parsedVaa;
+        if (parsedVaa) {
+          this.logger?.debug(`Starting job: ${job.id}`, {emitterChain: parsedVaa.emitterChain, emitterAddress: parsedVaa.emitterAddress.toString("hex"), sequence: parsedVaa.sequence.toString()});
+        } else {
+          this.logger.debug("Received job with no parsedVaa");
+        }
         await job.log(`processing by..${this.worker.id}`);
         let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
         await this.relayer.pushVaaThroughPipeline(vaaBytes, {

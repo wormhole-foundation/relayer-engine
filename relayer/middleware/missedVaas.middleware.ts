@@ -197,11 +197,13 @@ async function startMissedVaaWorker(
   opts: MissedVaaOpts
 ) {
   const wormholeRpcs = opts.wormholeRpcs || defaultWormholeRpcs[app.env];
+  const logger = opts.logger;
 
   while (true) {
     try {
       let redis = await pool.acquire();
       try {
+        logger.debug(`Checking for missed VAAs.`)
         let addressWithLastSequence = await Promise.all(
           app.filters
             .map((filter) => ({
@@ -235,7 +237,7 @@ async function startMissedVaaWorker(
                 address.emitterAddress,
                 nextSequence
               );
-              opts.logger?.info(`Found missed VAA via the missedVaaWorker.`, {
+              logger?.info(`Found missed VAA via the missedVaaWorker.`, {
                 emitterChain: address.emitterChain,
                 emitterAddress: address.emitterAddress.toString("hex"),
                 sequence: nextSequence.toString(),
@@ -251,11 +253,11 @@ async function startMissedVaaWorker(
           }
         }
       } catch (e) {
-        opts.logger?.error(`startMissedVaaWorker loop failed with error`, e);
+        logger?.error(`startMissedVaaWorker loop failed with error`, e);
       }
       await pool.release(redis);
     } catch (e) {
-      opts.logger?.error(`error managing redis pool.`, e);
+      logger?.error(`error managing redis pool.`, e);
     }
     await sleep(opts.checkForMissedVaasEveryMs);
   }
