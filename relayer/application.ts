@@ -39,6 +39,7 @@ export { UnrecoverableError };
 
 export interface RelayerAppOpts {
   wormholeRpcs?: string[];
+  concurrency?: number;
 }
 
 export const defaultWormholeRpcs = {
@@ -52,6 +53,7 @@ export const defaultWormholeRpcs = {
 
 const defaultOpts = (env: Environment): RelayerAppOpts => ({
   wormholeRpcs: defaultWormholeRpcs[env],
+  concurrency: 1
 });
 
 export class RelayerApp<ContextT extends Context> {

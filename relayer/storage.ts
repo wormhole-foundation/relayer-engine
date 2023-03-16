@@ -57,7 +57,7 @@ export interface StorageOptions {
   queueName: string;
   attempts: number;
   namespace?: string;
-  // redis:
+  concurrency?: number;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -73,6 +73,7 @@ export class Storage<T extends Context> {
     this.prefix = `{${opts.namespace ?? opts.queueName}}`;
     opts.redis = opts.redis || {};
     opts.redis.maxRetriesPerRequest = null; //Because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
+    opts.concurrency = opts.concurrency || 1;
     this.redis = opts.redisClusterEndpoints
       ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
       : new Redis(opts.redis);
@@ -128,7 +129,7 @@ export class Storage<T extends Context> {
         await job.updateProgress(100);
         return [""];
       },
-      { prefix: this.prefix, connection: this.redis }
+      { prefix: this.prefix, connection: this.redis, concurrency: this.opts.concurrency }
     );
   }
 
