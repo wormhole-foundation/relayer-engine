@@ -27,9 +27,11 @@ import { WalletContext } from "wormhole-relayer/middleware/wallet/wallet.middlew
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
+import { sourceTx, SourceTxContext } from "../../relayer/middleware/source-tx.context";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &
+  SourceTxContext &
   TokenBridgeContext &
   StagingAreaContext &
   WalletContext;
@@ -41,7 +43,8 @@ const privateKeys = {
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
 
-  const app = new RelayerApp<MyRelayerContext>(Environment.TESTNET);
+  const env = Environment.TESTNET;
+  const app = new RelayerApp<MyRelayerContext>(env);
   const fundsCtrl = new ApiController();
 
   // Config
@@ -54,6 +57,7 @@ async function main() {
   // app.use(wallets({ logger: rootLogger, namespace: "simple", privateKeys })); // <-- you need a valid private key to turn on this middleware
   app.use(tokenBridgeContracts());
   app.use(stagingArea());
+  app.use(sourceTx());
 
   app
     .chain(CHAIN_ID_SOLANA)

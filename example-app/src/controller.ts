@@ -4,7 +4,7 @@ import { MyRelayerContext } from "./app";
 export class ApiController {
   processFundsTransfer = async (ctx: MyRelayerContext, next: Next) => {
     let seq = ctx.vaa!.sequence.toString();
-    ctx.logger.info(`chain middleware - ${seq}`);
+    ctx.logger.info(`chain middleware - ${seq} - ${ctx.sourceTxHash}`);
 
     await ctx.kv.withKey(["counter"], async ({ counter }) => {
       ctx.logger.debug(`Original counter value ${counter}`);

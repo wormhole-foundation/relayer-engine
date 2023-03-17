@@ -3,7 +3,7 @@ import * as winston from "winston";
 export const rootLogger = winston.createLogger({
   transports: [
     new winston.transports.Console({
-      level: "debug",
+      level: "info",
     }),
   ],
   format: winston.format.combine(

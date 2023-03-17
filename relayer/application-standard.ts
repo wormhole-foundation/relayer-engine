@@ -17,6 +17,7 @@ import { StorageContext } from "./storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
+import { sourceTx } from "./middleware/source-tx.context";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -32,6 +33,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redisClusterEndpoints?: ClusterNode[];
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
+  fetchSourceTxhash: boolean;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -39,6 +41,7 @@ const defaultOpts: Partial<StandardRelayerAppOpts> = {
   workflows: {
     retries: 3,
   },
+  fetchSourceTxhash: true
 };
 
 export type StandardRelayerContext = LoggingContext &
@@ -80,5 +83,8 @@ export class StandardRelayerApp<
     }
     this.use(tokenBridgeContracts());
     this.use(stagingArea({ namespace: name, redisCluster, redis, redisClusterEndpoints }));
+    if (opts.fetchSourceTxhash) {
+      this.use(sourceTx());
+    }
   }
 }
