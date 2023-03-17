@@ -1,5 +1,7 @@
 import {
   ChainId,
+  ChainName,
+  CHAIN_ID_TO_NAME,
   EVMChainId,
   isChain,
   isEVMChain,
@@ -88,6 +90,10 @@ export function parseVaaWithBytes(
 
 export function wormholeBytesToHex(address: Buffer | Uint8Array): string {
   return ethers.utils.hexlify(address).replace("0x", "");
+}
+
+export function wormholeChainIdtoChainName(chainId: ChainId): ChainName {
+  return CHAIN_ID_TO_NAME[chainId];
 }
 
 export function assertEvmChainId(chainId: number): EVMChainId {

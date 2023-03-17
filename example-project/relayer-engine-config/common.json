@@ -1,10 +1,12 @@
 {
   "logLevel": "debug",
+  "logFormat": "json",
   "storeType": "Redis",
   "readinessPort": 2000,
   "apiPort": 3000,
   "promPort": 3001,
   "numGuardians": 1,
+  "logDir": "./logs",
   "redis": {
     "port": 6379,
     "host": "localhost"
@@ -18,17 +20,55 @@
       "chainId": 1,
       "chainName": "Solana Devnet",
       "nodeUrl": "https://api.devnet.solana.com",
+      "nativeCurrencySymbol": "SOL",
       "tokenBridgeAddress": "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
       "bridgeAddress": "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5",
       "wrappedAsset": "So11111111111111111111111111111111111111112"
     },
     {
+      "chainId": 4,
+      "chainName": "Binance Smart Chain Testnet",
+      "nodeUrl": "https://data-seed-prebsc-1-s3.binance.org:8545",
+      "nativeCurrencySymbol": "BNB",
+      "tokenBridgeAddress": "0x9dcF9D205C9De35334D646BeE44b2D2859712A09",
+      "bridgeAddress": "",
+      "wrappedAsset": ""
+    },
+    {
+      "chainId": 5,
+      "chainName": "Polygon",
+      "nodeUrl": "https://polygon-rpc.com",
+      "nativeCurrencySymbol": "MATIC",
+      "tokenBridgeAddress": "0x377D55a7928c046E18eEbb61977e714d2a76472a",
+      "bridgeAddress": "",
+      "wrappedAsset": ""
+    },
+    {
       "chainId": 6,
       "chainName": "Fuji",
+      "nativeCurrencySymbol": "AVAX",
       "nodeUrl": "https://api.avax-test.network/ext/bc/C/rpc",
       "tokenBridgeAddress": "0x61E44E506Ca5659E6c0bba9b678586fA2d729756",
       "bridgeAddress": "0x7bbcE28e64B3F8b84d876Ab298393c38ad7aac4C",
       "wrappedAsset": "0x1D308089a2D1Ced3f1Ce36B1FcaF815b07217be3"
+    },
+    {
+      "chainId": 14,
+      "chainName": "Celo",
+      "nodeUrl": "https://celo-mainnet-rpc-germany.allthatnode.com",
+      "nativeCurrencySymbol": "CGLD",
+      "tokenBridgeAddress": "0x796Dff6D74F3E27060B71255Fe517BFb23C93eed",
+      "bridgeAddress": "",
+      "wrappedAsset": ""
+    },
+    {
+      "chainId": 16,
+      "chainName": "Moonbeam",
+      "nodeUrl": "https://rpc.testnet.moonbeam.network",
+      "nativeCurrencySymbol": "GLMR",
+      "tokenBridgeAddress": "0xbc976D4b9D57E57c3cA52e1Fd136C45FF7955A96",
+      "bridgeAddress": "",
+      "wrappedAsset": ""
     }
   ]
 }

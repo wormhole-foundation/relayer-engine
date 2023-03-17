@@ -19,6 +19,7 @@ import { createWalletToolbox } from "./walletToolBox";
 import { providersFromChainConfig } from "../utils/providers";
 import { nnull, sleep } from "../utils/utils";
 import { Logger } from "winston";
+import { spawnWalletMonitorWorker } from "../walletMonitor/walletMonitorHarness";
 import {
   completedWorkflows,
   executedWorkflows,
@@ -84,6 +85,7 @@ export async function run(plugins: Plugin[], storage: Storage) {
   spawnRequeueWorker(storage, 150, logger);
   spawnHeartbeatWorker(storage, 1000, logger);
   spawnExecutor(storage, plugins, providers, workerInfoMap, logger);
+  spawnWalletMonitorWorker();
 }
 
 async function spawnHeartbeatWorker(
@@ -145,7 +147,7 @@ async function spawnExecutor(
       }
       const res = await storage.getNextWorkflow(1);
       if (!res) {
-        logger.debug("No new workflows found.");
+        logger.verbose("No new workflows found.");
         continue;
       }
       const workflowLogger = logger.child({

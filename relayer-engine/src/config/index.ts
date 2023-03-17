@@ -77,14 +77,14 @@ export type PrivateKeys = { [id in ChainId]: string[] };
 export type ExecutorEnv = {
   privateKeys: PrivateKeys;
   actionInterval?: number; // milliseconds between attempting to process actions
+  tokensToMonitor: TokenMonitoringInfo[];
 };
 
-export type SupportedToken = {
+export type TokenMonitoringInfo = {
   chainId: ChainId;
   address: string;
 };
 
-let loggingEnv: CommonEnv | undefined = undefined;
 let executorEnv: ExecutorEnv | undefined = undefined;
 let commonEnv: CommonEnv | undefined = undefined;
 let listenerEnv: ListenerEnv | undefined = undefined;

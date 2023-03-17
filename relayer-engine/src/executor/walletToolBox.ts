@@ -7,7 +7,6 @@ import {
   WalletToolBox,
 } from "../../packages/relayer-plugin-interface";
 import * as solana from "@solana/web3.js";
-import { dbg } from "../helpers/logHelper";
 
 export function createWalletToolbox(
   providers: Providers,

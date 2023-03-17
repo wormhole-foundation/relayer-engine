@@ -14,7 +14,7 @@ import {
 
 export function providersFromChainConfig(
   chainConfigs: ChainConfigInfo[],
-): Providers {
+) {
   let providers = {
     evm: {} as Record<EVMChainId, ethers.providers.JsonRpcProvider>,
     untyped: {} as Record<ChainId, UntypedProvider>,
@@ -33,6 +33,6 @@ export function providersFromChainConfig(
         rpcUrl: chain.nodeUrl,
       };
     }
-  }
-  return providers;
+  }  
+  return providers satisfies Providers;
 }

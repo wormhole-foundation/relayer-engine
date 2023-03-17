@@ -30,6 +30,15 @@ export interface ChainConfigInfo {
   chainId: ChainId;
   chainName: string;
   nodeUrl: string;
+  bridgeAddress?: string;
+  wrappedAsset?: string | null;
+  tokenBridgeAddress?: string;
+  nativeCurrencySymbol?: string;  
+  terraName?: string; 
+  terraChainId?: string;
+  terraCoin?: string;
+  terraGasPriceUrl?: string;
+  isTerraClassic?: boolean;
 }
 
 /*
@@ -138,9 +147,9 @@ export interface Plugin<WorkflowData = any> {
     extraData?: any[],
   ): Promise<
     | {
-        workflowData: WorkflowData;
-        workflowOptions?: WorkflowOptions;
-      }
+      workflowData: WorkflowData;
+      workflowOptions?: WorkflowOptions;
+    }
     | undefined
   >;
   handleWorkflow(

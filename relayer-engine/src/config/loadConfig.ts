@@ -5,9 +5,8 @@
 import * as yaml from "js-yaml";
 import * as fs from "fs";
 import * as nodePath from "path";
-import { CommonEnv, ExecutorEnv, Mode, PrivateKeys, RedisConfig } from ".";
+import { CommonEnv, ExecutorEnv, Mode, PrivateKeys } from ".";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { dbg } from "../helpers/logHelper";
 
 export async function loadUntypedEnvs(
   dir: string,
@@ -79,6 +78,7 @@ async function loadExecutor(
     }
     return rawExecutorEnv;
   }
+  
   return undefined;
 }
 

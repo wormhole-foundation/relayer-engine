@@ -3,7 +3,7 @@
  */
 import { ChainConfigInfo } from "../../packages/relayer-plugin-interface";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { CommonEnv, ExecutorEnv, ListenerEnv, Mode, StoreType } from ".";
+import { CommonEnv, ExecutorEnv, ListenerEnv, Mode, StoreType, TokenMonitoringInfo } from ".";
 import {
   assertArray,
   assertBool,
@@ -72,6 +72,7 @@ export function validateExecutorEnv(
   chainIds: number[],
 ): ExecutorEnv {
   return {
+    tokensToMonitor: validateTokensToMonitor(raw.tokensToMonitor, chainIds),
     privateKeys: validatePrivateKeys(raw.privateKeys, chainIds),
     actionInterval:
       raw.actionInterval && assertInt(raw.actionInterval, "actionInterval"),
@@ -89,6 +90,8 @@ export function validateChainConfig(
     chainId: nnull(supportedChainRaw.chainId, msg("chainId")),
     chainName: nnull(supportedChainRaw.chainName, msg("chainName")),
     nodeUrl: nnull(supportedChainRaw.nodeUrl, msg("nodeUrl")),
+    nativeCurrencySymbol: supportedChainRaw.nativeCurrencySymbol,
+    tokenBridgeAddress: supportedChainRaw.tokenBridgeAddress,
   };
 }
 
@@ -114,9 +117,7 @@ function validatePrivateKeys(
   const set = new Set(chainIds);
   Object.entries(privateKeys).forEach(([chainId, pKeys]) => {
     if (!set.has(Number(chainId))) {
-      throw new EngineError("privateKeys includes key for unsupported chain", {
-        chainId,
-      });
+      throw new EngineError(`privateKeys includes key for unsupported chain ${chainId}`);
     }
     assertInt(chainId, "chainId");
     assertArray(pKeys, "privateKeys").forEach((key: any) => {
@@ -133,6 +134,44 @@ function validatePrivateKeys(
     });
   }
   return privateKeys;
+}
+
+function validateTokenToMonitor(token: TokenMonitoringInfo) {
+  const requiredProperties = ['chainId', 'address'];
+  const missingProperties = requiredProperties.filter((prop: string) => !token.hasOwnProperty(prop));
+  if (missingProperties.length > 0) {
+    throw new EngineError(`tokensToMonitor includes token without required properties ${missingProperties.join(', ')}`, {
+      chainId: token.chainId
+    });
+  };
+}
+
+function validateTokensToMonitor(
+  tokensToMonitor: TokenMonitoringInfo[],
+  chainIds: number[],
+): TokenMonitoringInfo[] {
+  const tokenSet = new Set();
+  const chainIdsSet = new Set(chainIds);
+
+  tokensToMonitor.forEach(token => {
+    if (!chainIdsSet.has(token.chainId)) {
+      throw new EngineError("tokensToMonitor includes token for unsupported chain", {
+        chainId: token.chainId,
+      });
+    }
+
+    const key = `${token.chainId}-${token.address}`;
+    if (tokenSet.has(key)) {
+      throw new EngineError("tokensToMonitor includes duplicate token", {
+        chainId: token.chainId,
+        address: token.address,
+      });
+    }
+    else tokenSet.add(key);
+
+    validateTokenToMonitor(token);
+  });
+  return tokensToMonitor;
 }
 
 export type Keys<T> = { [k in keyof T]: any };
