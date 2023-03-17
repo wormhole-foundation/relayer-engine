@@ -12,12 +12,11 @@ import {
   StagingAreaContext,
 } from "./middleware/staging-area.middleware";
 import { Logger } from "winston";
-import { defaultLogger } from "./logging";
 import { StorageContext } from "./storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
-import { sourceTx } from "./middleware/source-tx.context";
+import { sourceTx, SourceTxContext } from "./middleware/source-tx.middleware";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -33,7 +32,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redisClusterEndpoints?: ClusterNode[];
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
-  fetchSourceTxhash: boolean;
+  fetchSourceTxhash?: boolean;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -48,7 +47,8 @@ export type StandardRelayerContext = LoggingContext &
   StorageContext &
   TokenBridgeContext &
   StagingAreaContext &
-  WalletContext;
+  WalletContext &
+  SourceTxContext;
 
 export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext

@@ -8,6 +8,7 @@ import { Logger } from "winston";
 import { StorageContext } from "./storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
+import { SourceTxContext } from "./middleware/source-tx.middleware";
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
     name: string;
     spyEndpoint?: string;
@@ -22,8 +23,9 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
     redisClusterEndpoints?: ClusterNode[];
     redisCluster?: ClusterOptions;
     redis?: RedisOptions;
+    fetchSourceTxhash: boolean;
 }
-export type StandardRelayerContext = LoggingContext & StorageContext & TokenBridgeContext & StagingAreaContext & WalletContext;
+export type StandardRelayerContext = LoggingContext & StorageContext & TokenBridgeContext & StagingAreaContext & WalletContext & SourceTxContext;
 export declare class StandardRelayerApp<ContextT extends StandardRelayerContext = StandardRelayerContext> extends RelayerApp<ContextT> {
     constructor(env: Environment, opts: StandardRelayerAppOpts);
 }

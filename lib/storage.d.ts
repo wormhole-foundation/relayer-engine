@@ -17,6 +17,7 @@ export interface StorageOptions {
     queueName: string;
     attempts: number;
     namespace?: string;
+    concurrency?: number;
 }
 export type JobData = {
     parsedVaa: any;

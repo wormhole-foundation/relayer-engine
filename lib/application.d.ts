@@ -14,6 +14,7 @@ export declare enum Environment {
 export { UnrecoverableError };
 export interface RelayerAppOpts {
     wormholeRpcs?: string[];
+    concurrency?: number;
 }
 export declare const defaultWormholeRpcs: {
     mainnet: string[];

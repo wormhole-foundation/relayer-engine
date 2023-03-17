@@ -14,7 +14,7 @@
     "koa-router": "^12.0.0",
     "node-redis": "^0.1.7",
     "winston": "^3.8.2",
-    "wormhole-relayer": "file:../relayer",
+    "wormhole-relayer": "file:../",
     "yargs": "^17.7.1"
   },
   "keywords": [],

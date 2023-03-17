@@ -27,7 +27,7 @@ import { WalletContext } from "wormhole-relayer/middleware/wallet/wallet.middlew
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
-import { sourceTx, SourceTxContext } from "../../relayer/middleware/source-tx.context";
+import { sourceTx, SourceTxContext } from "../../relayer/middleware/source-tx.middleware";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &
