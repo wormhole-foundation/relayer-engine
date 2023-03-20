@@ -71,8 +71,10 @@ export function validateExecutorEnv(
   raw: Keys<ExecutorEnv & { privateKeys: ConfigPrivateKey[] }>,
   chainIds: number[],
 ): ExecutorEnv {
+  validateTokensToMonitor(raw.tokensToMonitor, chainIds)
+
   return {
-    tokensToMonitor: validateTokensToMonitor(raw.tokensToMonitor, chainIds),
+    tokensToMonitor: raw.tokensToMonitor,
     privateKeys: validatePrivateKeys(raw.privateKeys, chainIds),
     actionInterval:
       raw.actionInterval && assertInt(raw.actionInterval, "actionInterval"),
@@ -136,42 +138,43 @@ function validatePrivateKeys(
   return privateKeys;
 }
 
-function validateTokenToMonitor(token: TokenMonitoringInfo) {
+function validateTokenToMonitor(token: any): token is TokenMonitoringInfo {
   const requiredProperties = ['chainId', 'address'];
   const missingProperties = requiredProperties.filter((prop: string) => !token.hasOwnProperty(prop));
   if (missingProperties.length > 0) {
-    throw new EngineError(`tokensToMonitor includes token without required properties ${missingProperties.join(', ')}`, {
-      chainId: token.chainId
-    });
+    throw new EngineError(`tokensToMonitor includes token without required properties ${missingProperties.join(', ')}`);
   };
+
+  if (requiredProperties.length !== Object.keys(token).length) {
+    throw new EngineError(`tokensToMonitor includes token with invalid properties ${JSON.stringify(token)}`);
+  }
+
+  return true
 }
 
 function validateTokensToMonitor(
-  tokensToMonitor: TokenMonitoringInfo[],
+  tokensToMonitor: any[],
   chainIds: number[],
-): TokenMonitoringInfo[] {
+): tokensToMonitor is TokenMonitoringInfo[] {
   const tokenSet = new Set();
   const chainIdsSet = new Set(chainIds);
 
   tokensToMonitor.forEach(token => {
+    validateTokenToMonitor(token);
+
     if (!chainIdsSet.has(token.chainId)) {
-      throw new EngineError("tokensToMonitor includes token for unsupported chain", {
-        chainId: token.chainId,
-      });
+      throw new EngineError(`tokensToMonitor includes token for unsupported chain: ${token.chainId}`);
     }
 
     const key = `${token.chainId}-${token.address}`;
     if (tokenSet.has(key)) {
-      throw new EngineError("tokensToMonitor includes duplicate token", {
-        chainId: token.chainId,
-        address: token.address,
-      });
+      throw new EngineError(`tokensToMonitor includes duplicate token. chainId: ${token.chainId}`);
+    } else {
+      tokenSet.add(key);
     }
-    else tokenSet.add(key);
-
-    validateTokenToMonitor(token);
   });
-  return tokensToMonitor;
+
+  return true;
 }
 
 export type Keys<T> = { [k in keyof T]: any };
