@@ -14,9 +14,9 @@ The Goal is to create a project that is:
 
 ### Get Started
 
-`npm i wormhole-relayer`
+`npm i gabzim/wormhole-relayer`
 
-`yarn add wormhole-relayer`
+`yarn add gabzim/wormhole-relayer`
 
 #### Minimal code necessary to get started
 

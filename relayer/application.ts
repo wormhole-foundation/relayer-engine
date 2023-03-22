@@ -2,6 +2,8 @@ import * as wormholeSdk from "@certusone/wormhole-sdk";
 import {
   CHAIN_ID_TO_NAME,
   ChainId,
+  ChainName,
+  CHAINS,
   CONTRACTS,
   getSignedVAAWithRetry,
 } from "@certusone/wormhole-sdk";
@@ -53,7 +55,7 @@ export const defaultWormholeRpcs = {
 
 const defaultOpts = (env: Environment): RelayerAppOpts => ({
   wormholeRpcs: defaultWormholeRpcs[env],
-  concurrency: 1
+  concurrency: 1,
 });
 
 export class RelayerApp<ContextT extends Context> {
@@ -72,7 +74,7 @@ export class RelayerApp<ContextT extends Context> {
     public env: Environment = Environment.TESTNET,
     opts: RelayerAppOpts = {}
   ) {
-    this.opts = mergeDeep({},defaultOpts( env ), opts);
+    this.opts = mergeDeep({}, defaultOpts(env), opts);
   }
 
   multiple(
@@ -161,12 +163,22 @@ export class RelayerApp<ContextT extends Context> {
     return this.chainRouters[chainId]!;
   }
 
-  tokenBridge(chains: ChainId[], ...handlers: Middleware<ContextT>[]) {
-    for (const chainId of chains) {
+  tokenBridge(
+    chains: ChainId[] | ChainName[],
+    ...handlers: Middleware<ContextT>[]
+  ) {
+    for (const chainIdOrName of chains) {
+      const chainName =
+        typeof chainIdOrName === "string"
+          ? chainIdOrName
+          : CHAIN_ID_TO_NAME[chainIdOrName];
+      const chainId =
+        typeof chainIdOrName === "string"
+          ? CHAINS[chainIdOrName]
+          : chainIdOrName;
       let address =
         // @ts-ignore TODO
-        CONTRACTS[this.env.toUpperCase()][CHAIN_ID_TO_NAME[chainId]]
-          .token_bridge;
+        CONTRACTS[this.env.toUpperCase()][chainName].token_bridge;
       this.chain(chainId).address(address, ...handlers);
     }
     return this;

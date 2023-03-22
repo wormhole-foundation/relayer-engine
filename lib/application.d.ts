@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, ChainName } from "@certusone/wormhole-sdk";
 import { ErrorMiddleware, Middleware, Next } from "./compose.middleware";
 import { Context } from "./context";
 import { Logger } from "winston";
@@ -45,7 +45,7 @@ export declare class RelayerApp<ContextT extends Context> {
     processVaa(vaa: Buffer, opts?: any): Promise<void>;
     pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void>;
     chain(chainId: ChainId): ChainRouter<ContextT>;
-    tokenBridge(chains: ChainId[], ...handlers: Middleware<ContextT>[]): this;
+    tokenBridge(chains: ChainId[] | ChainName[], ...handlers: Middleware<ContextT>[]): this;
     private spyFilters;
     spy(url: string): this;
     logger(logger: Logger): void;

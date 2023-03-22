@@ -23,7 +23,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
     redisClusterEndpoints?: ClusterNode[];
     redisCluster?: ClusterOptions;
     redis?: RedisOptions;
-    fetchSourceTxhash: boolean;
+    fetchSourceTxhash?: boolean;
 }
 export type StandardRelayerContext = LoggingContext & StorageContext & TokenBridgeContext & StagingAreaContext & WalletContext & SourceTxContext;
 export declare class StandardRelayerApp<ContextT extends StandardRelayerContext = StandardRelayerContext> extends RelayerApp<ContextT> {
