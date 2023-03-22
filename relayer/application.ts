@@ -6,6 +6,9 @@ import {
   CHAINS,
   CONTRACTS,
   getSignedVAAWithRetry,
+  ParsedVaa,
+  parseVaa,
+  SignedVaa,
 } from "@certusone/wormhole-sdk";
 import {
   compose,
@@ -30,6 +33,7 @@ import { UnrecoverableError } from "bullmq";
 import { encodeEmitterAddress, mergeDeep, sleep } from "./utils";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
+import { VaaId } from "./bundle-builder.helper";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -57,6 +61,10 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   wormholeRpcs: defaultWormholeRpcs[env],
   concurrency: 1,
 });
+
+export interface ParsedVaaWithBytes extends ParsedVaa {
+  bytes: SignedVaa;
+}
 
 export class RelayerApp<ContextT extends Context> {
   private pipeline?: Middleware<Context>;
@@ -112,12 +120,8 @@ export class RelayerApp<ContextT extends Context> {
     this.pipeline = compose(middleware as Middleware<ContextT>[]);
   }
 
-  async fetchVaa(
-    chain: ChainId | string,
-    emitterAddress: Buffer | string,
-    sequence: bigint | string
-  ) {
-    return await getSignedVAAWithRetry(
+  async fetchVaas(...ids: VaaId): Promise<ParsedVaaWithBytes> {
+    const res = await getSignedVAAWithRetry(
       this.opts.wormholeRpcs,
       Number(chain) as ChainId,
       emitterAddress.toString("hex"),
@@ -126,6 +130,26 @@ export class RelayerApp<ContextT extends Context> {
       100,
       2
     );
+    const vaa = parseVaa(res.vaaBytes);
+    return { ...vaa, bytes: res.vaaBytes };
+  }
+
+  async fetchVaa(
+    chain: ChainId | string,
+    emitterAddress: Buffer | string,
+    sequence: bigint | string
+  ): Promise<ParsedVaaWithBytes> {
+    const res = await getSignedVAAWithRetry(
+      this.opts.wormholeRpcs,
+      Number(chain) as ChainId,
+      emitterAddress.toString("hex"),
+      sequence.toString(),
+      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
+      100,
+      2
+    );
+    const vaa = parseVaa(res.vaaBytes);
+    return { ...vaa, bytes: res.vaaBytes };
   }
 
   async processVaa(vaa: Buffer, opts?: any) {
