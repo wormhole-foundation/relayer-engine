@@ -1,0 +1,34 @@
+{
+  "logLevel": "debug",
+  "storeType": "Redis",
+  "readinessPort": 2000,
+  "apiPort": 3000,
+  "promPort": 3001,
+  "numGuardians": 1,
+  "redis": {
+    "port": 6379,
+    "host": "localhost"
+  },
+  "defaultWorkflowOptions": {
+    "maxRetries": 10
+  },
+  "wormholeRpc": "https://wormhole-v2-testnet-api.certus.one",
+  "supportedChains": [
+    {
+      "chainId": 1,
+      "chainName": "Solana Devnet",
+      "nodeUrl": "https://api.devnet.solana.com",
+      "tokenBridgeAddress": "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
+      "bridgeAddress": "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5",
+      "wrappedAsset": "So11111111111111111111111111111111111111112"
+    },
+    {
+      "chainId": 6,
+      "chainName": "Fuji",
+      "nodeUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+      "tokenBridgeAddress": "0x61E44E506Ca5659E6c0bba9b678586fA2d729756",
+      "bridgeAddress": "0x7bbcE28e64B3F8b84d876Ab298393c38ad7aac4C",
+      "wrappedAsset": "0x1D308089a2D1Ced3f1Ce36B1FcaF815b07217be3"
+    }
+  ]
+}
