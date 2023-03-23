@@ -1,24 +1,24 @@
 import { ChainId, ParsedVaa } from "@certusone/wormhole-sdk";
-import { Environment, ParsedVaaWithBytes, RelayerApp } from "./application";
+import { Environment, FetchaVaasOpts, ParsedVaaWithBytes } from "./application";
 import { Logger } from "winston";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
-import { VaaId } from "./bundle-builder.helper";
 
 export type FetchVaaFn = (
   emitterChain: ChainId | string,
   emitterAddress: Buffer | string,
   sequence: bigint | string
 ) => Promise<ParsedVaaWithBytes>;
-export type FetchVaasFn = (opts: {
-  ids: VaaId[];
-}) => Promise<ParsedVaaWithBytes[]>;
+
+export type FetchVaasFn = (
+  opts: FetchaVaasOpts
+) => Promise<ParsedVaaWithBytes[]>;
 
 export interface Context {
   vaa?: ParsedVaa;
   vaaBytes?: Buffer;
 
   fetchVaa: FetchVaaFn;
-  fetchVaas: FetchVaaFn;
+  fetchVaas: FetchVaasFn;
   processVaa: (vaa: Buffer) => Promise<void>;
   env: Environment;
   logger?: Logger;

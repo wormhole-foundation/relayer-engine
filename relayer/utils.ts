@@ -2,6 +2,8 @@ import * as wormholeSdk from "@certusone/wormhole-sdk";
 import { bech32 } from "bech32";
 import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { zeroPad } from "ethers/lib/utils";
+import { parseVaa, SignedVaa } from "@certusone/wormhole-sdk";
+import { ParsedVaaWithBytes } from "./application";
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -45,13 +47,19 @@ export function isObject(item: any) {
   return item && typeof item === "object" && !Array.isArray(item);
 }
 
+export function parseVaaWithBytes(bytes: SignedVaa): ParsedVaaWithBytes {
+  const parsedVaa = parseVaa(bytes);
+  return { ...parsedVaa, bytes };
+}
+
 /**
  * Deep merge two objects.
  * @param target
  * @param ...sources
  */
 export function mergeDeep<T>(target: Partial<T>, ...sources: Partial<T>[]): T {
-  if (!sources.length) { // @ts-ignore
+  if (!sources.length) {
+    // @ts-ignore
     return target;
   }
   const source = sources.shift();

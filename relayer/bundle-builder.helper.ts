@@ -3,9 +3,11 @@ import {
   GuardianSignature,
   ParsedVaa,
   parseVaa,
+  SignedVaa,
 } from "@certusone/wormhole-sdk";
 import { FetchVaaFn } from "./context";
-import { sleep } from "./utils";
+import { parseVaaWithBytes, sleep } from "./utils";
+import { ParsedVaaWithBytes } from "./application";
 
 export type VaaId = {
   emitterChain: ParsedVaa["emitterChain"];
@@ -20,15 +22,18 @@ export type SerializedBatchBuilder = {
 };
 
 export type VaaBundle = {
-  // non standard fields because we're dealing with synthetic batches and not headless vaas.
-  transactionId: string;
-  vaas: ParsedVaa[];
-  vaaBytes: Buffer[];
+  transactionId?: string;
+  vaas: ParsedVaaWithBytes[];
 };
 
+// You can pass in an array of vaaIds (chain, addr, seq) or a txHash.
+// If you pass in a hash, go to the blockchain, read logs and transform into array of ids
+// then fetch the vaas corresponding to those ids
 interface VaaBundlerOpts {
   maxAttempts?: number;
   delayBetweenAttemptsInMs?: number;
+  vaaIds?: VaaId[];
+  txHash?: string;
 }
 
 const defaultOpts: VaaBundlerOpts = {
@@ -37,27 +42,18 @@ const defaultOpts: VaaBundlerOpts = {
 };
 
 export class VaaBundleBuilder {
-  public vaaBytes: Record<string, Buffer>;
-  private readonly fetchedVaas: Record<string, ParsedVaa>;
+  private readonly fetchedVaas: Record<string, ParsedVaaWithBytes>;
   private readonly pendingVaas: Record<string, VaaId>;
-  public id: string;
-  public emitterChain: ChainId;
   private opts: VaaBundlerOpts;
-  constructor(
-    public txHash: string,
-    private vaaIds: VaaId[],
-    private fetchVaa: FetchVaaFn,
-    opts?: VaaBundlerOpts
-  ) {
+
+  constructor(private fetchVaa: FetchVaaFn, opts?: VaaBundlerOpts) {
     this.opts = Object.assign({}, defaultOpts, opts);
-    this.id = txHash;
 
     this.pendingVaas = {};
-    for (const id of vaaIds) {
+    for (const id of this.opts.vaaIds) {
       this.pendingVaas[this.idToKey(id)] = id;
     }
     this.fetchedVaas = {};
-    this.vaaBytes = {};
   }
 
   private idToKey = (id: VaaId) =>
@@ -66,7 +62,7 @@ export class VaaBundleBuilder {
     )}/${id.sequence.toString()}`;
 
   // returns true if all remaining vaas have been fetched, false otherwise
-  async fetchPending(): Promise<boolean> {
+  private async fetchPending(): Promise<boolean> {
     if (this.isComplete) {
       return true;
     }
@@ -86,17 +82,15 @@ export class VaaBundleBuilder {
       )
     );
 
-    const vaas = fetched.filter((vaa) => vaa !== null && vaa.length > 0);
+    const vaas = fetched.filter((vaa) => vaa !== null);
     this.addVaaPayloads(vaas);
     return this.isComplete;
   }
 
-  addVaaPayload(vaaBytes: Buffer) {
-    const parsedVaa = parseVaa(vaaBytes);
+  addVaaPayload(parsedVaa: ParsedVaaWithBytes) {
     const key = this.idToKey(parsedVaa);
     delete this.pendingVaas[key];
     this.fetchedVaas[key] = parsedVaa;
-    this.vaaBytes[key] = vaaBytes;
   }
 
   /**
@@ -104,7 +98,7 @@ export class VaaBundleBuilder {
    * @param vaaBytesArr
    * @private
    */
-  private addVaaPayloads(vaaBytesArr: Buffer[]) {
+  private addVaaPayloads(vaaBytesArr: ParsedVaaWithBytes[]) {
     for (const vaaBytes of vaaBytesArr) {
       this.addVaaPayload(vaaBytes);
     }
@@ -123,11 +117,11 @@ export class VaaBundleBuilder {
 
   serialize(): SerializedBatchBuilder {
     return {
-      vaaBytes: Object.values(this.vaaBytes).map((buffer) =>
-        buffer.toString("base64")
+      vaaBytes: Object.values(this.fetchedVaas).map((parsedVaas) =>
+        parsedVaas.bytes.toString("base64")
       ),
-      vaaIds: this.vaaIds,
-      txHash: this.txHash,
+      vaaIds: this.opts.vaaIds,
+      txHash: this.opts.txHash,
     };
   }
 
@@ -138,28 +132,26 @@ export class VaaBundleBuilder {
     const vaaBytes = serialized.vaaBytes.map((str) =>
       Buffer.from(str, "base64")
     );
-    const builder = new VaaBundleBuilder(
-      serialized.txHash,
-      serialized.vaaIds,
-      fetchVaa
-    );
-    builder.addVaaPayloads(vaaBytes);
+    const builder = new VaaBundleBuilder(fetchVaa, {
+      vaaIds: serialized.vaaIds,
+      txHash: serialized.txHash,
+    });
+    const parsedVaasWithBytes = vaaBytes.map((buf) => parseVaaWithBytes(buf));
+    builder.addVaaPayloads(parsedVaasWithBytes);
     return builder;
   }
 
-  build(): VaaBundle {
+  private export(): VaaBundle {
     const vaas = Object.values(this.fetchedVaas);
-    const vaaBytes = Object.values(this.vaaBytes);
     return {
-      transactionId: this.txHash,
+      transactionId: this.opts.txHash,
       vaas,
-      vaaBytes,
     };
   }
 
-  async then() {
+  async build() {
     if (this.isComplete) {
-      return this.build();
+      return this.export();
     }
     let complete = await this.fetchPending();
     let attempts = 0;
@@ -170,6 +162,6 @@ export class VaaBundleBuilder {
     if (!complete) {
       throw new Error("could not fetch all vaas");
     }
-    return this.build();
+    return this.export();
   }
 }

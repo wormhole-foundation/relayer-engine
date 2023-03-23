@@ -7,7 +7,6 @@ import {
   CONTRACTS,
   getSignedVAAWithRetry,
   ParsedVaa,
-  parseVaa,
   SignedVaa,
 } from "@certusone/wormhole-sdk";
 import {
@@ -30,10 +29,15 @@ import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
-import { encodeEmitterAddress, mergeDeep, sleep } from "./utils";
+import {
+  encodeEmitterAddress,
+  mergeDeep,
+  parseVaaWithBytes,
+  sleep,
+} from "./utils";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
-import { VaaId } from "./bundle-builder.helper";
+import { VaaBundleBuilder, VaaId } from "./bundle-builder.helper";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -47,6 +51,13 @@ export interface RelayerAppOpts {
   wormholeRpcs?: string[];
   concurrency?: number;
 }
+
+export type FetchaVaasOpts = {
+  ids?: VaaId[];
+  txHash?: string;
+  delayBetweenRequestsInMs?: number;
+  attempts?: number;
+};
 
 export const defaultWormholeRpcs = {
   [Environment.MAINNET]: ["https://api.wormscan.io"],
@@ -86,10 +97,11 @@ export class RelayerApp<ContextT extends Context> {
   }
 
   multiple(
-    chainsAndAddresses: Partial<{ [k in ChainId]: string[] }>,
+    chainsAndAddresses: Partial<{ [k in ChainId]: string[] | string }>,
     ...middleware: Middleware<ContextT>[]
   ): void {
-    for (const [chain, addresses] of Object.entries(chainsAndAddresses)) {
+    for (let [chain, addresses] of Object.entries(chainsAndAddresses)) {
+      addresses = Array.isArray(addresses) ? addresses : [addresses];
       const chainRouter = this.chain(Number(chain) as ChainId);
       for (const address of addresses) {
         chainRouter.address(address, ...middleware);
@@ -120,18 +132,15 @@ export class RelayerApp<ContextT extends Context> {
     this.pipeline = compose(middleware as Middleware<ContextT>[]);
   }
 
-  async fetchVaas(...ids: VaaId): Promise<ParsedVaaWithBytes> {
-    const res = await getSignedVAAWithRetry(
-      this.opts.wormholeRpcs,
-      Number(chain) as ChainId,
-      emitterAddress.toString("hex"),
-      sequence.toString(),
-      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
-      100,
-      2
-    );
-    const vaa = parseVaa(res.vaaBytes);
-    return { ...vaa, bytes: res.vaaBytes };
+  async fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
+    const bundle = new VaaBundleBuilder(this.fetchVaa, {
+      vaaIds: opts.ids,
+      txHash: opts.txHash,
+      maxAttempts: opts.attempts,
+      delayBetweenAttemptsInMs: opts.delayBetweenRequestsInMs,
+    });
+    const vaas = await bundle.build();
+    return vaas.vaas;
   }
 
   async fetchVaa(
@@ -148,8 +157,8 @@ export class RelayerApp<ContextT extends Context> {
       100,
       2
     );
-    const vaa = parseVaa(res.vaaBytes);
-    return { ...vaa, bytes: res.vaaBytes };
+
+    return parseVaaWithBytes(res.vaaBytes);
   }
 
   async processVaa(vaa: Buffer, opts?: any) {
@@ -166,6 +175,8 @@ export class RelayerApp<ContextT extends Context> {
       vaa: parsedVaa,
       vaaBytes: vaa,
       env: this.env,
+      fetchVaa: this.fetchVaa.bind(this),
+      fetchVaas: this.fetchVaas.bind(this),
       processVaa: this.processVaa.bind(this),
       config: {
         spyFilters: await this.spyFilters(),
