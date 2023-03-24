@@ -37,7 +37,7 @@ import {
 } from "./utils";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
-import { VaaBundleBuilder, VaaId } from "./bundle-builder.helper";
+import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -133,7 +133,7 @@ export class RelayerApp<ContextT extends Context> {
   }
 
   fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
-    const bundle = new VaaBundleBuilder(this.fetchVaa, {
+    const bundle = new VaaBundleFetcher(this.fetchVaa, {
       vaaIds: opts.ids,
       maxAttempts: opts.attempts,
       delayBetweenAttemptsInMs: opts.delayBetweenRequestsInMs,

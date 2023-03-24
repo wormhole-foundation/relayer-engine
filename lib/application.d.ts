@@ -3,10 +3,11 @@ import { ChainId, ChainName, ParsedVaa, SignedVaa } from "@certusone/wormhole-sd
 import { ErrorMiddleware, Middleware, Next } from "./compose.middleware";
 import { Context } from "./context";
 import { Logger } from "winston";
+import { BigNumber } from "ethers";
 import { Storage, StorageOptions } from "./storage";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
-import { VaaId } from "./bundle-builder.helper";
+import { VaaId } from "./bundle-fetcher.helper";
 export declare enum Environment {
     MAINNET = "mainnet",
     TESTNET = "testnet",
@@ -52,7 +53,10 @@ export declare class RelayerApp<ContextT extends Context> {
     }>, ...middleware: Middleware<ContextT>[]): void;
     use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]): void;
     fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]>;
-    fetchVaa(chain: ChainId | string, emitterAddress: Buffer | string, sequence: bigint | string): Promise<ParsedVaaWithBytes>;
+    fetchVaa(chain: ChainId | string, emitterAddress: Buffer | string, sequence: bigint | string | BigNumber, { retryTimeout, retries, }?: {
+        retryTimeout: number;
+        retries: number;
+    }): Promise<ParsedVaaWithBytes>;
     processVaa(vaa: Buffer, opts?: any): Promise<void>;
     pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void>;
     chain(chainId: ChainId): ChainRouter<ContextT>;

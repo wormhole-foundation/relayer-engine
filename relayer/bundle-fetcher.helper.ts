@@ -1,9 +1,6 @@
 import {
   ChainId,
-  GuardianSignature,
   ParsedVaa,
-  parseVaa,
-  SignedVaa,
 } from "@certusone/wormhole-sdk";
 import { FetchVaaFn } from "./context";
 import { parseVaaWithBytes, sleep } from "./utils";
@@ -15,7 +12,7 @@ export type VaaId = {
   sequence: ParsedVaa["sequence"];
 };
 
-export type SerializedBatchBuilder = {
+export type SerializedBatchFetcher = {
   vaaBytes: string[];
   vaaIds: VaaId[];
 };
@@ -34,7 +31,7 @@ const defaultOpts: VaaBundlerOpts = {
   delayBetweenAttemptsInMs: 1000,
 };
 
-export class VaaBundleBuilder {
+export class VaaBundleFetcher {
   private readonly fetchedVaas: Record<string, ParsedVaaWithBytes>;
   private readonly pendingVaas: Record<string, VaaId>;
   private opts: VaaBundlerOpts;
@@ -108,7 +105,7 @@ export class VaaBundleBuilder {
     return Math.floor(fetchedCount / (fetchedCount + pendingCount)) * 100;
   }
 
-  serialize(): SerializedBatchBuilder {
+  serialize(): SerializedBatchFetcher {
     return {
       vaaBytes: Object.values(this.fetchedVaas).map((parsedVaas) =>
         parsedVaas.bytes.toString("base64")
@@ -118,13 +115,13 @@ export class VaaBundleBuilder {
   }
 
   static deserialize(
-    serialized: SerializedBatchBuilder,
+    serialized: SerializedBatchFetcher,
     fetchVaa: FetchVaaFn
-  ): VaaBundleBuilder {
+  ): VaaBundleFetcher {
     const vaaBytes = serialized.vaaBytes.map((str) =>
       Buffer.from(str, "base64")
     );
-    const builder = new VaaBundleBuilder(fetchVaa, {
+    const builder = new VaaBundleFetcher(fetchVaa, {
       vaaIds: serialized.vaaIds,
     });
     const parsedVaasWithBytes = vaaBytes.map((buf) => parseVaaWithBytes(buf));
