@@ -5,29 +5,22 @@ import {
   Environment,
   RelayerApp,
   StorageContext,
-} from "wormhole-relayer";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import {
   logging,
   LoggingContext,
-} from "wormhole-relayer/middleware/logger.middleware";
-import {
   TokenBridgeContext,
   tokenBridgeContracts,
-} from "wormhole-relayer/middleware/tokenBridge.middleware";
-import { missedVaas } from "wormhole-relayer/middleware/missedVaas.middleware";
-import { providers } from "wormhole-relayer/middleware/providers.middleware";
-import {
   stagingArea,
   StagingAreaContext,
-} from "wormhole-relayer/middleware/staging-area.middleware";
-
-import { WalletContext } from "wormhole-relayer/middleware/wallet/wallet.middleware";
-
+  missedVaas,
+  WalletContext,
+  providers,
+  sourceTx,
+  SourceTxContext,
+} from "wormhole-relayer";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
-import { sourceTx, SourceTxContext } from "../../relayer/middleware/source-tx.middleware";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &

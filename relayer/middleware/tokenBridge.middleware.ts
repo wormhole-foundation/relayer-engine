@@ -57,7 +57,7 @@ export interface TokenBridgeContext extends ProviderContext {
   };
 }
 
-export type ChainConfigInfo = {
+export type TokenBridgeChainConfigInfo = {
   evm: {
     [k in EVMChainId]: { contracts: ITokenBridge[] };
   };
