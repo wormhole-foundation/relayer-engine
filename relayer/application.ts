@@ -18,7 +18,7 @@ import {
 } from "./compose.middleware";
 import { Context } from "./context";
 import { Logger } from "winston";
-
+import { BigNumber } from "ethers";
 import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
@@ -132,21 +132,26 @@ export class RelayerApp<ContextT extends Context> {
     this.pipeline = compose(middleware as Middleware<ContextT>[]);
   }
 
-  async fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
+  fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
     const bundle = new VaaBundleBuilder(this.fetchVaa, {
       vaaIds: opts.ids,
-      txHash: opts.txHash,
       maxAttempts: opts.attempts,
       delayBetweenAttemptsInMs: opts.delayBetweenRequestsInMs,
     });
-    const vaas = await bundle.build();
-    return vaas.vaas;
+    return bundle.build();
   }
 
   async fetchVaa(
     chain: ChainId | string,
     emitterAddress: Buffer | string,
-    sequence: bigint | string
+    sequence: bigint | string | BigNumber,
+    {
+      retryTimeout = 100,
+      retries = 2,
+    }: { retryTimeout: number; retries: number } = {
+      retryTimeout: 100,
+      retries: 2,
+    }
   ): Promise<ParsedVaaWithBytes> {
     const res = await getSignedVAAWithRetry(
       this.opts.wormholeRpcs,
@@ -154,8 +159,8 @@ export class RelayerApp<ContextT extends Context> {
       emitterAddress.toString("hex"),
       sequence.toString(),
       { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
-      100,
-      2
+      retryTimeout,
+      retries
     );
 
     return parseVaaWithBytes(res.vaaBytes);

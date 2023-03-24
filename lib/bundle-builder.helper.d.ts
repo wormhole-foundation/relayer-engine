@@ -9,17 +9,11 @@ export type VaaId = {
 export type SerializedBatchBuilder = {
     vaaBytes: string[];
     vaaIds: VaaId[];
-    txHash: string;
-};
-export type VaaBundle = {
-    transactionId?: string;
-    vaas: ParsedVaaWithBytes[];
 };
 interface VaaBundlerOpts {
     maxAttempts?: number;
     delayBetweenAttemptsInMs?: number;
     vaaIds?: VaaId[];
-    txHash?: string;
 }
 export declare class VaaBundleBuilder {
     private fetchVaa;
@@ -41,6 +35,6 @@ export declare class VaaBundleBuilder {
     serialize(): SerializedBatchBuilder;
     static deserialize(serialized: SerializedBatchBuilder, fetchVaa: FetchVaaFn): VaaBundleBuilder;
     private export;
-    build(): Promise<VaaBundle>;
+    build(): Promise<ParsedVaaWithBytes[]>;
 }
 export {};

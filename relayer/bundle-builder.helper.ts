@@ -18,12 +18,6 @@ export type VaaId = {
 export type SerializedBatchBuilder = {
   vaaBytes: string[];
   vaaIds: VaaId[];
-  txHash: string;
-};
-
-export type VaaBundle = {
-  transactionId?: string;
-  vaas: ParsedVaaWithBytes[];
 };
 
 // You can pass in an array of vaaIds (chain, addr, seq) or a txHash.
@@ -33,7 +27,6 @@ interface VaaBundlerOpts {
   maxAttempts?: number;
   delayBetweenAttemptsInMs?: number;
   vaaIds?: VaaId[];
-  txHash?: string;
 }
 
 const defaultOpts: VaaBundlerOpts = {
@@ -121,7 +114,6 @@ export class VaaBundleBuilder {
         parsedVaas.bytes.toString("base64")
       ),
       vaaIds: this.opts.vaaIds,
-      txHash: this.opts.txHash,
     };
   }
 
@@ -134,19 +126,14 @@ export class VaaBundleBuilder {
     );
     const builder = new VaaBundleBuilder(fetchVaa, {
       vaaIds: serialized.vaaIds,
-      txHash: serialized.txHash,
     });
     const parsedVaasWithBytes = vaaBytes.map((buf) => parseVaaWithBytes(buf));
     builder.addVaaPayloads(parsedVaasWithBytes);
     return builder;
   }
 
-  private export(): VaaBundle {
-    const vaas = Object.values(this.fetchedVaas);
-    return {
-      transactionId: this.opts.txHash,
-      vaas,
-    };
+  private export(): ParsedVaaWithBytes[] {
+    return Object.values(this.fetchedVaas);
   }
 
   async build() {
