@@ -1,4 +1,5 @@
-lib
+## same as .gitignore, but include lib
+# lib
 
 # Logs
 logs
