@@ -11,7 +11,7 @@ const processedVaasTotal = new Counter({
 });
 
 const finishedVaasTotal = new Counter({
-  name: "vaas_processed_total",
+  name: "vaas_finished_total",
   help: "Number of vaas processed successfully or unsuccessfully.",
   labelNames: ["status"],
 });
@@ -19,7 +19,6 @@ const finishedVaasTotal = new Counter({
 export function metrics(): Middleware<Context & { job?: Job }> {
   return async (ctx: StorageContext, next) => {
     const job = ctx.storage?.job;
-
     // disable this metric if storage is enabled because the storage will actually compute the metrics.
     if (job) {
       await next();

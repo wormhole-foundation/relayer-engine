@@ -319,6 +319,10 @@ export class RelayerApp<ContextT extends Context> {
     }
   }
 
+  metricsRegistry() {
+    return this.storage?.registry;
+  }
+
   stop() {
     return this.storage.stopWorker();
   }

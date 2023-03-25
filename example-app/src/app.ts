@@ -3,19 +3,19 @@ import * as Koa from "koa";
 import {
   Context,
   Environment,
-  RelayerApp,
-  StorageContext,
   logging,
   LoggingContext,
-  TokenBridgeContext,
-  tokenBridgeContracts,
-  stagingArea,
-  StagingAreaContext,
   missedVaas,
-  WalletContext,
   providers,
+  RelayerApp,
   sourceTx,
   SourceTxContext,
+  stagingArea,
+  StagingAreaContext,
+  StorageContext,
+  TokenBridgeContext,
+  tokenBridgeContracts,
+  WalletContext,
 } from "wormhole-relayer";
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
@@ -80,10 +80,18 @@ function configRelayer<T extends Context>(app: RelayerApp<T>) {
   app.logger(rootLogger);
 }
 
-function runUI(relayer: any, { port }: any, logger: Logger) {
+function runUI(relayer: RelayerApp<any>, { port }: any, logger: Logger) {
   const app = new Koa();
 
   app.use(relayer.storageKoaUI("/ui"));
+  app.use(async (ctx, next) => {
+    if (ctx.request.method !== "GET" && ctx.request.url !== "/metrics") {
+      await next();
+      return;
+    }
+
+    ctx.body = await relayer.metricsRegistry().metrics();
+  });
 
   port = Number(port) || 3000;
   app.listen(port, () => {
