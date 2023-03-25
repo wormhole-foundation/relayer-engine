@@ -61,10 +61,10 @@ async function main() {
 
   // Another way to do it if you want to listen to multiple addresses on different chaints:
 
-  // let contractAddresses = {
-  //   [CHAIN_ID_SOLANA]: ["DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"],
-  // };
-  // app.multiple(contractAddresses, fundsCtrl.processFundsTransfer);
+  let contractAddresses = {
+    [CHAIN_ID_SOLANA]: ["DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"],
+  };
+  app.multiple(contractAddresses, fundsCtrl.processFundsTransfer);
 
   app.use(async (err, ctx, next) => {
     ctx.logger.error("error middleware triggered");

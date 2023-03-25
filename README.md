@@ -21,12 +21,20 @@ The Goal is to create a project that is:
 #### Minimal code necessary to get started
 
 ```typescript
-async function main() {
-  const app = new StandardRelayerApp<AppContext>(Environment.MAINNET, {name: ""});
+import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 
-  app.tokenBridge([CHAIN_ID_ETH], async (ctx, next) => { // listen to the token bridge vaas on eth.
-    console.log(`received vaa ${ctx.vaa.sequence}`);
-  });
+async function main() {
+  const app = new StandardRelayerApp<AppContext>(Environment.MAINNET, { name: "" });
+
+  app
+    .chain(CHAIN_ID_SOLANA)
+    .address(
+      "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
+      async (ctx, nest) => {
+        const vaa = ctx.vaa;
+        const hash = ctx.sourceTxHash
+      }
+    );
 
   app.listen();
 }

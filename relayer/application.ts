@@ -6,6 +6,8 @@ import {
   CHAINS,
   CONTRACTS,
   getSignedVAAWithRetry,
+  ParsedVaa,
+  SignedVaa,
 } from "@certusone/wormhole-sdk";
 import {
   compose,
@@ -16,7 +18,7 @@ import {
 } from "./compose.middleware";
 import { Context } from "./context";
 import { Logger } from "winston";
-
+import { BigNumber } from "ethers";
 import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
@@ -27,9 +29,15 @@ import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
-import { encodeEmitterAddress, mergeDeep, sleep } from "./utils";
+import {
+  encodeEmitterAddress,
+  mergeDeep,
+  parseVaaWithBytes,
+  sleep,
+} from "./utils";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
+import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -44,6 +52,13 @@ export interface RelayerAppOpts {
   concurrency?: number;
 }
 
+export type FetchaVaasOpts = {
+  ids?: VaaId[];
+  txHash?: string;
+  delayBetweenRequestsInMs?: number;
+  attempts?: number;
+};
+
 export const defaultWormholeRpcs = {
   [Environment.MAINNET]: ["https://api.wormscan.io"],
   [Environment.TESTNET]: [
@@ -57,6 +72,10 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   wormholeRpcs: defaultWormholeRpcs[env],
   concurrency: 1,
 });
+
+export interface ParsedVaaWithBytes extends ParsedVaa {
+  bytes: SignedVaa;
+}
 
 export class RelayerApp<ContextT extends Context> {
   private pipeline?: Middleware<Context>;
@@ -78,10 +97,11 @@ export class RelayerApp<ContextT extends Context> {
   }
 
   multiple(
-    chainsAndAddresses: Partial<{ [k in ChainId]: string[] }>,
+    chainsAndAddresses: Partial<{ [k in ChainId]: string[] | string }>,
     ...middleware: Middleware<ContextT>[]
   ): void {
-    for (const [chain, addresses] of Object.entries(chainsAndAddresses)) {
+    for (let [chain, addresses] of Object.entries(chainsAndAddresses)) {
+      addresses = Array.isArray(addresses) ? addresses : [addresses];
       const chainRouter = this.chain(Number(chain) as ChainId);
       for (const address of addresses) {
         chainRouter.address(address, ...middleware);
@@ -112,20 +132,38 @@ export class RelayerApp<ContextT extends Context> {
     this.pipeline = compose(middleware as Middleware<ContextT>[]);
   }
 
+  fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
+    const bundle = new VaaBundleFetcher(this.fetchVaa, {
+      vaaIds: opts.ids,
+      maxAttempts: opts.attempts,
+      delayBetweenAttemptsInMs: opts.delayBetweenRequestsInMs,
+    });
+    return bundle.build();
+  }
+
   async fetchVaa(
     chain: ChainId | string,
     emitterAddress: Buffer | string,
-    sequence: bigint | string
-  ) {
-    return await getSignedVAAWithRetry(
+    sequence: bigint | string | BigNumber,
+    {
+      retryTimeout = 100,
+      retries = 2,
+    }: { retryTimeout: number; retries: number } = {
+      retryTimeout: 100,
+      retries: 2,
+    }
+  ): Promise<ParsedVaaWithBytes> {
+    const res = await getSignedVAAWithRetry(
       this.opts.wormholeRpcs,
       Number(chain) as ChainId,
       emitterAddress.toString("hex"),
       sequence.toString(),
       { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
-      100,
-      2
+      retryTimeout,
+      retries
     );
+
+    return parseVaaWithBytes(res.vaaBytes);
   }
 
   async processVaa(vaa: Buffer, opts?: any) {
@@ -142,6 +180,8 @@ export class RelayerApp<ContextT extends Context> {
       vaa: parsedVaa,
       vaaBytes: vaa,
       env: this.env,
+      fetchVaa: this.fetchVaa.bind(this),
+      fetchVaas: this.fetchVaas.bind(this),
       processVaa: this.processVaa.bind(this),
       config: {
         spyFilters: await this.spyFilters(),
