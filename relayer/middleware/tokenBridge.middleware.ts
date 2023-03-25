@@ -100,8 +100,19 @@ function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
   return tokenBridgeEmitterAddress === emitterAddress;
 }
 
+function tryToParseTokenTransferVaa(
+  vaaBytes: Buffer
+): ParsedTokenTransferVaa | null {
+  try {
+    return parseTokenTransferVaa(vaaBytes);
+  } catch (e) {
+    // it may not be a token transfer vaa. TODO Maybe we want to do something to support attestations etc.
+    return null;
+  }
+}
+
 export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
-  let evmContracts: Partial<{[k in EVMChainId]: ITokenBridge[]}>;
+  let evmContracts: Partial<{ [k in EVMChainId]: ITokenBridge[] }>;
   return async (ctx: TokenBridgeContext, next) => {
     if (!ctx.providers) {
       throw new UnrecoverableError(
@@ -110,10 +121,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     }
     if (!evmContracts) {
       ctx.logger?.debug(`Token Bridge Contracts initializing...`);
-      evmContracts = instantiateReadEvmContracts(
-        ctx.env,
-        ctx.providers.evm
-      );
+      evmContracts = instantiateReadEvmContracts(ctx.env, ctx.providers.evm);
       ctx.logger?.debug(`Token Bridge Contracts initialized`);
     }
     ctx.tokenBridge = {
@@ -125,7 +133,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         },
       },
       vaa: isTokenBridgeVaa(ctx.env, ctx.vaa)
-        ? parseTokenTransferVaa(ctx.vaaBytes)
+        ? tryToParseTokenTransferVaa(ctx.vaaBytes)
         : null,
     };
     await next();
