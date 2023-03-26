@@ -52,6 +52,11 @@ async function main() {
   app.use(stagingArea());
   app.use(sourceTx());
 
+  app.multiple(
+    { [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe" },
+    fundsCtrl.processFundsTransfer
+  );
+
   app
     .chain(CHAIN_ID_SOLANA)
     .address(
