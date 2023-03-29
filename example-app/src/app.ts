@@ -29,9 +29,10 @@ export type MyRelayerContext = LoggingContext &
   StagingAreaContext &
   WalletContext;
 
-const privateKeys = {
-  [CHAIN_ID_ETH]: [process.env.ETH_KEY],
-};
+// You need to read in your keys
+// const privateKeys = {
+//   [CHAIN_ID_ETH]: [process.env.ETH_KEY],
+// };
 
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
@@ -52,11 +53,6 @@ async function main() {
   app.use(stagingArea());
   app.use(sourceTx());
 
-  app.multiple(
-    { [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe" },
-    fundsCtrl.processFundsTransfer
-  );
-
   app
     .chain(CHAIN_ID_SOLANA)
     .address(
@@ -65,11 +61,12 @@ async function main() {
     );
 
   // Another way to do it if you want to listen to multiple addresses on different chaints:
-
-  let contractAddresses = {
-    [CHAIN_ID_SOLANA]: ["DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"],
-  };
-  app.multiple(contractAddresses, fundsCtrl.processFundsTransfer);
+  // app.multiple(
+  //   { [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
+  //     [CHAIN_ID_ETH]: ["0xabc1230000000...","0xdef456000....."]
+  //   },
+  //   fundsCtrl.processFundsTransfer
+  // );
 
   app.use(async (err, ctx, next) => {
     ctx.logger.error("error middleware triggered");
