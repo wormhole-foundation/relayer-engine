@@ -3,7 +3,16 @@ import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 import { RelayerApp } from "./application";
 import { Context } from "./context";
 import { Logger } from "winston";
-import { Cluster, ClusterNode, ClusterOptions, Redis, RedisOptions } from "ioredis";
+import {
+  Cluster,
+  ClusterNode,
+  ClusterOptions,
+  Redis,
+  RedisOptions,
+} from "ioredis";
+import { createStorageMetrics } from "./storage.metrics";
+import { Gauge, Histogram, Registry } from "prom-client";
+import { sleep } from "./utils";
 
 function serializeVaa(vaa: ParsedVaa) {
   return {
@@ -47,6 +56,7 @@ export interface StorageContext extends Context {
   storage: {
     job: Job;
     worker: Worker;
+    maxAttempts: number;
   };
 }
 
@@ -62,32 +72,57 @@ export interface StorageOptions {
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
 
+const defaultOptions: Partial<StorageOptions> = {
+  attempts: 3,
+  redis: {},
+  queueName: "relays",
+  concurrency: 3,
+};
+
 export class Storage<T extends Context> {
   logger: Logger;
   vaaQueue: Queue<JobData, string[], string>;
   private worker: Worker<JobData, string[], string>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
+  public registry: Registry;
+  private metrics: {
+    delayedGauge: Gauge<string>;
+    waitingGauge: Gauge<string>;
+    activeGauge: Gauge<string>;
+    completedDuration: Histogram<string>;
+    processedDuration: Histogram<string>;
+  };
+  private opts: StorageOptions;
 
-  constructor(private relayer: RelayerApp<T>, private opts: StorageOptions) {
-    this.prefix = `{${opts.namespace ?? opts.queueName}}`;
-    opts.redis = opts.redis || {};
-    opts.redis.maxRetriesPerRequest = null; //Because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
-    opts.concurrency = opts.concurrency || 1;
-    this.redis = opts.redisClusterEndpoints
-      ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
-      : new Redis(opts.redis);
-    this.vaaQueue = new Queue(opts.queueName, {
+  constructor(private relayer: RelayerApp<T>, opts: StorageOptions) {
+    this.opts = Object.assign({}, defaultOptions, opts);
+    this.opts.redis.maxRetriesPerRequest = null; //Added because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
+    this.prefix = `{${this.opts.namespace ?? this.opts.queueName}}`;
+    this.redis = this.opts.redisClusterEndpoints
+      ? new Redis.Cluster(
+          this.opts.redisClusterEndpoints,
+          this.opts.redisCluster
+        )
+      : new Redis(this.opts.redis);
+    this.vaaQueue = new Queue(this.opts.queueName, {
       prefix: this.prefix,
       connection: this.redis,
     });
+    const { metrics, registry } = createStorageMetrics();
+    this.metrics = metrics;
+    this.registry = registry;
   }
 
   async addVaaToQueue(vaaBytes: Buffer) {
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
-    this.logger?.debug(`Adding VAA to queue`, {emitterChain: parsedVaa.emitterChain, emitterAddress: parsedVaa.emitterAddress.toString("hex"), sequence: parsedVaa.sequence.toString()});
+    this.logger?.debug(`Adding VAA to queue`, {
+      emitterChain: parsedVaa.emitterChain,
+      emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+      sequence: parsedVaa.sequence.toString(),
+    });
     return this.vaaQueue.add(
       idWithoutHash,
       {
@@ -111,29 +146,76 @@ export class Storage<T extends Context> {
   }
 
   startWorker() {
-    this.logger?.debug(`Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`);
+    this.logger?.debug(
+      `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`
+    );
     this.worker = new Worker(
       this.opts.queueName,
       async (job) => {
         let parsedVaa = job.data?.parsedVaa;
         if (parsedVaa) {
-          this.logger?.debug(`Starting job: ${job.id}`, {emitterChain: parsedVaa.emitterChain, emitterAddress: parsedVaa.emitterAddress.toString("hex"), sequence: parsedVaa.sequence.toString()});
+          this.logger?.debug(`Starting job: ${job.id}`, {
+            emitterChain: parsedVaa.emitterChain,
+            emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+            sequence: parsedVaa.sequence.toString(),
+          });
         } else {
           this.logger.debug("Received job with no parsedVaa");
         }
         await job.log(`processing by..${this.worker.id}`);
         let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
         await this.relayer.pushVaaThroughPipeline(vaaBytes, {
-          storage: { job, worker: this.worker },
+          storage: {
+            job,
+            worker: this.worker,
+            maxAttempts: this.opts.attempts,
+          },
         });
         await job.updateProgress(100);
         return [""];
       },
-      { prefix: this.prefix, connection: this.redis, concurrency: this.opts.concurrency }
+      {
+        prefix: this.prefix,
+        connection: this.redis,
+        concurrency: this.opts.concurrency,
+      }
     );
+
+    this.worker.on("completed", this.onCompleted.bind(this));
+    this.spawnGaugeUpdateWorker();
   }
 
-  stopWorker() {
-    return this.worker?.close();
+  async stopWorker() {
+    await this.worker?.close();
+    this.worker = null;
+  }
+
+  async spawnGaugeUpdateWorker(ms = 5000) {
+    while (this.worker !== null) {
+      await this.updateGauges();
+      await sleep(ms);
+    }
+  }
+
+  private async updateGauges() {
+    const { active, delayed, waiting } = await this.vaaQueue.getJobCounts();
+    this.metrics.activeGauge.labels({ queue: this.vaaQueue.name }).set(active);
+    this.metrics.delayedGauge
+      .labels({ queue: this.vaaQueue.name })
+      .set(delayed);
+    this.metrics.waitingGauge
+      .labels({ queue: this.vaaQueue.name })
+      .set(waiting);
+  }
+
+  private async onCompleted(job: Job) {
+    const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
+    const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
+    this.metrics.completedDuration
+      .labels({ queue: this.vaaQueue.name })
+      .observe(completedDuration);
+    this.metrics.processedDuration
+      .labels({ queue: this.vaaQueue.name })
+      .observe(processedDuration);
   }
 }

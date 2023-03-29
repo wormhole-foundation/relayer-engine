@@ -3,19 +3,19 @@ import * as Koa from "koa";
 import {
   Context,
   Environment,
-  RelayerApp,
-  StorageContext,
   logging,
   LoggingContext,
-  TokenBridgeContext,
-  tokenBridgeContracts,
-  stagingArea,
-  StagingAreaContext,
   missedVaas,
-  WalletContext,
   providers,
+  RelayerApp,
   sourceTx,
   SourceTxContext,
+  stagingArea,
+  StagingAreaContext,
+  StorageContext,
+  TokenBridgeContext,
+  tokenBridgeContracts,
+  WalletContext,
 } from "wormhole-relayer";
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
@@ -29,9 +29,10 @@ export type MyRelayerContext = LoggingContext &
   StagingAreaContext &
   WalletContext;
 
-const privateKeys = {
-  [CHAIN_ID_ETH]: [process.env.ETH_KEY],
-};
+// You need to read in your keys
+// const privateKeys = {
+//   [CHAIN_ID_ETH]: [process.env.ETH_KEY],
+// };
 
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
@@ -60,11 +61,12 @@ async function main() {
     );
 
   // Another way to do it if you want to listen to multiple addresses on different chaints:
-
-  let contractAddresses = {
-    [CHAIN_ID_SOLANA]: ["DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"],
-  };
-  app.multiple(contractAddresses, fundsCtrl.processFundsTransfer);
+  // app.multiple(
+  //   { [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
+  //     [CHAIN_ID_ETH]: ["0xabc1230000000...","0xdef456000....."]
+  //   },
+  //   fundsCtrl.processFundsTransfer
+  // );
 
   app.use(async (err, ctx, next) => {
     ctx.logger.error("error middleware triggered");
@@ -80,10 +82,18 @@ function configRelayer<T extends Context>(app: RelayerApp<T>) {
   app.logger(rootLogger);
 }
 
-function runUI(relayer: any, { port }: any, logger: Logger) {
+function runUI(relayer: RelayerApp<any>, { port }: any, logger: Logger) {
   const app = new Koa();
 
   app.use(relayer.storageKoaUI("/ui"));
+  app.use(async (ctx, next) => {
+    if (ctx.request.method !== "GET" && ctx.request.url !== "/metrics") {
+      await next();
+      return;
+    }
+
+    ctx.body = await relayer.metricsRegistry().metrics();
+  });
 
   port = Number(port) || 3000;
   app.listen(port, () => {
