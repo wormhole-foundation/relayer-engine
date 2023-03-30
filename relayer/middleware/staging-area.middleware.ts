@@ -1,5 +1,11 @@
 import { Logger } from "winston";
-import { Cluster, ClusterNode, ClusterOptions, Redis, RedisOptions } from "ioredis";
+import {
+  Cluster,
+  ClusterNode,
+  ClusterOptions,
+  Redis,
+  RedisOptions,
+} from "ioredis";
 import { Middleware, Next } from "../compose.middleware";
 import { Context } from "../context";
 import { createPool } from "generic-pool";
@@ -49,6 +55,7 @@ export function stagingArea(
       opts.namespace ?? "default"
     );
     try {
+      ctx.logger?.debug("Staging area attached to context");
       await next();
     } finally {
       await redisPool.release(redis);

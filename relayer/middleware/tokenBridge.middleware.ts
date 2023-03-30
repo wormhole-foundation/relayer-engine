@@ -136,6 +136,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         ? tryToParseTokenTransferVaa(ctx.vaaBytes)
         : null,
     };
+    ctx.logger?.debug("Token Bridge contracts attached to context");
     await next();
   };
 }

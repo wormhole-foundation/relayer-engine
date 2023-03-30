@@ -86,6 +86,7 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
       ctx.logger?.debug(`Providers Initialized`);
     }
     ctx.providers = providers;
+    ctx.logger?.debug("Providers attached to context");
     await next();
   };
 }

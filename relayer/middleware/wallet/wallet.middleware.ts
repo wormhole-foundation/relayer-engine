@@ -132,6 +132,7 @@ export function wallets(opts: WalletOpts): Middleware<WalletContext> {
       ctx.logger?.debug(`Initialized wallets`);
     }
 
+    ctx.logger?.debug("wallets attached to context");
     ctx.wallets = executeFunction;
     await next();
   };

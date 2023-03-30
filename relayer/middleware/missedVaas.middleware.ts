@@ -2,7 +2,12 @@ import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-tr
 
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
-import Redis, { Cluster, ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
+import Redis, {
+  Cluster,
+  ClusterNode,
+  ClusterOptions,
+  RedisOptions,
+} from "ioredis";
 import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
 import { defaultWormholeRpcs, Environment, RelayerApp } from "../application";
 import { Logger } from "winston";
@@ -73,40 +78,49 @@ export function missedVaas(
         currentSeq < vaa.sequence;
         currentSeq++
       ) {
-        const fetchedVaa = await fetchVaa(
-          // we could use app.fetchVaa. Considering it.. for now each middleware is mostly self contained
-          wormholeRpcs,
-          vaa.emitterChain as ChainId,
-          vaa.emitterAddress,
-          currentSeq
-        );
-        let addr = vaa.emitterAddress.toString("hex");
-        let seq = currentSeq.toString();
-        ctx.logger?.info(
-          `Possibly missed a vaa: ${vaa.emitterChain}/${addr}/${seq}. Adding to queue.`
-        );
         try {
+          const fetchedVaa = await fetchVaa(
+            // we could use app.fetchVaa. Considering it.. for now each middleware is mostly self contained
+            wormholeRpcs,
+            vaa.emitterChain as ChainId,
+            vaa.emitterAddress,
+            currentSeq
+          );
+          let addr = vaa.emitterAddress.toString("hex");
+          let seq = currentSeq.toString();
+          ctx.logger?.info(
+            `Possibly missed a vaa: ${vaa.emitterChain}/${addr}/${seq}. Adding to queue.`
+          );
           await ctx.processVaa(Buffer.from(fetchedVaa.vaaBytes)); // push the missed vaa through all the middleware / storage service if used.
         } catch (e) {
           ctx.logger?.error(
-            `Could not process recovered vaa: ${vaa.emitterChain}/${addr}/${seq}`,
+            `Could not process missed vaa. Sequence: ${currentSeq}`,
             e
           );
         }
       }
+    } else {
+      ctx.logger?.debug(
+        "No missed VAAs detected between this VAA and the last VAA we processed."
+      );
     }
-
+    await redisPool.release(redis);
     try {
       await next(); // <-- process the current vaa
     } finally {
-      await setLastSequenceForContract(
-        redis,
-        vaa.emitterChain,
-        vaa.emitterAddress,
-        vaa.sequence,
-        ctx.logger
-      );
-      await redisPool.release(redis);
+      let redis;
+      try {
+        redis = await redisPool.acquire();
+        await setLastSequenceForContract(
+          redis,
+          vaa.emitterChain,
+          vaa.emitterAddress,
+          vaa.sequence,
+          ctx.logger
+        );
+      } finally {
+        await redisPool.release(redis);
+      }
     }
   };
 }
@@ -203,7 +217,7 @@ async function startMissedVaaWorker(
     try {
       let redis = await pool.acquire();
       try {
-        logger.debug(`Checking for missed VAAs.`)
+        logger.debug(`Checking for missed VAAs.`);
         let addressWithLastSequence = await Promise.all(
           app.filters
             .map((filter) => ({
