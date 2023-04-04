@@ -1,16 +1,14 @@
 import {
-  ActionExecutor,
   ContractFilter,
-  Plugin,
-  Providers,
-  sleep,
   StagingAreaKeyLock,
-  Workflow,
-  WorkflowOptions,
+  LegacyPluginDefinition,
+  ParsedVaaWithBytes,
 } from "wormhole-relayer";
+import { sleep } from "wormhole-relayer/utils";
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { parseVaa } from "@certusone/wormhole-sdk";
+import { assertArray } from "./utils";
 
 export interface DummyPluginConfig {
   spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -32,7 +30,9 @@ interface WorkflwoPayloadDeserialized {
 const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
-export class DummyPlugin implements Plugin<WorkflowPayload> {
+export class DummyPlugin
+  implements LegacyPluginDefinition.Plugin<WorkflowPayload>
+{
   // configuration fields used by engine
   readonly shouldSpy: boolean = true;
   readonly shouldRest: boolean = false;
@@ -44,9 +44,9 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   pluginConfig: DummyPluginConfig;
 
   constructor(
-    readonly engineConfig: CommonPluginEnv,
+    readonly engineConfig: LegacyPluginDefinition.CommonPluginEnv,
     pluginConfigRaw: Record<string, any>,
-    readonly logger: Logger,
+    readonly logger: Logger
   ) {
     console.log(`Config: ${JSON.stringify(engineConfig, undefined, 2)}`);
     console.log(`Plugin Env: ${JSON.stringify(pluginConfigRaw, undefined, 2)}`);
@@ -56,7 +56,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
 
   // Validate the plugin's config
   static validateConfig(
-    pluginConfigRaw: Record<string, any>,
+    pluginConfigRaw: Record<string, any>
   ): DummyPluginConfig {
     return {
       spyServiceFilters:
@@ -71,11 +71,11 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
 
   async consumeEvent(
     vaa: ParsedVaaWithBytes,
-    stagingArea: StagingAreaKeyLock,
+    stagingArea: StagingAreaKeyLock
   ): Promise<
     | {
         workflowData: WorkflowPayload;
-        workflowOptions?: WorkflowOptions;
+        workflowOptions?: LegacyPluginDefinition.WorkflowOptions;
       }
     | undefined
   > {
@@ -93,7 +93,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
           newKV: { counter },
           val: counter,
         };
-      },
+      }
     );
 
     return {
@@ -105,9 +105,9 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   }
 
   async handleWorkflow(
-    workflow: Workflow,
-    providers: Providers,
-    execute: ActionExecutor,
+    workflow: LegacyPluginDefinition.Workflow<WorkflowPayload>,
+    providers: LegacyPluginDefinition.Providers,
+    execute: LegacyPluginDefinition.ActionExecutor
   ): Promise<void> {
     this.logger.info("Got workflow", { workflowId: workflow.id });
     this.logger.debug(JSON.stringify(workflow, undefined, 2));
@@ -121,7 +121,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
         const pubkey = wallet.wallet.address;
         this.logger.info(
           `Inside action, have wallet pubkey ${pubkey} on chain ${chainId}`,
-          { pubKey: pubkey, chainId: chainId },
+          { pubKey: pubkey, chainId: chainId }
         );
         this.logger.info(`Also have parsed vaa. seq: ${vaa.sequence}`, {
           vaa: vaa,
@@ -141,7 +141,9 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     this.logger.info(`Result of action on fuji ${pubkey}, Count: ${count}`);
   }
 
-  parseWorkflowPayload(workflow: Workflow): WorkflwoPayloadDeserialized {
+  parseWorkflowPayload(
+    workflow: LegacyPluginDefinition.Workflow
+  ): WorkflwoPayloadDeserialized {
     const bytes = Buffer.from(workflow.data.vaa, "base64");
     const vaa = parseVaa(bytes) as ParsedVaaWithBytes;
     vaa.bytes = bytes;
