@@ -6,3 +6,4 @@ export * from "./source-tx.middleware";
 export * from "./staging-area.middleware";
 export * from "./tokenBridge.middleware";
 export * from "./wallet";
+export * from './legacy-plugin'

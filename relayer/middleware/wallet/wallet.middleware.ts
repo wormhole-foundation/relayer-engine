@@ -11,7 +11,7 @@ import { Middleware } from "../../compose.middleware";
 import { Context } from "../../context";
 import { spawnWalletWorker } from "./wallet.worker";
 import { Queue } from "@datastructures-js/queue";
-import { ProviderContext } from "../providers.middleware";
+import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
 
 export type EVMWallet = ethers.Wallet;
@@ -21,7 +21,11 @@ export type SolanaWallet = {
   payer: solana.Keypair;
 };
 
-export type Wallet = EVMWallet | SolanaWallet;
+export type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
+
+export type UntypedWallet = UntypedProvider & {
+  privateKey: string;
+};
 
 export interface Action<T, W extends Wallet> {
   chainId: ChainId;

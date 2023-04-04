@@ -22,7 +22,12 @@ import {
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
   solana: Connection[];
+  untyped: Partial<Record<ChainId, UntypedProvider[]>>;
 }
+
+export type UntypedProvider = {
+  rpcUrl: string;
+};
 
 export interface ProviderContext extends Context {
   providers: Providers;
