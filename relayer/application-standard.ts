@@ -36,7 +36,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
-  spyEndpoint: "localhost:7373",
+  spyEndpoint: "localhost:7073",
   workflows: {
     retries: 3,
   },
