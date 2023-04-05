@@ -66,7 +66,6 @@ export type ExecutorEnv = {
   actionInterval?: number; // milliseconds between attempting to process actions
 };
 
-
 export type CommonEnvRun = Omit<Omit<CommonEnv, "envType">, "mode">;
 export interface RunArgs {
   // for configs, provide file path or config objects
@@ -88,8 +87,11 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
       `Plugin compat layer supports running 1 plugin, ${args.plugins.length} provided`
     );
   }
+  let i = 0;
 
-  // load engine config 
+  console.log(i++);
+
+  // load engine config
   let configs: {
     commonEnv: CommonEnvRun;
     executorEnv?: ExecutorEnv;
@@ -103,6 +105,9 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
     configs = args.configs;
   }
   const { commonEnv, executorEnv, listenerEnv } = configs;
+
+  console.log(i++);
+  console.log(JSON.stringify(configs, undefined, 2));
 
   const redis = configs.commonEnv.redis;
   const app = new StandardRelayerApp(env, {
@@ -128,17 +133,21 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
           },
         }
       : undefined,
-    redisClusterEndpoints: redis?.cluster ? [redis.host] : [],
+    redisClusterEndpoints: redis?.cluster ? [redis.host] : undefined,
     spyEndpoint: listenerEnv.spyServiceHost,
     logger: defaultLogger,
     privateKeys: executorEnv.privateKeys,
   });
+  console.log(i++);
 
-  const [pluginName, pluginFn] = Object.entries(args.plugins)[0]
-  const plugin = pluginFn(commonEnv, defaultLogger)
+  const [pluginName, pluginFn] = Object.entries(args.plugins)[0];
+  const plugin = pluginFn(commonEnv, defaultLogger);
 
+  console.log(i++);
   legacyPluginCompat(app, plugin);
-  await app.listen()
+  console.log(i++);
+  await app.listen();
+  console.log(i++);
 }
 
 let executorEnv: ExecutorEnv | undefined = undefined;

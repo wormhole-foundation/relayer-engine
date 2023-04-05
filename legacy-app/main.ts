@@ -31,15 +31,19 @@ async function main() {
   const env = Environment.TESTNET;
   const app = new StandardRelayerApp(env, {
     name: "example-legacy-app",
+    redis: {
+      host: "localhost",
+      port: 6379,
+    },
     privateKeys: {
       [CHAIN_ID_AVAX]: [
-        "0xddadef4776be04a195530bb6e9e82013cee5ca442b53db4d6668246d9e6834a8",
+        "0xddadef4776be04a195530bb6e9e82013cee5ca442b53db4d6668246d9e6834a8", // random, not funded
       ],
     },
     logger,
   });
   const pluginConfig = JSON.parse(
-    String(fs.readFileSync("./plugins/dummy_plugin/config/testnet.json"))
+    String(fs.readFileSync("./plugins/dummy_plugin/config/devnet.json"))
   );
 
   const plugin = new DummyPlugin({} as any, pluginConfig, logger);
