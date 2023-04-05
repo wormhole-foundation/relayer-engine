@@ -1,19 +1,8 @@
-import {
-  ActionExecutor,
-  assertArray,
-  CommonPluginEnv,
-  ContractFilter,
-  ParsedVaaWithBytes,
-  Plugin,
-  Providers,
-  sleep,
-  StagingAreaKeyLock,
-  Workflow,
-  WorkflowOptions,
-} from "relayer-engine";
+import { LegacyPluginCompat as L, ParsedVaaWithBytes, sleep } from "relayer-engine";
 import * as wh from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { parseVaa } from "@certusone/wormhole-sdk";
+import { assertArray } from "./utils";
 
 export interface DummyPluginConfig {
   spyServiceFilters: { chainId: wh.ChainId; emitterAddress: string }[];
@@ -32,10 +21,12 @@ interface WorkflwoPayloadDeserialized {
   count: number;
 }
 
+
+
 const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
-export class DummyPlugin implements Plugin<WorkflowPayload> {
+export class DummyPlugin implements L.Plugin<WorkflowPayload> {
   // configuration fields used by engine
   readonly shouldSpy: boolean = true;
   readonly shouldRest: boolean = false;
@@ -47,7 +38,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   pluginConfig: DummyPluginConfig;
 
   constructor(
-    readonly engineConfig: CommonPluginEnv,
+    readonly engineConfig: L.CommonPluginEnv,
     pluginConfigRaw: Record<string, any>,
     readonly logger: Logger,
   ) {
@@ -68,17 +59,17 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     };
   }
 
-  getFilters(): ContractFilter[] {
+  getFilters(): L.ContractFilter[] {
     return this.pluginConfig.spyServiceFilters;
   }
 
   async consumeEvent(
     vaa: ParsedVaaWithBytes,
-    stagingArea: StagingAreaKeyLock,
+    stagingArea: L.StagingAreaKeyLock,
   ): Promise<
     | {
         workflowData: WorkflowPayload;
-        workflowOptions?: WorkflowOptions;
+        workflowOptions?: L.WorkflowOptions;
       }
     | undefined
   > {
@@ -108,9 +99,9 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
   }
 
   async handleWorkflow(
-    workflow: Workflow,
-    providers: Providers,
-    execute: ActionExecutor,
+    workflow: L.Workflow,
+    providers: L.Providers,
+    execute: L.ActionExecutor,
   ): Promise<void> {
     this.logger.info("Got workflow", { workflowId: workflow.id });
     this.logger.debug(JSON.stringify(workflow, undefined, 2));
@@ -144,7 +135,7 @@ export class DummyPlugin implements Plugin<WorkflowPayload> {
     this.logger.info(`Result of action on fuji ${pubkey}, Count: ${count}`);
   }
 
-  parseWorkflowPayload(workflow: Workflow): WorkflwoPayloadDeserialized {
+  parseWorkflowPayload(workflow: L.Workflow): WorkflwoPayloadDeserialized {
     const bytes = Buffer.from(workflow.data.vaa, "base64");
     const vaa = parseVaa(bytes) as ParsedVaaWithBytes;
     vaa.bytes = bytes;

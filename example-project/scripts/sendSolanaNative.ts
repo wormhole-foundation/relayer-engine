@@ -1,7 +1,10 @@
 import * as wh from "@certusone/wormhole-sdk";
+import { CONTRACTS } from "@certusone/wormhole-sdk";
 import * as web3 from "@solana/web3.js";
-import * as relayerEngine from "relayer-engine";
-import { nnull, sleep } from "relayer-engine";
+import { nnull } from "../plugins/dummy_plugin/src/utils";
+
+import { LegacyPluginCompat, sleep } from "relayer-engine";
+const { Mode, loadRelayerEngineConfig } = LegacyPluginCompat;
 
 // Test script to send VAAs from devnet Solana to Fuji Avax
 // By default it sends 1 VAA
@@ -9,9 +12,9 @@ import { nnull, sleep } from "relayer-engine";
 // Calling with `ts-node sendSolanaNative.ts loop sends VAAs in a loop every 10 sec
 async function main() {
   console.log(process.argv);
-  const configs = await relayerEngine.loadRelayerEngineConfig(
+  const configs = await loadRelayerEngineConfig(
     "./relayer-engine-config",
-    relayerEngine.Mode.BOTH,
+    Mode.BOTH,
   );
 
   console.log("");
@@ -42,11 +45,14 @@ async function main() {
 
   const tx = await wh.transferNativeSol(
     conn,
-    nnull(solanaConfig.bridgeAddress),
-    nnull(solanaConfig.tokenBridgeAddress),
+    nnull(CONTRACTS.TESTNET.solana.core),
+    nnull(CONTRACTS.TESTNET.solana.token_bridge),
     payer.publicKey,
     BigInt(100_000_000),
-    wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
+    wh.tryNativeToUint8Array(
+      nnull(CONTRACTS.TESTNET.avalanche.token_bridge),
+      6,
+    ),
     fujiConfig.chainId,
   );
   tx.partialSign(payer);
@@ -66,11 +72,14 @@ async function main() {
       try {
         const tx = await wh.transferNativeSol(
           conn,
-          nnull(solanaConfig.bridgeAddress),
-          nnull(solanaConfig.tokenBridgeAddress),
+          nnull(CONTRACTS.TESTNET.solana.core),
+          nnull(CONTRACTS.TESTNET.solana.token_bridge),
           payer.publicKey,
           BigInt(100_000_000),
-          wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
+          wh.tryNativeToUint8Array(
+            nnull(CONTRACTS.TESTNET.avalanche.token_bridge),
+            6,
+          ),
           fujiConfig.chainId,
         );
         tx.partialSign(payer);
@@ -94,11 +103,14 @@ async function main() {
       for (let i = 1; i < times; i++) {
         const tx = await wh.transferNativeSol(
           conn,
-          nnull(solanaConfig.bridgeAddress),
-          nnull(solanaConfig.tokenBridgeAddress),
+          nnull(CONTRACTS.TESTNET.solana.core),
+          nnull(CONTRACTS.TESTNET.solana.token_bridge),
           payer.publicKey,
           BigInt(100_000_000),
-          wh.tryNativeToUint8Array(nnull(fujiConfig.bridgeAddress), 6),
+          wh.tryNativeToUint8Array(
+            nnull(CONTRACTS.TESTNET.avalanche.token_bridge),
+            6,
+          ),
           fujiConfig.chainId,
         );
         tx.partialSign(payer);
@@ -116,7 +128,7 @@ async function main() {
         "https://wormhole-v2-testnet-api.certus.one",
         "solana",
         await wh.getEmitterAddressSolana(
-          nnull(solanaConfig.tokenBridgeAddress),
+          nnull(CONTRACTS.TESTNET.solana.token_bridge),
         ),
         seq,
       );

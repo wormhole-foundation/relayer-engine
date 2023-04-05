@@ -1,4 +1,7 @@
-import * as relayerEngine from "relayer-engine";
+import {
+  Environment,
+  LegacyPluginCompat as relayerEngine,
+} from "relayer-engine";
 import {
   DummyPlugin,
   DummyPluginConfig,
@@ -15,15 +18,18 @@ async function main() {
     relayerEngine.Mode.BOTH;
 
   // run relayer engine
-  await relayerEngine.run({
-    configs: "./relayer-engine-config",
-    plugins: {
-      [DummyPlugin.pluginName]: (engineConfig, logger) =>
-        new DummyPlugin(engineConfig, pluginConfig, logger),
-    },
+  await relayerEngine.run(
+    {
+      configs: "./relayer-engine-config",
+      plugins: {
+        [DummyPlugin.pluginName]: (engineConfig, logger) =>
+          new DummyPlugin(engineConfig, pluginConfig, logger),
+      },
 
-    mode,
-  });
+      mode,
+    },
+    Environment.TESTNET,
+  );
 }
 
 // allow main to be an async function and block until it rejects or resolves

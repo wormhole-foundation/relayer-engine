@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
-    "@certusone/wormhole-sdk": "0.9.6",
+    "@certusone/wormhole-sdk": "^0.9.11",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/linked-list": "^5.2.4",
     "@datastructures-js/queue": "^4.2.3",
