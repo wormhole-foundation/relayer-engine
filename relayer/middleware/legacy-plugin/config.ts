@@ -81,7 +81,7 @@ export interface RunArgs {
   plugins: { [pluginName: string]: EngineInitFn<Plugin> };
 }
 
-/** @deprecated use the app builder directly, see example project or source code for `run`*/
+/** @deprecated use the app builder directly, see example project for modern APIs or source code for this function*/
 export async function run(args: RunArgs, env: Environment): Promise<void> {
   if (Object.keys(args.plugins).length !== 1) {
     defaultLogger.error(
