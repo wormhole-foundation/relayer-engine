@@ -1,7 +1,7 @@
 import {
   ContractFilter,
   StagingAreaKeyLock,
-  LegacyPluginDefinition,
+  LegacyPluginCompat,
   ParsedVaaWithBytes,
 } from "wormhole-relayer";
 import { sleep } from "wormhole-relayer/utils";
@@ -31,7 +31,7 @@ const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1) + min);
 
 export class DummyPlugin
-  implements LegacyPluginDefinition.Plugin<WorkflowPayload>
+  implements LegacyPluginCompat.Plugin<WorkflowPayload>
 {
   // configuration fields used by engine
   readonly shouldSpy: boolean = true;
@@ -44,7 +44,7 @@ export class DummyPlugin
   pluginConfig: DummyPluginConfig;
 
   constructor(
-    readonly engineConfig: LegacyPluginDefinition.CommonPluginEnv,
+    readonly engineConfig: LegacyPluginCompat.CommonPluginEnv,
     pluginConfigRaw: Record<string, any>,
     readonly logger: Logger
   ) {
@@ -75,7 +75,7 @@ export class DummyPlugin
   ): Promise<
     | {
         workflowData: WorkflowPayload;
-        workflowOptions?: LegacyPluginDefinition.WorkflowOptions;
+        workflowOptions?: LegacyPluginCompat.WorkflowOptions;
       }
     | undefined
   > {
@@ -105,9 +105,9 @@ export class DummyPlugin
   }
 
   async handleWorkflow(
-    workflow: LegacyPluginDefinition.Workflow<WorkflowPayload>,
-    providers: LegacyPluginDefinition.Providers,
-    execute: LegacyPluginDefinition.ActionExecutor
+    workflow: LegacyPluginCompat.Workflow<WorkflowPayload>,
+    providers: LegacyPluginCompat.Providers,
+    execute: LegacyPluginCompat.ActionExecutor
   ): Promise<void> {
     this.logger.info("Got workflow", { workflowId: workflow.id });
     this.logger.debug(JSON.stringify(workflow, undefined, 2));
@@ -142,7 +142,7 @@ export class DummyPlugin
   }
 
   parseWorkflowPayload(
-    workflow: LegacyPluginDefinition.Workflow
+    workflow: LegacyPluginCompat.Workflow
   ): WorkflwoPayloadDeserialized {
     const bytes = Buffer.from(workflow.data.vaa, "base64");
     const vaa = parseVaa(bytes) as ParsedVaaWithBytes;

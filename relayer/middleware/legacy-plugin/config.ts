@@ -138,6 +138,7 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
   const plugin = pluginFn(commonEnv, defaultLogger)
 
   legacyPluginCompat(app, plugin);
+  await app.listen()
 }
 
 let executorEnv: ExecutorEnv | undefined = undefined;
