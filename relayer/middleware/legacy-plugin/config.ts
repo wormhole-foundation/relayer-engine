@@ -2,7 +2,9 @@ import { ChainId } from "@certusone/wormhole-sdk";
 import {
   ChainConfigInfo,
   CommonPluginEnv,
+  EngineInitFn,
   EnvType,
+  Plugin,
   WorkflowOptions,
 } from "./legacy-plugin-definition";
 
@@ -32,7 +34,7 @@ interface RedisConfig {
   cluster?: boolean;
 }
 
-interface CommonEnv {
+export interface CommonEnv {
   namespace?: string;
   logLevel?: string;
   logFormat?: "json" | "console" | "";
@@ -51,56 +53,95 @@ interface CommonEnv {
   defaultWorkflowOptions: WorkflowOptions;
 }
 // assert CommonEnv is superset of CommonPluginEnv
-let _x: CommonPluginEnv = {} as CommonEnv;
 
-type ListenerEnv = {
+export type ListenerEnv = {
   spyServiceHost: string;
   nextVaaFetchingWorkerTimeoutSeconds?: number;
   restPort?: number;
 };
 
 type PrivateKeys = { [id in ChainId]: string[] };
-type ExecutorEnv = {
+export type ExecutorEnv = {
   privateKeys: PrivateKeys;
   actionInterval?: number; // milliseconds between attempting to process actions
 };
 
-type SupportedToken = {
-  chainId: ChainId;
-  address: string;
-};
 
-let loggingEnv: CommonEnv | undefined = undefined;
+export type CommonEnvRun = Omit<Omit<CommonEnv, "envType">, "mode">;
+export interface RunArgs {
+  // for configs, provide file path or config objects
+  configs:
+    | string
+    | {
+        commonEnv: CommonEnvRun;
+        executorEnv?: ExecutorEnv;
+        listenerEnv?: ListenerEnv;
+      };
+  mode: Mode;
+  plugins: { [pluginName: string]: EngineInitFn<Plugin> };
+}
+
+/** @deprecated use the app builder directly, see example project or source code for `run`*/
+export async function run(args: RunArgs, env: Environment): Promise<void> {
+  if (Object.keys(args.plugins).length !== 1) {
+    defaultLogger.error(
+      `Plugin compat layer supports running 1 plugin, ${args.plugins.length} provided`
+    );
+  }
+
+  // load engine config 
+  let configs: {
+    commonEnv: CommonEnvRun;
+    executorEnv?: ExecutorEnv;
+    listenerEnv?: ListenerEnv;
+  };
+  if (typeof args.configs === "string") {
+    configs = await loadRelayerEngineConfig(args.configs, Mode.BOTH, {
+      privateKeyEnv: true,
+    });
+  } else {
+    configs = args.configs;
+  }
+  const { commonEnv, executorEnv, listenerEnv } = configs;
+
+  const redis = configs.commonEnv.redis;
+  const app = new StandardRelayerApp(env, {
+    name: "legacy_relayer",
+    redis: redis
+      ? {
+          host: redis?.host,
+          port: redis?.port,
+          // todo: tls: undefined,
+          username: redis?.username,
+          password: redis?.password,
+        }
+      : {},
+    redisCluster: redis?.cluster
+      ? {
+          dnsLookup: (address: any, callback: any) => callback(null, address),
+          slotsRefreshTimeout: 1000,
+          redisOptions: {
+            // todo: tls: undefined,
+            username: redis?.username,
+            password: redis?.password,
+          },
+        }
+      : undefined,
+    redisClusterEndpoints: redis?.cluster ? [redis.host] : [],
+    spyEndpoint: listenerEnv.spyServiceHost,
+    logger: defaultLogger,
+    privateKeys: executorEnv.privateKeys,
+  });
+
+  const [pluginName, pluginFn] = Object.entries(args.plugins)[0]
+  const plugin = pluginFn(commonEnv, defaultLogger)
+
+  legacyPluginCompat(app, plugin);
+}
+
 let executorEnv: ExecutorEnv | undefined = undefined;
 let commonEnv: CommonEnv | undefined = undefined;
 let listenerEnv: ListenerEnv | undefined = undefined;
-
-function getCommonEnv(): CommonEnv {
-  if (!commonEnv) {
-    throw new Error(
-      "Tried to get CommonEnv but it does not exist. Has it been loaded yet?"
-    );
-  }
-  return commonEnv;
-}
-
-function getExecutorEnv(): ExecutorEnv {
-  if (!executorEnv) {
-    throw new Error(
-      "Tried to get ExecutorEnv but it does not exist. Has it been loaded yet?"
-    );
-  }
-  return executorEnv;
-}
-
-function getListenerEnv(): ListenerEnv {
-  if (!listenerEnv) {
-    throw new Error(
-      "Tried to get ListenerEnv but it does not exist. Has it been loaded yet?"
-    );
-  }
-  return listenerEnv;
-}
 
 export function loadRelayerEngineConfig(
   dir: string,
@@ -317,6 +358,10 @@ import {
   nnull,
   EngineError,
 } from "../../utils";
+import { StandardRelayerApp } from "../../application-standard";
+import { Environment } from "../../application";
+import { defaultLogger } from "../../logging";
+import { legacyPluginCompat } from "./legacy-plugin.middleware";
 
 async function loadUntypedEnvs(
   dir: string,

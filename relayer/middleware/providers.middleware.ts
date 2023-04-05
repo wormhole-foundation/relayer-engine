@@ -105,6 +105,7 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
   const providers: Providers = {
     evm: {},
     solana: [],
+    untyped: {},
   };
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
     const chainId = Number(chainIdStr) as ChainId;
@@ -115,6 +116,8 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
       );
     } else if (chainId === CHAIN_ID_SOLANA) {
       providers.solana = endpoints.map((url) => new Connection(url));
+    } else {
+      providers.untyped[chainId] = endpoints.map((c) => ({ rpcUrl: c }));
     }
   }
   return providers;
