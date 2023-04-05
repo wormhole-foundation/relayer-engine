@@ -2,9 +2,11 @@ import * as wh from "@certusone/wormhole-sdk";
 import { CONTRACTS } from "@certusone/wormhole-sdk";
 import * as web3 from "@solana/web3.js";
 import * as relayerEngine from "wormhole-relayer";
-import { loadRelayerEngineConfig, Mode } from "wormhole-relayer";
 import { sleep } from "wormhole-relayer/utils";
 import { nnull } from "../plugins/dummy_plugin/src/utils";
+
+import { LegacyPluginCompat } from "wormhole-relayer";
+const { Mode, loadRelayerEngineConfig } = LegacyPluginCompat;
 
 // Test script to send VAAs from devnet Solana to Fuji Avax
 // By default it sends 1 VAA

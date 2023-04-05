@@ -3,7 +3,7 @@ import yargs from "yargs";
 import * as Koa from "koa";
 import {
   Environment,
-  legacyPluginCompat,
+  LegacyPluginCompat,
   LoggingContext,
   RelayerApp,
   SourceTxContext,
@@ -43,7 +43,7 @@ async function main() {
   );
 
   const plugin = new DummyPlugin({} as any, pluginConfig, logger);
-  legacyPluginCompat(app, plugin);
+  LegacyPluginCompat.legacyPluginCompat(app, plugin);
 
   app.use(async (err, ctx, next) => {
     ctx.logger.error("error middleware triggered");

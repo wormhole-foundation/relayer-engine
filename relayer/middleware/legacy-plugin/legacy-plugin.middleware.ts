@@ -1,27 +1,10 @@
-import { Middleware } from "../../compose.middleware";
-import { Context } from "../../context";
-import Redis, { Cluster, ClusterNode, RedisOptions } from "ioredis";
 import {
   ChainId,
   CHAIN_ID_SOLANA,
   EVMChainId,
-  getSignedVAAWithRetry,
   isEVMChain,
-  ParsedVaa,
-  parseVaa,
-  redeemOnSolana,
-  SignedVaa,
-  solana,
 } from "@certusone/wormhole-sdk";
-import {
-  defaultWormholeRpcs,
-  Environment,
-  ParsedVaaWithBytes,
-  RelayerApp,
-} from "../../application";
-import { Logger } from "winston";
-import { createPool, Pool } from "generic-pool";
-import { sleep } from "../../utils";
+import { ParsedVaaWithBytes, RelayerApp } from "../../application";
 import {
   Plugin,
   Providers as LegacyProviders,
@@ -32,8 +15,6 @@ import { LoggingContext } from "../logger.middleware";
 import { StagingAreaContext } from "../staging-area.middleware";
 import { ProviderContext, Providers } from "../providers.middleware";
 import {
-  ActionExecutor,
-  ActionFunc,
   SolanaWallet,
   Wallet,
   WalletContext,
@@ -87,8 +68,6 @@ export function legacyPluginCompat<Ext>(
     );
     next();
   });
-
-  return async (ctx: Plugin<Ext>, next: any) => {};
 }
 
 function makeExecuteWrapper(ctx: PluginContext<any>): {
