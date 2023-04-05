@@ -107,6 +107,7 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
   const redis = configs.commonEnv.redis;
   const app = new StandardRelayerApp(env, {
     name: "legacy_relayer",
+    fetchSourceTxhash: false,
     redis: redis
       ? {
           host: redis?.host,
