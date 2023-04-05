@@ -87,9 +87,6 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
       `Plugin compat layer supports running 1 plugin, ${args.plugins.length} provided`
     );
   }
-  let i = 0;
-
-  console.log(i++);
 
   // load engine config
   let configs: {
@@ -105,9 +102,6 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
     configs = args.configs;
   }
   const { commonEnv, executorEnv, listenerEnv } = configs;
-
-  console.log(i++);
-  console.log(JSON.stringify(configs, undefined, 2));
 
   const redis = configs.commonEnv.redis;
   const app = new StandardRelayerApp(env, {
@@ -138,16 +132,12 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
     logger: defaultLogger,
     privateKeys: executorEnv.privateKeys,
   });
-  console.log(i++);
 
   const [pluginName, pluginFn] = Object.entries(args.plugins)[0];
   const plugin = pluginFn(commonEnv, defaultLogger);
 
-  console.log(i++);
   legacyPluginCompat(app, plugin);
-  console.log(i++);
   await app.listen();
-  console.log(i++);
 }
 
 let executorEnv: ExecutorEnv | undefined = undefined;
