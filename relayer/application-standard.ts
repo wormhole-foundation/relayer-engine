@@ -40,7 +40,7 @@ const defaultOpts: Partial<StandardRelayerAppOpts> = {
   workflows: {
     retries: 3,
   },
-  fetchSourceTxhash: true
+  fetchSourceTxhash: true,
 };
 
 export type StandardRelayerContext = LoggingContext &
@@ -58,10 +58,16 @@ export class StandardRelayerApp<
     const logger = opts.logger;
     delete opts.logger;
     // now we can merge
-    opts = mergeDeep({},defaultOpts, opts);
+    opts = mergeDeep({}, defaultOpts, opts);
 
-    const { privateKeys, name, spyEndpoint, redis, redisCluster, redisClusterEndpoints } =
-      opts;
+    const {
+      privateKeys,
+      name,
+      spyEndpoint,
+      redis,
+      redisCluster,
+      redisClusterEndpoints,
+    } = opts;
     super(env, opts);
     this.spy(spyEndpoint);
     this.useStorage({
@@ -75,14 +81,27 @@ export class StandardRelayerApp<
     this.logger(logger);
     this.use(logging(logger)); // <-- logging middleware
     this.use(
-      missedVaas(this, { namespace: name, logger, redis, redisCluster, redisClusterEndpoints })
+      missedVaas(this, {
+        namespace: name,
+        logger,
+        redis,
+        redisCluster,
+        redisClusterEndpoints,
+      })
     );
-    this.use(providers());
+    this.use(providers(opts.providers));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
       this.use(wallets({ logger, namespace: name, privateKeys })); // <-- you need valid private keys to turn on this middleware
     }
     this.use(tokenBridgeContracts());
-    this.use(stagingArea({ namespace: name, redisCluster, redis, redisClusterEndpoints }));
+    this.use(
+      stagingArea({
+        namespace: name,
+        redisCluster,
+        redis,
+        redisClusterEndpoints,
+      })
+    );
     if (opts.fetchSourceTxhash) {
       this.use(sourceTx());
     }
