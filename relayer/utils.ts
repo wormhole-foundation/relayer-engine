@@ -57,8 +57,8 @@ export function parseVaaWithBytes(bytes: SignedVaa): ParsedVaaWithBytes {
  * @param target
  * @param ...sources
  */
-export function mergeDeep<T>(target: Partial<T>, ...sources: Partial<T>[]): T {
-  if (!sources.length) {
+export function mergeDeep<T>(target: Partial<T>, sources: Partial<T>[], maxDepth = 10): T {
+  if (!sources.length || maxDepth === 0) {
     // @ts-ignore
     return target;
   }
@@ -68,12 +68,12 @@ export function mergeDeep<T>(target: Partial<T>, ...sources: Partial<T>[]): T {
     for (const key in source) {
       if (isObject(source[key])) {
         if (!target[key]) Object.assign(target, { [key]: {} });
-        mergeDeep(target[key], source[key]);
+        mergeDeep(target[key], [source[key]], maxDepth-1);
       } else {
         Object.assign(target, { [key]: source[key] });
       }
     }
   }
 
-  return mergeDeep(target, ...sources);
+  return mergeDeep(target, sources, maxDepth);
 }

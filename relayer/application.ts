@@ -93,7 +93,7 @@ export class RelayerApp<ContextT extends Context> {
     public env: Environment = Environment.TESTNET,
     opts: RelayerAppOpts = {}
   ) {
-    this.opts = mergeDeep({}, defaultOpts(env), opts);
+    this.opts = mergeDeep({}, [defaultOpts(env), opts]);
   }
 
   /**

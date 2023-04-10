@@ -97,6 +97,11 @@ export class Storage<T extends Context> {
 
   constructor(private relayer: RelayerApp<T>, opts: StorageOptions) {
     this.opts = Object.assign({}, defaultOptions, opts);
+    // ensure redis is defined 
+    if (!this.opts.redis) {
+      this.opts.redis = {};
+    }
+
     this.opts.redis.maxRetriesPerRequest = null; //Added because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
     this.prefix = `{${this.opts.namespace ?? this.opts.queueName}}`;
     this.redis = this.opts.redisClusterEndpoints
