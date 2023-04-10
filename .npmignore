@@ -1,6 +1,8 @@
 ## same as .gitignore, but include lib
 # lib
 
+example-app
+
 # Logs
 logs
 *.log

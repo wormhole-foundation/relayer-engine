@@ -22,7 +22,12 @@ import {
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
   solana: Connection[];
+  untyped: Partial<Record<ChainId, UntypedProvider[]>>;
 }
+
+export type UntypedProvider = {
+  rpcUrl: string;
+};
 
 export interface ProviderContext extends Context {
   providers: Providers;
@@ -100,6 +105,7 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
   const providers: Providers = {
     evm: {},
     solana: [],
+    untyped: {},
   };
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
     const chainId = Number(chainIdStr) as ChainId;
@@ -110,6 +116,8 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
       );
     } else if (chainId === CHAIN_ID_SOLANA) {
       providers.solana = endpoints.map((url) => new Connection(url));
+    } else {
+      providers.untyped[chainId] = endpoints.map((c) => ({ rpcUrl: c }));
     }
   }
   return providers;

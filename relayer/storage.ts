@@ -104,7 +104,7 @@ export class Storage<T extends Context> {
 
     this.opts.redis.maxRetriesPerRequest = null; //Added because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
     this.prefix = `{${this.opts.namespace ?? this.opts.queueName}}`;
-    this.redis = this.opts.redisClusterEndpoints
+    this.redis = this.opts.redisClusterEndpoints?.length > 0
       ? new Redis.Cluster(
           this.opts.redisClusterEndpoints,
           this.opts.redisCluster
