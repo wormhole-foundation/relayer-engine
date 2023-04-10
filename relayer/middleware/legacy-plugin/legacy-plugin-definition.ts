@@ -18,14 +18,6 @@ export interface CommonPluginEnv {
   wormholeRpc: string;
 }
 
-export enum EnvType {
-  MAINNET = "MAINNET",
-  DEVNET = "DEVNET",
-  TILT = "TILT",
-  LOCALHOST = "LOCALHOST",
-  OTHER = "OTHER",
-}
-
 export interface ChainConfigInfo {
   chainId: ChainId;
   chainName: string;

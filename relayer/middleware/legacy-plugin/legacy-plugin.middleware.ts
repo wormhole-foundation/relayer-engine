@@ -57,7 +57,7 @@ export function legacyPluginCompat<Ext>(
       Object.assign(providers)
     );
     if (!res) {
-      next();
+      return next();
     }
     const { workflowOptions, workflowData } = res!;
 
@@ -66,7 +66,7 @@ export function legacyPluginCompat<Ext>(
       providers,
       makeExecuteWrapper(ctx)
     );
-    next();
+    return next();
   });
 }
 

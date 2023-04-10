@@ -1,9 +1,7 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import {
   ChainConfigInfo,
-  CommonPluginEnv,
   EngineInitFn,
-  EnvType,
   Plugin,
   WorkflowOptions,
 } from "./legacy-plugin-definition";
@@ -66,7 +64,7 @@ export type ExecutorEnv = {
   actionInterval?: number; // milliseconds between attempting to process actions
 };
 
-export type CommonEnvRun = Omit<Omit<CommonEnv, "envType">, "mode">;
+export type CommonEnvRun = Omit<CommonEnv, "mode">;
 export interface RunArgs {
   // for configs, provide file path or config objects
   configs:
