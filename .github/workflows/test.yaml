@@ -38,5 +38,5 @@ jobs:
         uses: creyD/prettier_action@master
         with:
           dry: True
-          prettier_options: "--write **.*.{ts,md,json}"
+          prettier_options: --write 
           # github_token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
