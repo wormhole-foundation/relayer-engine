@@ -15,7 +15,7 @@ import { ethers } from "ethers";
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
-  emitterAddressStr: string
+  emitterAddressStr: string,
 ): string {
   if (
     chainId === wormholeSdk.CHAIN_ID_SOLANA ||
@@ -27,7 +27,7 @@ export function encodeEmitterAddress(
   }
   if (wormholeSdk.isCosmWasmChain(chainId)) {
     return Buffer.from(
-      zeroPad(bech32.fromWords(bech32.decode(emitterAddressStr).words), 32)
+      zeroPad(bech32.fromWords(bech32.decode(emitterAddressStr).words), 32),
     ).toString("hex");
   }
   if (wormholeSdk.isEVMChain(chainId)) {
@@ -65,7 +65,11 @@ export function parseVaaWithBytes(bytes: SignedVaa): ParsedVaaWithBytes {
  * @param target
  * @param ...sources
  */
-export function mergeDeep<T>(target: Partial<T>, sources: Partial<T>[], maxDepth = 10): T {
+export function mergeDeep<T>(
+  target: Partial<T>,
+  sources: Partial<T>[],
+  maxDepth = 10,
+): T {
   if (!sources.length || maxDepth === 0) {
     // @ts-ignore
     return target;
@@ -76,7 +80,7 @@ export function mergeDeep<T>(target: Partial<T>, sources: Partial<T>[], maxDepth
     for (const key in source) {
       if (isObject(source[key])) {
         if (!target[key]) Object.assign(target, { [key]: {} });
-        mergeDeep(target[key], [source[key]], maxDepth-1);
+        mergeDeep(target[key], [source[key]], maxDepth - 1);
       } else {
         Object.assign(target, { [key]: source[key] });
       }
@@ -97,7 +101,7 @@ export class EngineError extends Error {
 }
 
 export function maybeConcat<T>(...arrs: (T[] | undefined)[]): T[] {
-  return arrs.flatMap((arr) => (arr ? arr : []));
+  return arrs.flatMap(arr => (arr ? arr : []));
 }
 
 export function nnull<T>(x: T | undefined | null, errMsg?: string): T {
@@ -128,7 +132,7 @@ export function assertInt(x: any, fieldName?: string): number {
 export function assertArray<T>(
   x: any,
   name: string,
-  elemsPred?: (x: any) => boolean
+  elemsPred?: (x: any) => boolean,
 ): T[] {
   if (!Array.isArray(x) || (elemsPred && !x.every(elemsPred))) {
     throw new EngineError(`Expected value to be array, found ${x}`, {

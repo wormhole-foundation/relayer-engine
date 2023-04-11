@@ -27,7 +27,7 @@ interface MissedVaaOpts {
 
 export function missedVaas(
   app: RelayerApp<any>,
-  opts: MissedVaaOpts
+  opts: MissedVaaOpts,
 ): Middleware {
   opts.redis = opts.redis || { host: "localhost", port: 6379 };
   opts.redis.keyPrefix = opts.namespace;
@@ -68,7 +68,7 @@ export function missedVaas(
     const lastSeenSequence = await getLastSequenceForContract(
       redis,
       vaa.emitterChain,
-      vaa.emitterAddress
+      vaa.emitterAddress,
     );
 
     if (lastSeenSequence && lastSeenSequence.lastSequence + 1n < vaa.sequence) {
@@ -84,24 +84,24 @@ export function missedVaas(
             wormholeRpcs,
             vaa.emitterChain as ChainId,
             vaa.emitterAddress,
-            currentSeq
+            currentSeq,
           );
           let addr = vaa.emitterAddress.toString("hex");
           let seq = currentSeq.toString();
           ctx.logger?.info(
-            `Possibly missed a vaa: ${vaa.emitterChain}/${addr}/${seq}. Adding to queue.`
+            `Possibly missed a vaa: ${vaa.emitterChain}/${addr}/${seq}. Adding to queue.`,
           );
           await ctx.processVaa(Buffer.from(fetchedVaa.vaaBytes)); // push the missed vaa through all the middleware / storage service if used.
         } catch (e) {
           ctx.logger?.error(
             `Could not process missed vaa. Sequence: ${currentSeq}`,
-            e
+            e,
           );
         }
       }
     } else {
       ctx.logger?.debug(
-        "No missed VAAs detected between this VAA and the last VAA we processed."
+        "No missed VAAs detected between this VAA and the last VAA we processed.",
       );
     }
     await redisPool.release(redis);
@@ -116,7 +116,7 @@ export function missedVaas(
           vaa.emitterChain,
           vaa.emitterAddress,
           vaa.sequence,
-          ctx.logger
+          ctx.logger,
         );
       } finally {
         await redisPool.release(redis);
@@ -134,7 +134,7 @@ async function getLastSequenceForContract(
   redis: Redis | Cluster,
   emitterChain: number,
   emitterAddress: Buffer,
-  watch: boolean = false
+  watch: boolean = false,
 ): Promise<{ lastSequence: bigint; timestamp: Date } | null> {
   let key = getKey(emitterChain, emitterAddress);
   if (watch) {
@@ -155,19 +155,19 @@ async function setLastSequenceForContract(
   emitterChain: number,
   emitterAddress: Buffer,
   seq: bigint,
-  logger?: Logger
+  logger?: Logger,
 ): Promise<boolean> {
   // step 1. fetch current last sequence
   let lastSeq = await getLastSequenceForContract(
     redis,
     emitterChain,
     emitterAddress,
-    true
+    true,
   );
   // step 2. if we have already seen an older seq, skip
   if (lastSeq && BigInt(lastSeq.lastSequence) > seq) {
     logger?.debug(
-      `Did not update last sequence due to an older one being processed. Last seen ${lastSeq.lastSequence.toString()}, Current: ${seq.toString()}.`
+      `Did not update last sequence due to an older one being processed. Last seen ${lastSeq.lastSequence.toString()}, Current: ${seq.toString()}.`,
     );
     await redis.unwatch();
     return false;
@@ -179,7 +179,7 @@ async function setLastSequenceForContract(
       .multi()
       .set(
         getKey(emitterChain, emitterAddress),
-        JSON.stringify({ lastSequence: seq.toString(), timestamp: Date.now() })
+        JSON.stringify({ lastSequence: seq.toString(), timestamp: Date.now() }),
       )
       .exec();
   } catch (e) {
@@ -192,7 +192,7 @@ async function fetchVaa(
   rpc: string[],
   chain: ChainId,
   emitterAddress: Buffer,
-  sequence: bigint
+  sequence: bigint,
 ) {
   return await getSignedVAAWithRetry(
     rpc,
@@ -201,14 +201,14 @@ async function fetchVaa(
     sequence.toString(),
     { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
     100,
-    2
+    2,
   );
 }
 
 async function startMissedVaaWorker(
   pool: Pool<Cluster | Redis>,
   app: RelayerApp<any>,
-  opts: MissedVaaOpts
+  opts: MissedVaaOpts,
 ) {
   const wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
   const logger = opts.logger;
@@ -220,21 +220,21 @@ async function startMissedVaaWorker(
         logger.debug(`Checking for missed VAAs.`);
         let addressWithLastSequence = await Promise.all(
           app.filters
-            .map((filter) => ({
+            .map(filter => ({
               emitterChain: filter.emitterFilter.chainId,
               emitterAddress: Buffer.from(
                 filter.emitterFilter.emitterAddress,
-                "hex"
+                "hex",
               ),
             }))
-            .map(async (address) => {
+            .map(async address => {
               const lastSequence = await getLastSequenceForContract(
                 redis,
                 address.emitterChain,
-                address.emitterAddress
+                address.emitterAddress,
               );
               return { address, lastSequence };
-            })
+            }),
         );
 
         for (const { address, lastSequence } of addressWithLastSequence) {
@@ -249,7 +249,7 @@ async function startMissedVaaWorker(
                 wormholeRpcs,
                 address.emitterChain as ChainId,
                 address.emitterAddress,
-                nextSequence
+                nextSequence,
               );
               logger?.info(`Found missed VAA via the missedVaaWorker.`, {
                 emitterChain: address.emitterChain,

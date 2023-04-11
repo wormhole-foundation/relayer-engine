@@ -82,7 +82,7 @@ export interface RunArgs {
 export async function run(args: RunArgs, env: Environment): Promise<void> {
   if (Object.keys(args.plugins).length !== 1) {
     defaultLogger.error(
-      `Plugin compat layer supports running 1 plugin, ${args.plugins.length} provided`
+      `Plugin compat layer supports running 1 plugin, ${args.plugins.length} provided`,
     );
   }
 
@@ -147,7 +147,7 @@ export function loadRelayerEngineConfig(
   mode: Mode,
   { privateKeyEnv = true }: { privateKeyEnv?: boolean } = {
     privateKeyEnv: true,
-  }
+  },
 ): Promise<RelayerEngineConfigs> {
   return loadUntypedEnvs(dir, mode, { privateKeyEnv }).then(validateEnvs);
 }
@@ -192,7 +192,7 @@ function validateEnvs(input: {
   if (input.rawExecutorEnv) {
     executorEnv = validateExecutorEnv(
       input.rawExecutorEnv,
-      commonEnv.supportedChains.map((c) => c.chainId)
+      commonEnv.supportedChains.map(c => c.chainId),
     );
   }
   if (input.rawListenerEnv) {
@@ -243,7 +243,7 @@ function validateCommonEnv(raw: Keys<CommonEnv>): CommonEnv {
     logFormat: raw.logFormat,
     supportedChains: assertArray<Keys<ChainConfigInfo>>(
       raw.supportedChains,
-      "supportedChains"
+      "supportedChains",
     ).map(validateChainConfig),
     numGuardians:
       raw.numGuardians && assertInt(raw.numGuardians, "numGuardians"),
@@ -258,7 +258,7 @@ function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
       raw.nextVaaFetchingWorkerTimeoutSeconds &&
       assertInt(
         raw.nextVaaFetchingWorkerTimeoutSeconds,
-        "nextVaaFetchingWorkerTimeoutSeconds"
+        "nextVaaFetchingWorkerTimeoutSeconds",
       ),
     restPort: raw.restPort ? assertInt(raw.restPort, "restPort") : undefined,
   };
@@ -266,7 +266,7 @@ function validateListenerEnv(raw: Keys<ListenerEnv>): ListenerEnv {
 
 function validateExecutorEnv(
   raw: Keys<ExecutorEnv & { privateKeys: ConfigPrivateKey[] }>,
-  chainIds: number[]
+  chainIds: number[],
 ): ExecutorEnv {
   return {
     privateKeys: validatePrivateKeys(raw.privateKeys, chainIds),
@@ -277,7 +277,7 @@ function validateExecutorEnv(
 
 //Polygon is not supported on local Tilt network atm.
 function validateChainConfig(
-  supportedChainRaw: Keys<ChainConfigInfo>
+  supportedChainRaw: Keys<ChainConfigInfo>,
 ): ChainConfigInfo {
   const msg = (fieldName: string) =>
     `Missing required field in chain config: ${fieldName}`;
@@ -298,13 +298,13 @@ function transformPrivateKeys(privateKeys: any): {
       assertInt(chainId, "chainId");
       assertArray(privateKeys, "privateKeys");
       return [chainId, privateKeys];
-    })
+    }),
   );
 }
 
 function validatePrivateKeys(
   privateKeys: any,
-  chainIds: number[]
+  chainIds: number[],
 ): {
   [chainId in ChainId]: string[];
 } {
@@ -319,14 +319,14 @@ function validatePrivateKeys(
     assertArray(pKeys, "privateKeys").forEach((key: any) => {
       if (typeof key !== "string") {
         throw new Error(
-          "Private key must be string type, found: " + typeof key
+          "Private key must be string type, found: " + typeof key,
         );
       }
     });
   });
-  if (!chainIds.every((c) => privateKeys[c])) {
+  if (!chainIds.every(c => privateKeys[c])) {
     throw new EngineError("privateKeys missing key from supported chains", {
-      chains: chainIds.filter((c) => !privateKeys[c]),
+      chains: chainIds.filter(c => !privateKeys[c]),
     });
   }
   return privateKeys;
@@ -367,7 +367,7 @@ async function loadUntypedEnvs(
   mode: Mode,
   { privateKeyEnv = false }: { privateKeyEnv?: boolean } = {
     privateKeyEnv: false,
-  }
+  },
 ): Promise<{
   mode: Mode;
   rawCommonEnv: any;
@@ -383,7 +383,7 @@ async function loadUntypedEnvs(
     dir,
     mode,
     rawCommonEnv,
-    privateKeyEnv
+    privateKeyEnv,
   );
   console.log("Successfully loaded the mode config file.");
 
@@ -415,19 +415,19 @@ async function loadExecutor(
   dir: string,
   mode: Mode,
   rawCommonEnv: any,
-  privateKeyEnv: boolean
+  privateKeyEnv: boolean,
 ): Promise<any> {
   if (mode == Mode.EXECUTOR || mode == Mode.BOTH) {
     const rawExecutorEnv = await loadFileAndParseToObject(
-      nodePath.join(dir, `${Mode.EXECUTOR.toLowerCase()}.json`)
+      nodePath.join(dir, `${Mode.EXECUTOR.toLowerCase()}.json`),
     );
 
     if (privateKeyEnv) {
       rawExecutorEnv.privateKeys = Object.assign(
         (rawExecutorEnv as ExecutorEnv).privateKeys,
         privateKeyEnvVarLoader(
-          (rawCommonEnv as CommonEnv).supportedChains.map((c) => c.chainId)
-        )
+          (rawCommonEnv as CommonEnv).supportedChains.map(c => c.chainId),
+        ),
       );
     }
     return rawExecutorEnv;
@@ -438,7 +438,7 @@ async function loadExecutor(
 async function loadListener(dir: string, mode: Mode): Promise<any> {
   if (mode == Mode.LISTENER || mode == Mode.BOTH) {
     return loadFileAndParseToObject(
-      nodePath.join(dir, `${Mode.LISTENER.toLowerCase()}.json`)
+      nodePath.join(dir, `${Mode.LISTENER.toLowerCase()}.json`),
     );
   }
   return undefined;
@@ -446,7 +446,7 @@ async function loadListener(dir: string, mode: Mode): Promise<any> {
 
 // todo: extend to take path w/o extension and look for all supported extensions
 export async function loadFileAndParseToObject(
-  path: string
+  path: string,
 ): Promise<Record<string, any>> {
   console.log("About to read contents of : " + path);
   const fileContent = fs.readFileSync(path, { encoding: "utf-8" });
@@ -472,7 +472,7 @@ function privateKeyEnvVarLoader(chains: ChainId[]): PrivateKeys {
     const str = process.env[`PRIVATE_KEYS_CHAIN_${chain}`];
     if (!str) {
       console.log(
-        `No PRIVATE_KEYS_CHAIN_${chain} env var, falling back to executor.json`
+        `No PRIVATE_KEYS_CHAIN_${chain} env var, falling back to executor.json`,
       );
       continue;
     }

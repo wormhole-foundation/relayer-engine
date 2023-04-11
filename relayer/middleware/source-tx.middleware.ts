@@ -26,7 +26,7 @@ const defaultOptsByEnv = {
 };
 
 export function sourceTx(
-  optsWithoutDefaults?: SourceTxOpts
+  optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
   return async (ctx, next) => {
@@ -44,12 +44,12 @@ export function sourceTx(
           opts.wormscanEndpoint,
           emitterChain,
           emitterAddress,
-          sequence
+          sequence,
         );
       } catch (e) {
         ctx.logger?.error(
           `could not obtain txHash, attempt: ${attempt} of ${opts.retries}.`,
-          e
+          e,
         );
         await sleep(attempt * 200); // linear wait
       }
@@ -57,7 +57,7 @@ export function sourceTx(
     ctx.logger?.debug(
       txHash === ""
         ? "Could not retrive tx hash."
-        : `Retrieved tx hash: ${txHash}`
+        : `Retrieved tx hash: ${txHash}`,
     );
     ctx.sourceTxHash = txHash;
     await next();
@@ -68,12 +68,12 @@ async function fetchVaaHash(
   baseEndpoint: string,
   emitterChain: number,
   emitterAddress: Buffer,
-  sequence: bigint
+  sequence: bigint,
 ) {
   const res = await fetch(
     `${baseEndpoint}/api/v1/vaas/${emitterChain}/${emitterAddress.toString(
-      "hex"
-    )}/${sequence.toString()}`
+      "hex",
+    )}/${sequence.toString()}`,
   );
   if (res.status === 404) {
     throw new Error("Not found yet.");

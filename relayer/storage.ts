@@ -24,7 +24,7 @@ function serializeVaa(vaa: ParsedVaa) {
     nonce: vaa.nonce,
     timestamp: vaa.timestamp,
     version: vaa.version,
-    guardianSignatures: vaa.guardianSignatures.map((sig) => ({
+    guardianSignatures: vaa.guardianSignatures.map(sig => ({
       signature: sig.signature.toString("base64"),
       index: sig.index,
     })),
@@ -97,19 +97,20 @@ export class Storage<T extends Context> {
 
   constructor(private relayer: RelayerApp<T>, opts: StorageOptions) {
     this.opts = Object.assign({}, defaultOptions, opts);
-    // ensure redis is defined 
+    // ensure redis is defined
     if (!this.opts.redis) {
       this.opts.redis = {};
     }
 
     this.opts.redis.maxRetriesPerRequest = null; //Added because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
     this.prefix = `{${this.opts.namespace ?? this.opts.queueName}}`;
-    this.redis = this.opts.redisClusterEndpoints?.length > 0
-      ? new Redis.Cluster(
-          this.opts.redisClusterEndpoints,
-          this.opts.redisCluster
-        )
-      : new Redis(this.opts.redis);
+    this.redis =
+      this.opts.redisClusterEndpoints?.length > 0
+        ? new Redis.Cluster(
+            this.opts.redisClusterEndpoints,
+            this.opts.redisCluster,
+          )
+        : new Redis(this.opts.redis);
     this.vaaQueue = new Queue(this.opts.queueName, {
       prefix: this.prefix,
       connection: this.redis,
@@ -139,7 +140,7 @@ export class Storage<T extends Context> {
         removeOnComplete: 1000,
         removeOnFail: 5000,
         attempts: this.opts.attempts,
-      }
+      },
     );
   }
 
@@ -152,11 +153,11 @@ export class Storage<T extends Context> {
 
   startWorker() {
     this.logger?.debug(
-      `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`
+      `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
     this.worker = new Worker(
       this.opts.queueName,
-      async (job) => {
+      async job => {
         let parsedVaa = job.data?.parsedVaa;
         if (parsedVaa) {
           this.logger?.debug(`Starting job: ${job.id}`, {
@@ -183,7 +184,7 @@ export class Storage<T extends Context> {
         prefix: this.prefix,
         connection: this.redis,
         concurrency: this.opts.concurrency,
-      }
+      },
     );
 
     this.worker.on("completed", this.onCompleted.bind(this));
