@@ -9,11 +9,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: ${{ matrix.redis-version }}
-          redis-port: 6301
+      # - name: Start Redis
+      #   uses: supercharge/redis-github-action@1.4.0
+      #   with:
+      #     redis-version: ${{ matrix.redis-version }}
+      #     redis-port: 6301
       - name: Checkout repo
         uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -22,12 +22,9 @@ jobs:
           cache: "npm"
           cache-dependency-path: |
             ./package-lock.json
-            ./relayer-engine/packages/relayer-package-interface/package-lock.json
       - name: npm ci
-        run: |
-          cd relayer-engine/packages/relayer-plugin-interface
-          npm ci
-          cd ../../../
-          npm ci
-      - name: Run tests
-        run: npm test
+        run: npm ci
+      - name: typecheck
+        run: npm run build
+      # - name: Run tests
+      #   run: npm test

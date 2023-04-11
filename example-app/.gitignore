@@ -1,5 +1,3 @@
-**/lib
-
 # Logs
 logs
 *.log
@@ -79,4 +77,3 @@ jspm_packages/
 .pnp.*
 
 .idea
-.vscode

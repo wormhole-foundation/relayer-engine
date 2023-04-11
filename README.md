@@ -1,115 +1,74 @@
 # Relayer Engine
 
-Checkout the [example project](./example-project/README.md) or scroll to [quickstart](#quick-start)
+Specify how to relay wormhole messages for your app using an idiomatic an express/koa middleware inspired api and let the library handle all the details!
+
+Checkout the [example app](./example-app/README.md) or check out the [quickstart](#quick-start)
+
+### Quick Start
+
+`npm i wormhole-foundation/relayer-engine`
+
+`yarn add wormhole-foundation/relayer-engine`
+
+#### Minimal code necessary to get started
+
+```typescript
+import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+
+async function main() {
+  const app = new StandardRelayerApp<AppContext>(Environment.MAINNET, {
+    name: "ExampleRelayer",
+  });
+
+  app
+    .chain(CHAIN_ID_SOLANA)
+    .address(
+      "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
+      async (ctx, nest) => {
+        const vaa = ctx.vaa;
+        const hash = ctx.sourceTxHash;
+      },
+    );
+
+  app.listen();
+}
+```
+
+**Run a wormhole network spy**
+
+Testnet:
+
+```bash
+docker run --platform=linux/amd64 -p 7073:7073 --entrypoint /guardiand ghcr.io/wormhole-foundation/guardiand:latest spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i
+```
+
+Mainnet:
+
+```bash
+docker run --platform=linux/amd64 -p 7073:7073 --entrypoint /guardiand ghcr.io/wormhole-foundation/guardiand:latest spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7
+```
+
+**Run redis**
+
+```bash
+docker run --rm -p 6379:6379 --name redis-docker -d redis
+```
 
 ## Objective
 
 Make it easy to write the off-chain component of a wormhole cross-chain app (aka [xDapp](https://book.wormhole.com/dapps/4_whatIsanXdapp.html)).
 
-An xDapp developer can write their app specific logic for filtering what wormhole messages they care about, how to parse custom payloads and what actions to take on chain (or across many chains!) as a **plugin**.
+An xDapp developer can write their app specific logic for filtering what wormhole messages they care about, how to parse custom payloads and what actions to take on chain (or across many chains!).
 
-One or more plugins are then run by the relayer **engine** which takes care of all the plumbing to start receiving VAAs. Crucially, as the app matures the engine can be reconfigured to move from a lightweight testing setup to full production grade setup, featuring multiple nodes, backing database, automatic dropped message detection and more.
+# Contributors
 
-## Background
+The Goal is to create a project that is:
 
-Prior to the relayer engine and relayer plugins, there was no modularized template for projects who want to spin up and run relayers to reference. This leads to home rolled solutions or ones that are modified from the [spy relayer](https://github.com/wormhole-foundation/wormhole/tree/dev.v2/relayer/spy_relayer). This is undesirable as it adds more code-complexity, slows down integration efforts and results in relayers that lack production grade reliability features.
-
-## Goals
-
-- Define a relayer template that can be spun up and maintained out of the box with all base functionality
-  - crash / error recovery
-  - manage hot wallets
-  - listen to Guardian gossip network
-  - submit transactions on-chain
-  - multi-node / high availability listeners and executors
-  - backing persistent database
-  - automatic dropped message detection and backfilling
-  - configurable metrics and logging
-  - and more
-- Define the relayer interface to enable applications to define arbitrary off-chain computation
-
-## Detailed Design
-
-There are four main components to a relayer:
-
-1. Non-validating guardiand node (spy) that is connected to the Guardian Gossip Network.
-2. Listener that observes filtered signed VAAs pushed from the spy and decides whether to create workflow objects to process these VAAs
-3. Redis database that workflows are enqueued on by the Listener. 
-4. Executor that pops off workflows from the database and processes them. This module has access to hot wallets and submits transactions on one or more blockchains
-
-The relayer engine parameterizes the Listener and Executor component through a [Plugin Interface](./relayer-engine/packages/relayer-plugin-interface/src/index.ts) to enable custom filtering and off-chain processing of VAAs respectively.
-
-The **Listener** portion of the Plugin component defines
-
-- type of connection to the Guardian Network (Spy connection, REST API or custom event source)
-- VAA filter by `emitterAddress` and `emitterChainID`
-- process for determining if a workflow should be kicked off for a given VAA (or generalized event), called `consumeEvent`
-
-The **Executor** portion of the Plugin component defines
-
-- how to handle workflow data generated by the Listener. In the simple case this is just a single serialized VAA, but could be more complicated depending on the use case.
-- can run `actions` that have exclusive access to a hot wallet. This is necessary since different ecosystems have different restrictions about concurrent wallet usage (e.g. nonce management for evm, 1 tx per wallet per block for cosmwasm, etc.).
-
-The key interfaces to provide in a plugin are [here](./relayer-plugin-interface/src/index.ts)
-
-## Quick start
-
-Add relayer-engine as a dependency by pointing at the github repo
-
-```json
-    "relayer-engine": "wormhole-foundation/relayer-engine",
-```
-
-Define a plugin similar to AttestationPlugin or DummyPlugin, or check out the messenger example at https://github.com/wormhole-foundation/xdapp-book/blob/main/projects/messenger/src/plugin.ts
-
-Define an entry point that calls `run` with something like the following:
-
-```typescript
-await relayerEngine.run({
-  plugins: [plugin],
-  configs: {
-    executorEnv: {
-      // ...
-    },
-    listenerEnv: {
-      // ...
-    },
-    commonEnv: {
-      // ...
-    },
-  },
-  mode: Mode.BOTH,
-  envType: EnvType.LOCALHOST,
-});
-```
-Run a local redis db
-```bash
-npm run redis
-# aka: docker run --rm -p 6379:6379 --name redis-docker -d redis
-```
-
-Common relayer engine configurations require a spy node running (see above for what this is)
-
-```bash
-npm run mainnet-spy
-# or
-npm run testnet-spy
-```
-
-With wormhole local validator
-
-```bash
-HOST=
-if [ "$(uname -m)" = "arm64" ]; then
-   HOST="host.docker.internal"
-else
-   HOST="localhost"
-fi
-
-docker run \
-    --platform=linux/amd64 \
-    -p 7073:7073 \
-    --entrypoint /guardiand \
-    ghcr.io/wormhole-foundation/guardiand:latest \
-spy --nodeKey /node.key --spyRPC "[::]:7073" --bootstrap /dns4/${HOST}/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
-```
+- Immediately intuitive
+- Idiomatic
+- Minimal footprint
+- Composable
+- Easily extensible
+- Good separation of concerns
+- Reliable
+- Convention over configuration
