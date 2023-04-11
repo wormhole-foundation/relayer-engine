@@ -1,0 +1,28 @@
+{
+  "name": "example-app",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "ts-node src/app.ts",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.11",
+    "koa": "^2.14.1",
+    "koa-router": "^12.0.0",
+    "node-redis": "^0.1.7",
+    "winston": "^3.8.2",
+    "wormhole-relayer": "file:../",
+    "yargs": "^17.7.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/koa-router": "^7.4.4",
+    "@types/yargs": "^17.0.22",
+    "prettier": "^2.8.4"
+  }
+}

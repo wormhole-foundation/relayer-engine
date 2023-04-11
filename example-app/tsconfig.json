@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "lib",
+    "outDir": "build",
     "target": "ESNext",
     "module": "CommonJS",
     "moduleResolution": "node",
@@ -14,9 +14,10 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "downlevelIteration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["relayer"],
+  "include": ["src"],
   "exclude": [
     "node_modules",
     "relayer/lib/**/*",

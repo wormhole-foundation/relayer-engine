@@ -1,4 +1,7 @@
-**/lib
+## same as .gitignore, but include lib
+# lib
+
+example-app
 
 # Logs
 logs
@@ -79,4 +82,3 @@ jspm_packages/
 .pnp.*
 
 .idea
-.vscode
