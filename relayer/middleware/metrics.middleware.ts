@@ -1,22 +1,31 @@
-import { Logger } from "winston";
+import { register } from "prom-client";
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 import { StorageContext } from "../storage";
 import { Job } from "bullmq";
-import { Counter } from "prom-client";
+import { Counter, Registry } from "prom-client";
 
-const processedVaasTotal = new Counter({
-  name: "vaas_processed_total",
-  help: "Number of vaas processed successfully or unsuccessfully.",
-});
+interface MetricsOpts {
+  registry?: Registry;
+}
 
-const finishedVaasTotal = new Counter({
-  name: "vaas_finished_total",
-  help: "Number of vaas processed successfully or unsuccessfully.",
-  labelNames: ["status"],
-});
+export function metrics(
+  opts: MetricsOpts = {}
+): Middleware<Context & { job?: Job }> {
+  opts.registry = opts.registry || register;
+  const processedVaasTotal = new Counter({
+    name: "vaas_processed_total",
+    help: "Number of vaas processed successfully or unsuccessfully.",
+    registers: [opts.registry],
+  });
 
-export function metrics(): Middleware<Context & { job?: Job }> {
+  const finishedVaasTotal = new Counter({
+    name: "vaas_finished_total",
+    help: "Number of vaas processed successfully or unsuccessfully.",
+    labelNames: ["status"],
+    registers: [opts.registry],
+  });
+
   return async (ctx: StorageContext, next) => {
     const job = ctx.storage?.job;
     // disable this metric if storage is enabled because the storage will actually compute the metrics.

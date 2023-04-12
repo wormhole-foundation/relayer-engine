@@ -1,4 +1,5 @@
 import * as wh from "@certusone/wormhole-sdk";
+import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import { Providers } from "../providers.middleware";
@@ -18,10 +19,13 @@ export function createWalletToolbox(
   }
   switch (chainId) {
     case wh.CHAIN_ID_SOLANA:
-      return createSolanaWalletToolBox(
-        providers,
-        new Uint8Array(JSON.parse(privateKey))
-      );
+      let secretKey;
+      try {
+        secretKey = bs58.decode(privateKey);
+      } catch (e) {
+        secretKey = new Uint8Array(JSON.parse(privateKey));
+      }
+      return createSolanaWalletToolBox(providers, secretKey);
   }
 }
 

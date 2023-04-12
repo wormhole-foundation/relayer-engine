@@ -95,7 +95,14 @@ export class StandardRelayerApp<
     );
     this.use(providers(opts.providers));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
-      this.use(wallets({ logger, namespace: name, privateKeys })); // <-- you need valid private keys to turn on this middleware
+      this.use(
+        wallets(env, {
+          logger,
+          namespace: name,
+          privateKeys,
+          metrics: { registry: this.metricsRegistry },
+        })
+      ); // <-- you need valid private keys to turn on this middleware
     }
     this.use(tokenBridgeContracts());
     this.use(

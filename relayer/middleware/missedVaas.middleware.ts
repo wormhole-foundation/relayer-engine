@@ -104,24 +104,19 @@ export function missedVaas(
         "No missed VAAs detected between this VAA and the last VAA we processed."
       );
     }
-    await redisPool.release(redis);
     try {
-      await next(); // <-- process the current vaa
+      await setLastSequenceForContract(
+        redis,
+        vaa.emitterChain,
+        vaa.emitterAddress,
+        vaa.sequence,
+        ctx.logger
+      );
     } finally {
-      let redis;
-      try {
-        redis = await redisPool.acquire();
-        await setLastSequenceForContract(
-          redis,
-          vaa.emitterChain,
-          vaa.emitterAddress,
-          vaa.sequence,
-          ctx.logger
-        );
-      } finally {
-        await redisPool.release(redis);
-      }
+      await redisPool.release(redis);
     }
+
+    await next(); // <-- process the current vaa
   };
 }
 
