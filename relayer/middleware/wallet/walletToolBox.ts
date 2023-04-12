@@ -12,7 +12,7 @@ export interface WalletToolBox<T extends Wallet> extends Providers {
 export function createWalletToolbox(
   providers: Providers,
   privateKey: string,
-  chainId: wh.ChainId
+  chainId: wh.ChainId,
 ): WalletToolBox<any> {
   if (wh.isEVMChain(chainId)) {
     return createEVMWalletToolBox(providers, privateKey, chainId);
@@ -32,7 +32,7 @@ export function createWalletToolbox(
 function createEVMWalletToolBox(
   providers: Providers,
   privateKey: string,
-  chainId: wh.EVMChainId
+  chainId: wh.EVMChainId,
 ): WalletToolBox<EVMWallet> {
   return {
     ...providers,
@@ -42,7 +42,7 @@ function createEVMWalletToolBox(
 
 function createSolanaWalletToolBox(
   providers: Providers,
-  privateKey: Uint8Array
+  privateKey: Uint8Array,
 ): WalletToolBox<SolanaWallet> {
   return {
     ...providers,

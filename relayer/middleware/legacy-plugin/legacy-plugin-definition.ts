@@ -150,7 +150,7 @@ export type EventSource = (
 export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for
   chainId: ChainId; // Wormhole ChainID to filter for
-  doNotTransform?: boolean // If true, do not do chain specific transformation into wormhole emitter address format
+  doNotTransform?: boolean; // If true, do not do chain specific transformation into wormhole emitter address format
 };
 
 export interface StagingAreaKeyLock {

@@ -49,7 +49,7 @@ export interface Action<T, W extends Wallet> {
 
 export type ActionFunc<T, W extends Wallet> = (
   walletToolBox: WalletToolBox<W>,
-  chaidId: ChainId
+  chaidId: ChainId,
 ) => Promise<T>;
 
 export interface ActionWithCont<T, W extends Wallet> {
@@ -75,18 +75,18 @@ export interface ActionExecutor {
 function makeExecuteFunc(
   actionQueues: Map<ChainId, Queue<ActionWithCont<any, any>>>,
   pluginName: string,
-  logger?: Logger
+  logger?: Logger,
 ): ActionExecutor {
   // push action onto actionQueue and have worker reject or resolve promise
   const func = <T, W extends Wallet>(
     chainId: ChainId,
-    f: ActionFunc<T, W>
+    f: ActionFunc<T, W>,
   ): Promise<T> => {
     return new Promise((resolve, reject) => {
       const maybeQueue = actionQueues.get(chainId);
       if (!maybeQueue) {
         logger?.error(
-          `Error making execute function. Unsupported chain: ${chainId}`
+          `Error making execute function. Unsupported chain: ${chainId}`,
         );
         return reject("Chain not supported");
       }
@@ -186,7 +186,7 @@ export function wallets(
         walletPrivateKey: key,
       }));
       return [chainId, workerInfos];
-    })
+    }),
   );
 
   const wallets = buildMonitoringFromPrivateKeys(env, opts.privateKeys);
@@ -208,14 +208,14 @@ export function wallets(
       for (const [chain, workerInfos] of workerInfoMap.entries()) {
         const actionQueue = new Queue<ActionWithCont<any, any>>();
         actionQueues.set(chain, actionQueue);
-        workerInfos.forEach((info) =>
-          spawnWalletWorker(actionQueue, ctx.providers, info, opts.logger)
+        workerInfos.forEach(info =>
+          spawnWalletWorker(actionQueue, ctx.providers, info, opts.logger),
         );
       }
       executeFunction = makeExecuteFunc(
         actionQueues,
         opts.namespace ?? "default",
-        opts.logger
+        opts.logger,
       );
       ctx.logger?.debug(`Initialized wallets`);
     }

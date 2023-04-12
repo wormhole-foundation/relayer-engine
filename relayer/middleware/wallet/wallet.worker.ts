@@ -12,13 +12,13 @@ export async function spawnWalletWorker(
   actionQueue: Queue<ActionWithCont<any, any>>,
   providers: Providers,
   workerInfo: WorkerInfo,
-  logger: Logger
+  logger: Logger,
 ): Promise<void> {
   const workerIntervalMS = DEFAULT_WORKER_INTERVAL_MS;
   const walletToolBox = createWalletToolbox(
     providers,
     workerInfo.walletPrivateKey,
-    workerInfo.targetChainId
+    workerInfo.targetChainId,
   );
   while (true) {
     // always sleep between loop iterations
@@ -33,7 +33,7 @@ export async function spawnWalletWorker(
       try {
         const result = await actionWithCont.action.f(
           walletToolBox,
-          workerInfo.targetChainId
+          workerInfo.targetChainId,
         );
         logger.debug(`Action ${actionWithCont.pluginName} completed`, {
           action: actionWithCont,

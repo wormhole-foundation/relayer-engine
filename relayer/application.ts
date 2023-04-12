@@ -91,7 +91,7 @@ export class RelayerApp<ContextT extends Context> {
 
   constructor(
     public env: Environment = Environment.TESTNET,
-    opts: RelayerAppOpts = {}
+    opts: RelayerAppOpts = {},
   ) {
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
   }
@@ -140,7 +140,7 @@ export class RelayerApp<ContextT extends Context> {
         (middleware as ErrorMiddleware<ContextT>[]).unshift(this.errorPipeline);
       }
       this.errorPipeline = composeError(
-        middleware as ErrorMiddleware<ContextT>[]
+        middleware as ErrorMiddleware<ContextT>[],
       );
       return;
     }
@@ -180,7 +180,7 @@ export class RelayerApp<ContextT extends Context> {
     }: { retryTimeout: number; retries: number } = {
       retryTimeout: 100,
       retries: 2,
-    }
+    },
   ): Promise<ParsedVaaWithBytes> {
     const res = await getSignedVAAWithRetry(
       this.opts.wormholeRpcs,
@@ -189,7 +189,7 @@ export class RelayerApp<ContextT extends Context> {
       sequence.toString(),
       { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
       retryTimeout,
-      retries
+      retries,
     );
 
     return parseVaaWithBytes(res.vaaBytes);
@@ -370,7 +370,7 @@ export class RelayerApp<ContextT extends Context> {
       let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
       if (!router) {
         this.rootLogger.error(
-          "received a vaa but we don't have a router for it"
+          "received a vaa but we don't have a router for it",
         );
         return;
       }
@@ -468,7 +468,7 @@ class ChainRouter<ContextT extends Context> {
 
   spyFilters(): { emitterFilter: ContractFilter }[] {
     let addresses = Object.keys(this._addressHandlers);
-    const filters = addresses.map((address) => ({
+    const filters = addresses.map(address => ({
       emitterFilter: { chainId: this.chainId, emitterAddress: address },
     }));
     return filters;

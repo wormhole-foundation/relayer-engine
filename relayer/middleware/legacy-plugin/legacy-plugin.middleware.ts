@@ -31,7 +31,7 @@ export type PluginContext<Ext> = LoggingContext &
 
 export function legacyPluginCompat<Ext>(
   app: RelayerApp<PluginContext<Ext>>,
-  plugin: Plugin
+  plugin: Plugin,
 ) {
   const filters = plugin.getFilters();
   const multiple = {} as Partial<{ [k in ChainId]: string[] }>;
@@ -54,7 +54,7 @@ export function legacyPluginCompat<Ext>(
     const res = await plugin.consumeEvent(
       vaaWithBytes,
       kv,
-      Object.assign(providers)
+      Object.assign(providers),
     );
     if (!res) {
       return next();
@@ -64,7 +64,7 @@ export function legacyPluginCompat<Ext>(
     await plugin.handleWorkflow(
       { data: workflowData } as legacy.Workflow,
       providers,
-      makeExecuteWrapper(ctx)
+      makeExecuteWrapper(ctx),
     );
     return next();
   });
@@ -76,31 +76,31 @@ function makeExecuteWrapper(ctx: PluginContext<any>): {
   onSolana<T>(f: any): Promise<T>;
 } {
   const execute = async <T, W extends legacy.Wallet>(
-    action: legacy.Action<T, W>
+    action: legacy.Action<T, W>,
   ) => {
     if (isEVMChain(action.chainId)) {
       ctx.wallets.onEVM(
         action.chainId,
         (wallet: WalletToolBox<any>, chainId: ChainId) => {
           return action.f(walletShimToLegacy(wallet), chainId);
-        }
+        },
       );
     } else if (action.chainId === CHAIN_ID_SOLANA) {
       return ctx.wallets.onSolana((wallet: WalletToolBox<SolanaWallet>) =>
         (action.f as legacy.ActionFunc<T, SolanaWallet>)(
           walletShimToLegacy<SolanaWallet>(wallet),
-          action.chainId
-        )
+          action.chainId,
+        ),
       );
     }
   };
   execute.onEVM = <T>(
-    action: legacy.Action<T, legacy.EVMWallet>
+    action: legacy.Action<T, legacy.EVMWallet>,
   ): Promise<T> => {
     return ctx.wallets.onEVM(
       action.chainId as EVMChainId,
       (wallet: WalletToolBox<EVMWallet>) =>
-        action.f(walletShimToLegacy(wallet), action.chainId)
+        action.f(walletShimToLegacy(wallet), action.chainId),
     );
   };
   execute.onSolana = <T>(f: any): Promise<T> => {
@@ -116,10 +116,13 @@ function providersShimToLegacy(providers: Providers): LegacyProviders {
         ? providers.solana[0]
         : (undefined as Connection),
     untyped: Object.fromEntries(
-      Object.entries(providers.untyped).map(([chain, rpcs]) => [chain, rpcs[0]])
+      Object.entries(providers.untyped).map(([chain, rpcs]) => [
+        chain,
+        rpcs[0],
+      ]),
     ),
     evm: Object.fromEntries(
-      Object.entries(providers.evm).map(([chain, rpcs]) => [chain, rpcs[0]])
+      Object.entries(providers.evm).map(([chain, rpcs]) => [chain, rpcs[0]]),
     ),
   };
 }
@@ -128,16 +131,16 @@ function providersShimFromLegacy(providers: LegacyProviders): Providers {
   return {
     solana: providers.solana ? [providers.solana] : [],
     untyped: Object.fromEntries(
-      Object.entries(providers.untyped).map(([chain, rpc]) => [chain, [rpc]])
+      Object.entries(providers.untyped).map(([chain, rpc]) => [chain, [rpc]]),
     ),
     evm: Object.fromEntries(
-      Object.entries(providers.evm).map(([chain, rpc]) => [chain, [rpc]])
+      Object.entries(providers.evm).map(([chain, rpc]) => [chain, [rpc]]),
     ),
   };
 }
 
 function walletShimToLegacy<T extends Wallet>(
-  wallets: WalletToolBox<T>
+  wallets: WalletToolBox<T>,
 ): legacy.WalletToolBox<T> {
   return {
     ...providersShimToLegacy(wallets),
@@ -146,7 +149,7 @@ function walletShimToLegacy<T extends Wallet>(
 }
 
 function walletShimFromLegacy<T extends legacy.Wallet>(
-  wallets: legacy.WalletToolBox<T>
+  wallets: legacy.WalletToolBox<T>,
 ): WalletToolBox<T> {
   return {
     ...providersShimFromLegacy(wallets),

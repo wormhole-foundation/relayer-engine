@@ -53,7 +53,7 @@ export type StandardRelayerContext = LoggingContext &
   SourceTxContext;
 
 export class StandardRelayerApp<
-  ContextT extends StandardRelayerContext = StandardRelayerContext
+  ContextT extends StandardRelayerContext = StandardRelayerContext,
 > extends RelayerApp<ContextT> {
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
@@ -90,8 +90,8 @@ export class StandardRelayerApp<
         redis,
         redisCluster,
         redisClusterEndpoints,
-        wormholeRpcs
-      })
+        wormholeRpcs,
+      }),
     );
     this.use(providers(opts.providers));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
@@ -111,7 +111,7 @@ export class StandardRelayerApp<
         redisCluster,
         redis,
         redisClusterEndpoints,
-      })
+      }),
     );
     if (opts.fetchSourceTxhash) {
       this.use(sourceTx());

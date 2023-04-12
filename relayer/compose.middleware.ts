@@ -3,16 +3,16 @@ import { Context } from "./context";
 export type Next = (i?: number) => any;
 export type Middleware<ContextT extends Context = Context> = (
   ctx: ContextT,
-  next: Next
+  next: Next,
 ) => Promise<void>;
 export type ErrorMiddleware<ContextT extends Context> = (
   err: Error,
   ctx: ContextT,
-  next: Next
+  next: Next,
 ) => Promise<void>;
 
 export function compose<T extends Context>(
-  middleware: Middleware<T>[]
+  middleware: Middleware<T>[],
 ): Middleware<T> {
   return async function (ctx: T, next: Next = () => {}): Promise<void> {
     async function callNext(i: number): Promise<any> {
@@ -28,12 +28,12 @@ export function compose<T extends Context>(
 
 // error middleware. TODO: cleanup
 export function composeError<T extends Context>(
-  middleware: ErrorMiddleware<T>[]
+  middleware: ErrorMiddleware<T>[],
 ): ErrorMiddleware<T> {
   return async function (
     err: Error,
     ctx: T,
-    next: Next = () => {}
+    next: Next = () => {},
   ): Promise<void> {
     async function callNext(i: number): Promise<any> {
       if (i === middleware.length) {

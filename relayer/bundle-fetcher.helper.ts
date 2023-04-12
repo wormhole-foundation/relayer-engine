@@ -1,7 +1,4 @@
-import {
-  ChainId,
-  ParsedVaa,
-} from "@certusone/wormhole-sdk";
+import { ChainId, ParsedVaa } from "@certusone/wormhole-sdk";
 import { FetchVaaFn } from "./context";
 import { parseVaaWithBytes, sleep } from "./utils";
 import { ParsedVaaWithBytes } from "./application";
@@ -48,7 +45,7 @@ export class VaaBundleFetcher {
 
   private idToKey = (id: VaaId) =>
     `${id.emitterChain}/${id.emitterAddress.toString(
-      "hex"
+      "hex",
     )}/${id.sequence.toString()}`;
 
   // returns true if all remaining vaas have been fetched, false otherwise
@@ -63,16 +60,16 @@ export class VaaBundleFetcher {
             return await this.fetchVaa(
               emitterChain as ChainId,
               emitterAddress,
-              sequence
+              sequence,
             );
           } catch (e) {
             return null;
           }
-        }
-      )
+        },
+      ),
     );
 
-    const vaas = fetched.filter((vaa) => vaa !== null);
+    const vaas = fetched.filter(vaa => vaa !== null);
     this.addVaaPayloads(vaas);
     return this.isComplete;
   }
@@ -107,8 +104,8 @@ export class VaaBundleFetcher {
 
   serialize(): SerializedBatchFetcher {
     return {
-      vaaBytes: Object.values(this.fetchedVaas).map((parsedVaas) =>
-        parsedVaas.bytes.toString("base64")
+      vaaBytes: Object.values(this.fetchedVaas).map(parsedVaas =>
+        parsedVaas.bytes.toString("base64"),
       ),
       vaaIds: this.opts.vaaIds,
     };
@@ -116,15 +113,13 @@ export class VaaBundleFetcher {
 
   static deserialize(
     serialized: SerializedBatchFetcher,
-    fetchVaa: FetchVaaFn
+    fetchVaa: FetchVaaFn,
   ): VaaBundleFetcher {
-    const vaaBytes = serialized.vaaBytes.map((str) =>
-      Buffer.from(str, "base64")
-    );
+    const vaaBytes = serialized.vaaBytes.map(str => Buffer.from(str, "base64"));
     const builder = new VaaBundleFetcher(fetchVaa, {
       vaaIds: serialized.vaaIds,
     });
-    const parsedVaasWithBytes = vaaBytes.map((buf) => parseVaaWithBytes(buf));
+    const parsedVaasWithBytes = vaaBytes.map(buf => parseVaaWithBytes(buf));
     builder.addVaaPayloads(parsedVaasWithBytes);
     return builder;
   }

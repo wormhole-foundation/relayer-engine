@@ -6,11 +6,11 @@ import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/pu
 export type FetchVaaFn = (
   emitterChain: ChainId | string,
   emitterAddress: Buffer | string,
-  sequence: bigint | string
+  sequence: bigint | string,
 ) => Promise<ParsedVaaWithBytes>;
 
 export type FetchVaasFn = (
-  opts: FetchaVaasOpts
+  opts: FetchaVaasOpts,
 ) => Promise<ParsedVaaWithBytes[]>;
 
 export interface Context {
