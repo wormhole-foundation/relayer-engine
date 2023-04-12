@@ -22,7 +22,7 @@ export interface StagingAreaOpts {
 }
 
 export function stagingArea(
-  opts: StagingAreaOpts = {}
+  opts: StagingAreaOpts = {},
 ): Middleware<StagingAreaContext> {
   opts.redis = opts.redis || { host: "localhost", port: 6379 };
 
@@ -52,7 +52,7 @@ export function stagingArea(
     ctx.kv = new DefaultStagingAreaKeyLock(
       redis,
       ctx.logger,
-      opts.namespace ?? "default"
+      opts.namespace ?? "default",
     );
     try {
       ctx.logger?.debug("Staging area attached to context");
@@ -67,7 +67,7 @@ export interface StagingAreaKeyLock {
   withKey<T, KV extends Record<string, any>>(
     keys: string[],
     f: (kvs: KV, ctx: OpaqueTx) => Promise<{ newKV: KV; val: T }>,
-    tx?: OpaqueTx
+    tx?: OpaqueTx,
   ): Promise<T>;
   getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }
@@ -83,7 +83,7 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
   constructor(
     private readonly redis: Redis | Cluster,
     readonly logger: Logger,
-    namespace: string
+    namespace: string,
   ) {
     this.stagingAreaKey = `stagingAreas:${sanitize(namespace)}`;
   }
@@ -94,25 +94,25 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
 
   private getKeysInternal<KV extends Record<string, any>>(
     redis: Redis | Cluster,
-    keys: string[]
+    keys: string[],
   ): Promise<KV> {
     return Promise.all(
-      keys.map(async (k) => {
+      keys.map(async k => {
         const val = await redis.get(`${this.stagingAreaKey}/${k}`);
         return [k, val !== null ? JSON.parse(val) : undefined];
-      })
+      }),
     ).then(Object.fromEntries);
   }
 
   async withKey<T, KV extends Record<string, any>>(
     keys: string[],
     f: (kvs: KV, ctx: OpaqueTx) => Promise<{ newKV: KV; val: T }>,
-    tx?: OpaqueTx
+    tx?: OpaqueTx,
   ): Promise<T> {
     try {
       const op = async (redis: Redis | Cluster) => {
         // watch keys so that no other listners can alter
-        await redis.watch(keys.map((key) => `${this.stagingAreaKey}/${key}`));
+        await redis.watch(keys.map(key => `${this.stagingAreaKey}/${key}`));
 
         const kvs = await this.getKeysInternal<KV>(redis, keys);
 

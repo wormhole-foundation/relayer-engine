@@ -1,7 +1,7 @@
 import { Gauge, Histogram, Registry } from "prom-client";
 
 export function createStorageMetrics(
-  storageRegistry: Registry = new Registry()
+  storageRegistry: Registry = new Registry(),
 ) {
   return {
     registry: storageRegistry,

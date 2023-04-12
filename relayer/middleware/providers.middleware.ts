@@ -100,7 +100,7 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
   const supportedChains = Object.assign(
     {},
     defaultSupportedChains[env],
-    opts?.chains
+    opts?.chains,
   );
   const providers: Providers = {
     evm: {},
@@ -112,12 +112,12 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
     const { endpoints } = chainCfg;
     if (isEVMChain(chainId)) {
       providers.evm[chainId] = endpoints.map(
-        (url) => new ethers.providers.JsonRpcProvider(url)
+        url => new ethers.providers.JsonRpcProvider(url),
       );
     } else if (chainId === CHAIN_ID_SOLANA) {
-      providers.solana = endpoints.map((url) => new Connection(url));
+      providers.solana = endpoints.map(url => new Connection(url));
     } else {
-      providers.untyped[chainId] = endpoints.map((c) => ({ rpcUrl: c }));
+      providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
     }
   }
   return providers;

@@ -13,6 +13,6 @@ export const defaultLogger = winston.createLogger({
     winston.format.timestamp({
       format: "YYYY-MM-DD HH:mm:ss.SSS",
     }),
-    winston.format.errors({ stack: true })
+    winston.format.errors({ stack: true }),
   ),
 });
