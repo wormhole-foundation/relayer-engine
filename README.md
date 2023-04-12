@@ -2,7 +2,7 @@
 
 Specify how to relay wormhole messages for your app using an idiomatic an express/koa middleware inspired api and let the library handle all the details!
 
-Checkout the [example app](./example-app/README.md) or check out the [quickstart](#quick-start)
+Checkout the [example app](./example-app) or check out the [quickstart](#quick-start)
 
 ### Quick Start
 
