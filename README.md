@@ -2,7 +2,7 @@
 
 Specify how to relay wormhole messages for your app using an idiomatic an express/koa middleware inspired api and let the library handle all the details!
 
-Checkout the [example app](./example-app/README.md) or check out the [quickstart](#quick-start)
+Checkout the [example app](./example-app) or check out the [quickstart](#quick-start)
 
 ### Quick Start
 
@@ -13,7 +13,7 @@ Checkout the [example app](./example-app/README.md) or check out the [quickstart
 #### Minimal code necessary to get started
 
 ```typescript
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 
 async function main() {
   const app = new StandardRelayerApp<AppContext>(Environment.MAINNET, {
@@ -24,7 +24,7 @@ async function main() {
     .chain(CHAIN_ID_SOLANA)
     .address(
       "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
-      async (ctx, nest) => {
+      async (ctx, next) => {
         const vaa = ctx.vaa;
         const hash = ctx.sourceTxHash;
       },
