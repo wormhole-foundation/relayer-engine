@@ -141,7 +141,7 @@ function buildMonitoringFromPrivateKeys(
   env: Environment,
   privateKeys: Partial<{
     [k in ChainId]: any[];
-  }>
+  }>,
 ): MultiWalletWatcherConfig {
   const networkByChain: any = networks[env];
   const config: MultiWalletWatcherConfig = {};
@@ -173,7 +173,7 @@ function buildMonitoringFromPrivateKeys(
 
 export function wallets(
   env: Environment,
-  opts: WalletOpts
+  opts: WalletOpts,
 ): Middleware<WalletContext> {
   const workerInfoMap = new Map<ChainId, WorkerInfo[]>(
     Object.entries(opts.privateKeys).map(([chainIdStr, keys]) => {

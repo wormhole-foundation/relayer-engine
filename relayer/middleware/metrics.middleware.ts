@@ -10,7 +10,7 @@ interface MetricsOpts {
 }
 
 export function metrics(
-  opts: MetricsOpts = {}
+  opts: MetricsOpts = {},
 ): Middleware<Context & { job?: Job }> {
   opts.registry = opts.registry || register;
   const processedVaasTotal = new Counter({

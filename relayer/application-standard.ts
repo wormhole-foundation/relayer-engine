@@ -101,7 +101,7 @@ export class StandardRelayerApp<
           namespace: name,
           privateKeys,
           metrics: { registry: this.metricsRegistry },
-        })
+        }),
       ); // <-- you need valid private keys to turn on this middleware
     }
     this.use(tokenBridgeContracts());
