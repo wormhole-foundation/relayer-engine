@@ -5,8 +5,8 @@ import { createWalletToolbox } from "./walletToolBox";
 import { ActionWithCont, WorkerInfo } from "./wallet.middleware";
 import { sleep } from "../../utils";
 
-const DEFAULT_WORKER_RESTART_MS = 10 * 1000;
-const DEFAULT_WORKER_INTERVAL_MS = 500;
+const DEFAULT_WORKER_RESTART_MS = 2 * 1000;
+const DEFAULT_WORKER_INTERVAL_MS = 1;
 
 export async function spawnWalletWorker(
   actionQueue: Queue<ActionWithCont<any, any>>,

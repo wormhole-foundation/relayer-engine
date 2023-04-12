@@ -225,6 +225,7 @@ export class RelayerApp<ContextT extends Context> {
       config: {
         spyFilters: await this.spyFilters(),
       },
+      locals: {},
     };
     Object.assign(ctx, opts);
     try {
@@ -427,7 +428,7 @@ export class RelayerApp<ContextT extends Context> {
    * - worklow_processing_duration: Processing time for completed jobs (processing until completed)
    * - workflow_total_duration: Processing time for completed jobs (processing until completed)
    */
-  metricsRegistry() {
+  get metricsRegistry() {
     return this.storage?.registry;
   }
 
