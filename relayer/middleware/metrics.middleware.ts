@@ -1,7 +1,6 @@
-import { Logger } from "winston";
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
-import { StorageContext } from "../storage";
+import { StorageContext } from "../storage/storage";
 import { Job } from "bullmq";
 import { Counter } from "prom-client";
 

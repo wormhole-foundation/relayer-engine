@@ -16,11 +16,12 @@ import {
   TokenBridgeContext,
   tokenBridgeContracts,
   WalletContext,
-} from "wormhole-relayer";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+} from "@wormhole-foundation/relayer-engine";
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
+import { RedisStorage } from "../../relayer/storage/redis-storage";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &
@@ -42,7 +43,12 @@ async function main() {
   const fundsCtrl = new ApiController();
 
   // Config
-  configRelayer(app);
+  const store = new RedisStorage({
+    attempts: 3,
+    namespace: "simple",
+    queueName: "relays",
+  });
+  configRelayer(app, store);
 
   // Set up middleware
   app.use(logging(rootLogger)); // <-- logging middleware
@@ -73,19 +79,27 @@ async function main() {
   }); // <-- if you pass in a function with 3 args, it'll be used to process errors (whenever you throw from your middleware)
 
   app.listen();
-  runUI(app, opts, rootLogger);
+  runUI(app, store, opts, rootLogger);
 }
 
-function configRelayer<T extends Context>(app: RelayerApp<T>) {
+function configRelayer<T extends Context>(
+  app: RelayerApp<T>,
+  store: RedisStorage
+) {
   app.spy("localhost:7073");
-  app.useStorage({ attempts: 3, namespace: "simple", queueName: "relays" });
+  app.useStorage(store);
   app.logger(rootLogger);
 }
 
-function runUI(relayer: RelayerApp<any>, { port }: any, logger: Logger) {
+function runUI(
+  relayer: RelayerApp<any>,
+  store: RedisStorage,
+  { port }: any,
+  logger: Logger
+) {
   const app = new Koa();
 
-  app.use(relayer.storageKoaUI("/ui"));
+  app.use(store.storageKoaUI("/ui"));
   app.use(async (ctx, next) => {
     if (ctx.request.method !== "GET" && ctx.request.url !== "/metrics") {
       await next();

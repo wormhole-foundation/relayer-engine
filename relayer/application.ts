@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 import * as wormholeSdk from "@certusone/wormhole-sdk";
 import {
   ChainId,
@@ -23,10 +24,6 @@ import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
-import { Storage, StorageOptions } from "./storage";
-import { KoaAdapter } from "@bull-board/koa";
-import { createBullBoard } from "@bull-board/api";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
 import {
@@ -38,6 +35,7 @@ import {
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
+import { RelayJob, Storage } from "./storage/storage";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -77,13 +75,13 @@ export interface ParsedVaaWithBytes extends ParsedVaa {
   bytes: SignedVaa;
 }
 
-export class RelayerApp<ContextT extends Context> {
-  private pipeline?: Middleware<Context>;
-  private errorPipeline?: ErrorMiddleware<Context>;
+export class RelayerApp<ContextT extends Context> extends EventEmitter {
+  private pipeline?: Middleware;
+  private errorPipeline?: ErrorMiddleware;
   private chainRouters: Partial<Record<ChainId, ChainRouter<ContextT>>> = {};
   private spyUrl?: string;
   private rootLogger: Logger;
-  storage: Storage<ContextT>;
+  storage: Storage;
   filters: {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
   }[];
@@ -93,6 +91,7 @@ export class RelayerApp<ContextT extends Context> {
     public env: Environment = Environment.TESTNET,
     opts: RelayerAppOpts = {},
   ) {
+    super();
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
   }
 
@@ -329,9 +328,6 @@ export class RelayerApp<ContextT extends Context> {
    */
   logger(logger: Logger) {
     this.rootLogger = logger;
-    if (this.storage) {
-      this.storage.logger = logger;
-    }
   }
 
   /**
@@ -340,29 +336,14 @@ export class RelayerApp<ContextT extends Context> {
    * Which means your VAAS will go straight through the pipeline instead of being added to a queue.
    * @param storageOptions
    */
-  useStorage(storageOptions: StorageOptions) {
-    this.storage = new Storage(this, storageOptions);
-    if (this.rootLogger) {
-      this.storage.logger = this.rootLogger;
-    }
+  useStorage(storage: Storage) {
+    this.storage = storage;
   }
 
   /**
    * A UI that you can mount in a KOA app to show the status of the queue / jobs.
    * @param path
    */
-  storageKoaUI(path: string) {
-    // UI
-    const serverAdapter = new KoaAdapter();
-    serverAdapter.setBasePath(path);
-
-    createBullBoard({
-      queues: [new BullMQAdapter(this.storage.vaaQueue)],
-      serverAdapter: serverAdapter,
-    });
-
-    return serverAdapter.registerPlugin();
-  }
 
   private generateChainRoutes(): Middleware<ContextT> {
     let chainRouting = async (ctx: ContextT, next: Next) => {
@@ -383,9 +364,6 @@ export class RelayerApp<ContextT extends Context> {
    */
   async listen() {
     this.rootLogger = this.rootLogger ?? defaultLogger;
-    if (this.storage && !this.storage.logger) {
-      this.storage.logger = this.rootLogger;
-    }
     this.use(this.generateChainRoutes());
 
     this.filters = await this.spyFilters();
@@ -394,7 +372,7 @@ export class RelayerApp<ContextT extends Context> {
       throw new Error("you need to setup the spy url");
     }
 
-    this.storage?.startWorker();
+    this.storage?.startWorker(this.onVaaFromQueue);
 
     while (true) {
       const client = createSpyRPCServiceClient(this.spyUrl!);
@@ -437,6 +415,27 @@ export class RelayerApp<ContextT extends Context> {
   stop() {
     return this.storage.stopWorker();
   }
+
+  private onVaaFromQueue = async (job: RelayJob) => {
+    let parsedVaa = job.data?.parsedVaa;
+    if (parsedVaa) {
+      this.rootLogger?.debug(`Starting job: ${job.id}`, {
+        emitterChain: parsedVaa.emitterChain,
+        emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+        sequence: parsedVaa.sequence.toString(),
+      });
+    } else {
+      this.rootLogger.debug("Received job with no parsedVaa");
+    }
+    await job.log(`processing by..${this.storage.workerId}`);
+    await this.pushVaaThroughPipeline(job.data.vaaBytes, {
+      storage: {
+        job,
+      },
+    });
+    await job.updateProgress(100);
+    return [""];
+  };
 }
 
 class ChainRouter<ContextT extends Context> {
@@ -487,3 +486,6 @@ export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for
   chainId: ChainId; // Wormhole ChainID to filter for
 };
+
+/**
+ */
