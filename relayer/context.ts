@@ -16,7 +16,7 @@ export type FetchVaasFn = (
 export interface Context {
   vaa?: ParsedVaa;
   vaaBytes?: Buffer;
-
+  locals: Record<any, any>;
   fetchVaa: FetchVaaFn;
   fetchVaas: FetchVaasFn;
   processVaa: (vaa: Buffer) => Promise<void>;

@@ -224,6 +224,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       config: {
         spyFilters: await this.spyFilters(),
       },
+      locals: {},
     };
     Object.assign(ctx, opts);
     try {
@@ -405,7 +406,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * - worklow_processing_duration: Processing time for completed jobs (processing until completed)
    * - workflow_total_duration: Processing time for completed jobs (processing until completed)
    */
-  metricsRegistry() {
+  get metricsRegistry() {
     return this.storage?.registry;
   }
 

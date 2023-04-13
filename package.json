@@ -23,6 +23,7 @@
     "@certusone/wormhole-sdk": "^0.9.11",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
+    "@xlabs-xyz/wallet-monitor": "^0.0.12",
     "bech32": "^2.0.0",
     "bullmq": "^3.10.1",
     "ethers": "^5.7.2",
@@ -35,6 +36,7 @@
   },
   "keywords": [],
   "devDependencies": {
+    "@types/bs58": "^4.0.1",
     "@types/koa": "^2.13.5",
     "@types/winston": "^2.4.4",
     "prettier": "^2.8.4"

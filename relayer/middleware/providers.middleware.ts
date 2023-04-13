@@ -1,6 +1,9 @@
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 import {
+  CHAIN_ID_ACALA,
+  CHAIN_ID_ALGORAND,
+  CHAIN_ID_APTOS,
   CHAIN_ID_BSC,
   CHAIN_ID_CELO,
   CHAIN_ID_ETH,
@@ -43,6 +46,7 @@ export interface ProvidersOpts {
 
 const defaultSupportedChains = {
   [Environment.MAINNET]: {
+    [CHAIN_ID_SOLANA]: { endpoints: ["https://api.mainnet-beta.solana.com"] },
     [CHAIN_ID_ETH]: { endpoints: ["https://rpc.ankr.com/eth"] },
     [CHAIN_ID_BSC]: { endpoints: ["https://bsc-dataseed1.binance.org/"] },
     [CHAIN_ID_POLYGON]: { endpoints: ["https://rpc.ankr.com/polygon"] },
@@ -50,8 +54,17 @@ const defaultSupportedChains = {
     [CHAIN_ID_FANTOM]: { endpoints: ["https://rpc.ftm.tools"] },
     [CHAIN_ID_CELO]: { endpoints: ["https://forno.celo.org"] },
     [CHAIN_ID_MOONBEAM]: { endpoints: ["https://rpc.api.moonbeam.network"] },
+    [CHAIN_ID_ACALA]: { endpoints: ["https://eth-rpc-acala.aca-api.network"] },
+    [CHAIN_ID_ALGORAND]: { endpoints: ["https://node.algoexplorerapi.io/"] },
+    [CHAIN_ID_APTOS]: {
+      endpoints: ["https://fullnode.mainnet.aptoslabs.com/v1"],
+    },
   },
   [Environment.TESTNET]: {
+    [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
+    [CHAIN_ID_SOLANA]: {
+      endpoints: ["https://api.devnet.solana.com"],
+    },
     [CHAIN_ID_ETH]: {
       endpoints: [
         "https://eth-goerli.g.alchemy.com/v2/mvFFcUhFfHujAOewWU8kH5D1R2bgFgLt",
@@ -73,8 +86,18 @@ const defaultSupportedChains = {
     [CHAIN_ID_MOONBEAM]: {
       endpoints: ["https://rpc.testnet.moonbeam.network"],
     },
+    [CHAIN_ID_APTOS]: {
+      endpoints: ["https://fullnode.devnet.aptoslabs.com/v1"],
+    },
   },
-  [Environment.DEVNET]: {},
+  [Environment.DEVNET]: {
+    [CHAIN_ID_ETH]: {
+      endpoints: ["http://localhost:8545/"],
+    },
+    [CHAIN_ID_BSC]: {
+      endpoints: ["http://localhost:8546/"],
+    },
+  },
 };
 
 /**
