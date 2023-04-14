@@ -24,9 +24,7 @@ export interface RelayJob {
 export type onJobHandler = (job: RelayJob) => Promise<any>;
 
 export interface Storage {
-  workerId: string;
   addVaaToQueue(vaa: Buffer): Promise<any>;
   startWorker(cb: onJobHandler): void;
   stopWorker(): Promise<void>;
-  registry: Registry;
 }

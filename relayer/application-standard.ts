@@ -126,6 +126,19 @@ export class StandardRelayerApp<
     }
   }
 
+  /**
+   * Registry with prometheus metrics exported by the relayer.
+   * Metrics include:
+   * - active_workflows: Number of workflows currently running
+   * - delayed_workflows: Number of worklows which are scheduled in the future either because they were scheduled that way or because they failed.
+   * - waiting_workflows: Workflows waiting for a worker to pick them up.
+   * - worklow_processing_duration: Processing time for completed jobs (processing until completed)
+   * - workflow_total_duration: Processing time for completed jobs (processing until completed)
+   */
+  get metricsRegistry() {
+    return this.store.registry;
+  }
+
   storageKoaUI(path: string) {
     // UI
     const serverAdapter = new KoaAdapter();

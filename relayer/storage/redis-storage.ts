@@ -1,6 +1,5 @@
 import { Job, Queue, Worker } from "bullmq";
 import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
-import { Context } from "../context";
 import { Logger } from "winston";
 import {
   Cluster,
@@ -12,7 +11,7 @@ import {
 import { createStorageMetrics } from "../storage.metrics";
 import { Gauge, Histogram, Registry } from "prom-client";
 import { sleep } from "../utils";
-import { RelayJob, Storage, onJobHandler } from "./storage";
+import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
@@ -77,7 +76,7 @@ const defaultOptions: Partial<StorageOptions> = {
 export class RedisStorage implements Storage {
   logger: Logger;
   vaaQueue: Queue<JobData, string[], string>;
-  private worker: Worker<JobData, string[], string>;
+  private worker: Worker<JobData, void, string>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
   public registry: Registry;
@@ -148,13 +147,24 @@ export class RedisStorage implements Storage {
     return `${vaa.emitterChain}/${emitterAddress}/${sequence}/${hash}`;
   }
 
-  startWorker(cb: onJobHandler) {
+  startWorker(handleJob: onJobHandler) {
     this.logger?.debug(
       `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
     this.worker = new Worker(
       this.opts.queueName,
       async job => {
+        let parsedVaa = job.data?.parsedVaa;
+        if (parsedVaa) {
+          this.logger?.debug(`Starting job: ${job.id}`, {
+            emitterChain: parsedVaa.emitterChain,
+            emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+            sequence: parsedVaa.sequence.toString(),
+          });
+        } else {
+          this.logger.debug("Received job with no parsedVaa");
+        }
+
         const vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
         const relayJob: RelayJob = {
           attempts: 0,
@@ -168,8 +178,9 @@ export class RedisStorage implements Storage {
           log: job.log.bind(job),
           updateProgress: job.updateProgress.bind(job),
         };
-        await cb(relayJob);
-        return [];
+        await job.log(`processing by..${this.workerId}`);
+        await handleJob(relayJob);
+        return;
       },
       {
         prefix: this.prefix,

@@ -398,19 +398,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }
 
   /**
-   * Registry with prometheus metrics exported by the relayer.
-   * Metrics include:
-   * - active_workflows: Number of workflows currently running
-   * - delayed_workflows: Number of worklows which are scheduled in the future either because they were scheduled that way or because they failed.
-   * - waiting_workflows: Workflows waiting for a worker to pick them up.
-   * - worklow_processing_duration: Processing time for completed jobs (processing until completed)
-   * - workflow_total_duration: Processing time for completed jobs (processing until completed)
-   */
-  get metricsRegistry() {
-    return this.storage?.registry;
-  }
-
-  /**
    * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
    */
   stop() {
@@ -418,17 +405,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }
 
   private onVaaFromQueue = async (job: RelayJob) => {
-    let parsedVaa = job.data?.parsedVaa;
-    if (parsedVaa) {
-      this.rootLogger?.debug(`Starting job: ${job.id}`, {
-        emitterChain: parsedVaa.emitterChain,
-        emitterAddress: parsedVaa.emitterAddress.toString("hex"),
-        sequence: parsedVaa.sequence.toString(),
-      });
-    } else {
-      this.rootLogger.debug("Received job with no parsedVaa");
-    }
-    await job.log(`processing by..${this.storage.workerId}`);
     await this.pushVaaThroughPipeline(job.data.vaaBytes, {
       storage: {
         job,
