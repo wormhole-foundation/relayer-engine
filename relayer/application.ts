@@ -75,6 +75,8 @@ export interface ParsedVaaWithBytes extends ParsedVaa {
   bytes: SignedVaa;
 }
 
+type FilterFN = (vaaBytes: Buffer) => Promise<boolean> | boolean;
+
 export class RelayerApp<ContextT extends Context> extends EventEmitter {
   private pipeline?: Middleware;
   private errorPipeline?: ErrorMiddleware;
@@ -86,6 +88,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
   }[];
   private opts: RelayerAppOpts;
+  private shouldProcessVaa: FilterFN = () => true;
 
   constructor(
     public env: Environment = Environment.TESTNET,
@@ -93,6 +96,28 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   ) {
     super();
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
+  }
+
+  /**
+   *  This function will run as soon as a VAA is received and will determine whether we want to process it or skip it.
+   *  This is useful if you're listening to a contract but you don't care about every one of the VAAs emitted by it (eg. The Token Bridge contract).
+   *
+   *  WARNING: If your function throws, the VAA will be skipped (is this the right behavior?). If you want to process the VAA anyway, catch your errors and return true.
+   *
+   * @param fn pass in a function that will receive the raw bytes of the VAA and if it returns `true` or `Promise<true>` the VAA will be processed, otherwise it will be skipped
+   */
+  filter(fn: FilterFN) {
+    this.shouldProcessVaa = async (vaaBytes: Buffer) => {
+      try {
+        let [should1, should2] = await Promise.all([
+          this.shouldProcessVaa(vaaBytes),
+          fn(vaaBytes),
+        ]);
+        return should1 && should2;
+      } catch {
+        return false;
+      }
+    };
   }
 
   /**
@@ -197,13 +222,21 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   /**
    * processVaa allows you to put a VAA through the pipeline leveraging storage if needed.
    * @param vaa
-   * @param opts
+   * @param opts You can use this to extend the context that will be passed to the middleware
    */
-  async processVaa(vaa: Buffer, opts?: any) {
+  async processVaa(vaa: Buffer, opts: any = {}) {
+    if (!(await this.shouldProcessVaa(vaa)) && !opts.force) {
+      let parsedVaa = wormholeSdk.parseVaa(vaa);
+      this.rootLogger?.debug("VAA did not pass filters. Skipping...", {
+        emitterChain: parsedVaa.emitterChain,
+        emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+        sequence: parsedVaa.sequence.toString(),
+      });
+    }
     if (this.storage) {
       await this.storage.addVaaToQueue(vaa);
     } else {
-      this.pushVaaThroughPipeline(vaa);
+      this.pushVaaThroughPipeline(vaa, opts);
     }
   }
 
@@ -260,7 +293,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    *
    * Would run middleware1 and middleware2 for any tokenBridge vaa coming from ethereum or solana.
    *
-   * @param chains
+   * @param chainsOrChain
    * @param handlers
    */
   tokenBridge(
@@ -285,7 +318,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     { emitterFilter?: { chainId?: ChainID; emitterAddress?: string } }[]
   > {
     const spyFilters = new Set<any>();
-    for (const [chainId, chainRouter] of Object.entries(this.chainRouters)) {
+    for (const chainRouter of Object.values(this.chainRouters)) {
       for (const filter of await chainRouter.spyFilters()) {
         spyFilters.add(filter);
       }
@@ -335,19 +368,14 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * Configure your storage by passing info redis connection info among other details.
    * If you are using RelayerApp<any>, and you do not call this method, you will not be using storage.
    * Which means your VAAS will go straight through the pipeline instead of being added to a queue.
-   * @param storageOptions
+   * @param storage
    */
   useStorage(storage: Storage) {
     this.storage = storage;
   }
 
-  /**
-   * A UI that you can mount in a KOA app to show the status of the queue / jobs.
-   * @param path
-   */
-
   private generateChainRoutes(): Middleware<ContextT> {
-    let chainRouting = async (ctx: ContextT, next: Next) => {
+    return async (ctx: ContextT, next: Next) => {
       let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
       if (!router) {
         this.rootLogger.error(
@@ -357,7 +385,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       }
       await router.process(ctx, next);
     };
-    return chainRouting;
   }
 
   /**
@@ -443,10 +470,9 @@ class ChainRouter<ContextT extends Context> {
 
   spyFilters(): { emitterFilter: ContractFilter }[] {
     let addresses = Object.keys(this._addressHandlers);
-    const filters = addresses.map(address => ({
+    return addresses.map(address => ({
       emitterFilter: { chainId: this.chainId, emitterAddress: address },
     }));
-    return filters;
   }
 
   async process(ctx: ContextT, next: Next): Promise<void> {
