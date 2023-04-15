@@ -139,6 +139,10 @@ export class StandardRelayerApp<
     return this.store.registry;
   }
 
+  /**
+   * A UI that you can mount in a KOA app to show the status of the queue / jobs.
+   * @param path
+   */
   storageKoaUI(path: string) {
     // UI
     const serverAdapter = new KoaAdapter();
