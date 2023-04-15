@@ -167,14 +167,14 @@ export class RedisStorage implements Storage {
 
         const vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
         const relayJob: RelayJob = {
-          attempts: 0,
+          attempts: job.attemptsMade,
           data: {
             vaaBytes,
             parsedVaa: parseVaa(vaaBytes),
           },
-          id: "",
-          maxAttempts: 0,
-          name: "",
+          id: job.id,
+          maxAttempts: this.opts.attempts,
+          name: job.name,
           log: job.log.bind(job),
           updateProgress: job.updateProgress.bind(job),
         };
