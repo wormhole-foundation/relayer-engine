@@ -1,6 +1,6 @@
 import { Registry } from "prom-client";
 import { Context } from "../context";
-import { ParsedVaa } from "@certusone/wormhole-sdk";
+import { ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 
 export interface StorageContext extends Context {
   storage: {
@@ -24,7 +24,7 @@ export interface RelayJob {
 export type onJobHandler = (job: RelayJob) => Promise<any>;
 
 export interface Storage {
-  addVaaToQueue(vaa: Buffer): Promise<any>;
+  addVaaToQueue(vaa: SignedVaa): Promise<any>;
   startWorker(cb: onJobHandler): void;
   stopWorker(): Promise<void>;
 }
