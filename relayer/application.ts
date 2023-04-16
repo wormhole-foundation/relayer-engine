@@ -105,7 +105,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   storage: Storage;
   filters: {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
-  }[];
+  }[] = [];
   private opts: RelayerAppOpts;
   private shouldProcessVaa: FilterFN = () => true;
 
