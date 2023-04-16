@@ -137,6 +137,15 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     return super.on(eventName, listener);
   }
 
+  emit(
+    eventName: RelayerEvents,
+    vaa: ParsedVaaWithBytes,
+    job?: RelayJob,
+    ...args: any
+  ): boolean {
+    return super.emit(eventName, vaa, job, ...args);
+  }
+
   /**
    * Allows you to pass an object that specifies a combination of chains with address for which you want to run middleware.
    *
@@ -254,8 +263,8 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       return;
     }
     if (this.storage) {
-      await this.storage.addVaaToQueue(parsedVaa.bytes);
-      this.emit(RelayerEvents.Added, parsedVaa);
+      const job = await this.storage.addVaaToQueue(parsedVaa.bytes);
+      this.emit(RelayerEvents.Added, parsedVaa, job);
     } else {
       this.emit(RelayerEvents.Added, parsedVaa);
       await this.pushVaaThroughPipeline(vaa, opts);
