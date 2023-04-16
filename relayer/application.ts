@@ -71,7 +71,14 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   concurrency: 1,
 });
 
+interface SerializableVaaId {
+  emitterChain: ChainId;
+  emitterAddress: string;
+  sequence: string;
+}
+
 export interface ParsedVaaWithBytes extends ParsedVaa {
+  id: SerializableVaaId;
   bytes: SignedVaa;
 }
 
