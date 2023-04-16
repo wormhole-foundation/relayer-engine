@@ -116,7 +116,7 @@ export class RedisStorage implements Storage {
     this.registry = registry;
   }
 
-  async addVaaToQueue(vaaBytes: Buffer) {
+  async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
@@ -125,7 +125,7 @@ export class RedisStorage implements Storage {
       emitterAddress: parsedVaa.emitterAddress.toString("hex"),
       sequence: parsedVaa.sequence.toString(),
     });
-    return this.vaaQueue.add(
+    const job = await this.vaaQueue.add(
       idWithoutHash,
       {
         parsedVaa: serializeVaa(parsedVaa),
@@ -138,6 +138,16 @@ export class RedisStorage implements Storage {
         attempts: this.opts.attempts,
       },
     );
+
+    return {
+      attempts: 0,
+      data: { vaaBytes, parsedVaa },
+      id: job.id,
+      name: job.name,
+      log: job.log.bind(job),
+      updateProgress: job.updateProgress.bind(job),
+      maxAttempts: this.opts.attempts,
+    };
   }
 
   private vaaId(vaa: ParsedVaa): string {
