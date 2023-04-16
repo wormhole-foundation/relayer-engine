@@ -116,14 +116,15 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    *
    *  WARNING: If your function throws, the VAA will be skipped (is this the right behavior?). If you want to process the VAA anyway, catch your errors and return true.
    *
-   * @param fn pass in a function that will receive the raw bytes of the VAA and if it returns `true` or `Promise<true>` the VAA will be processed, otherwise it will be skipped
+   * @param newFilter pass in a function that will receive the raw bytes of the VAA and if it returns `true` or `Promise<true>` the VAA will be processed, otherwise it will be skipped
    */
-  filter(fn: FilterFN) {
+  filter(newFilter: FilterFN) {
+    const previousFilters = this.shouldProcessVaa;
     this.shouldProcessVaa = async (vaaBytes: ParsedVaaWithBytes) => {
       try {
         let [should1, should2] = await Promise.all([
-          this.shouldProcessVaa(vaaBytes),
-          fn(vaaBytes),
+          previousFilters(vaaBytes),
+          newFilter(vaaBytes),
         ]);
         return should1 && should2;
       } catch {
