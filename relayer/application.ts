@@ -1,5 +1,4 @@
 import { EventEmitter } from "events";
-import * as wormholeSdk from "@certusone/wormhole-sdk";
 import {
   ChainId,
   ChainName,
@@ -75,7 +74,18 @@ export interface ParsedVaaWithBytes extends ParsedVaa {
   bytes: SignedVaa;
 }
 
-type FilterFN = (vaaBytes: Buffer) => Promise<boolean> | boolean;
+export type FilterFN = (
+  vaaBytes: ParsedVaaWithBytes,
+) => Promise<boolean> | boolean;
+
+export enum RelayerEvents {
+  Added = "added",
+  Skipped = "skipped",
+  Completed = "completed",
+  Failed = "failed",
+}
+
+export type ListenerFn = (vaa: ParsedVaaWithBytes, job?: RelayJob) => void;
 
 export class RelayerApp<ContextT extends Context> extends EventEmitter {
   private pipeline?: Middleware;
@@ -107,7 +117,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param fn pass in a function that will receive the raw bytes of the VAA and if it returns `true` or `Promise<true>` the VAA will be processed, otherwise it will be skipped
    */
   filter(fn: FilterFN) {
-    this.shouldProcessVaa = async (vaaBytes: Buffer) => {
+    this.shouldProcessVaa = async (vaaBytes: ParsedVaaWithBytes) => {
       try {
         let [should1, should2] = await Promise.all([
           this.shouldProcessVaa(vaaBytes),
@@ -118,6 +128,10 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         return false;
       }
     };
+  }
+
+  on(eventName: RelayerEvents, listener: ListenerFn): this {
+    return super.on(eventName, listener);
   }
 
   /**
@@ -225,18 +239,22 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param opts You can use this to extend the context that will be passed to the middleware
    */
   async processVaa(vaa: Buffer, opts: any = {}) {
-    if (!(await this.shouldProcessVaa(vaa)) && !opts.force) {
-      let parsedVaa = wormholeSdk.parseVaa(vaa);
+    let parsedVaa = parseVaaWithBytes(vaa);
+    if (!(await this.shouldProcessVaa(parsedVaa)) && !opts.force) {
       this.rootLogger?.debug("VAA did not pass filters. Skipping...", {
         emitterChain: parsedVaa.emitterChain,
         emitterAddress: parsedVaa.emitterAddress.toString("hex"),
         sequence: parsedVaa.sequence.toString(),
       });
+      this.emit(RelayerEvents.Skipped, parsedVaa);
+      return;
     }
     if (this.storage) {
-      await this.storage.addVaaToQueue(vaa);
+      await this.storage.addVaaToQueue(parsedVaa.bytes);
+      this.emit(RelayerEvents.Added, parsedVaa);
     } else {
-      this.pushVaaThroughPipeline(vaa, opts);
+      this.emit(RelayerEvents.Added, parsedVaa);
+      await this.pushVaaThroughPipeline(vaa, opts);
     }
   }
 
@@ -245,25 +263,35 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param vaa
    * @param opts
    */
-  async pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void> {
-    const parsedVaa = wormholeSdk.parseVaa(vaa);
+  private async pushVaaThroughPipeline(
+    vaa: SignedVaa,
+    opts: any,
+  ): Promise<void> {
+    const parsedVaa = parseVaaWithBytes(vaa);
+    const job: RelayJob | undefined = opts.job;
+
     let ctx: Context = {
-      vaa: parsedVaa,
-      vaaBytes: vaa,
-      env: this.env,
-      fetchVaa: this.fetchVaa.bind(this),
-      fetchVaas: this.fetchVaas.bind(this),
-      processVaa: this.processVaa.bind(this),
       config: {
         spyFilters: await this.spyFilters(),
       },
+      env: this.env,
+      fetchVaa: this.fetchVaa.bind(this),
+      fetchVaas: this.fetchVaas.bind(this),
       locals: {},
+      on: this.on.bind(this),
+      processVaa: this.processVaa.bind(this),
+      vaa: parsedVaa,
+      vaaBytes: vaa,
     };
-    Object.assign(ctx, opts);
+    Object.assign(ctx, opts, { storage: { job } });
     try {
-      await this.pipeline?.(ctx, () => {});
+      await this.pipeline?.(ctx, () => {
+        this.emit(RelayerEvents.Completed, parsedVaa, job);
+      });
     } catch (e) {
-      this.errorPipeline?.(e, ctx, () => {});
+      this.errorPipeline?.(e, ctx, () => {
+        this.emit(RelayerEvents.Failed, parsedVaa, job);
+      });
       throw e;
     }
   }
@@ -414,7 +442,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
 
         for await (const vaa of stream) {
           this.rootLogger.debug(`Received VAA through spy`);
-          this.processVaa(vaa.vaaBytes).catch();
+          this.processVaa(vaa.vaaBytes);
         }
       } catch (err) {
         this.rootLogger.error("error connecting to the spy");
@@ -432,11 +460,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }
 
   private onVaaFromQueue = async (job: RelayJob) => {
-    await this.pushVaaThroughPipeline(job.data.vaaBytes, {
-      storage: {
-        job,
-      },
-    });
+    await this.pushVaaThroughPipeline(job.data.vaaBytes, { job });
     await job.updateProgress(100);
     return [""];
   };

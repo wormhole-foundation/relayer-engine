@@ -9,7 +9,7 @@ import Redis, {
   RedisOptions,
 } from "ioredis";
 import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
-import { defaultWormholeRpcs, RelayerApp } from "../application";
+import { defaultWormholeRpcs, RelayerApp, RelayerEvents } from "../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
 import { sleep } from "../utils";
@@ -53,6 +53,23 @@ export function missedVaas(
   const redisPool = createPool(factory, poolOpts);
 
   setTimeout(() => startMissedVaaWorker(redisPool, app, opts), 100); // start worker once config is done.
+
+  app.on(RelayerEvents.Skipped, async vaa => {
+    // when we skip vaas, we still want to mark them as seen, since the middleware doesn't know that we actually saw them and skipped them
+    // it will think we missed it if we don't do this
+    const redis = await redisPool.acquire();
+    try {
+      await setLastSequenceForContract(
+        redis,
+        vaa.emitterChain,
+        vaa.emitterAddress,
+        vaa.sequence,
+        opts.logger,
+      );
+    } finally {
+      await redisPool.release(redis);
+    }
+  });
 
   return async (ctx: Context, next) => {
     const wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[ctx.env];
