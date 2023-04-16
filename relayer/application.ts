@@ -35,6 +35,7 @@ import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-tr
 import { defaultLogger } from "./logging";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 import { RelayJob, Storage } from "./storage/storage";
+import * as Events from "events";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -79,6 +80,7 @@ export type FilterFN = (
 ) => Promise<boolean> | boolean;
 
 export enum RelayerEvents {
+  Received = "received",
   Added = "added",
   Skipped = "skipped",
   Completed = "completed",
@@ -240,6 +242,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    */
   async processVaa(vaa: Buffer, opts: any = {}) {
     let parsedVaa = parseVaaWithBytes(vaa);
+    this.emit(RelayerEvents.Received, parsedVaa);
     if (!(await this.shouldProcessVaa(parsedVaa)) && !opts.force) {
       this.rootLogger?.debug("VAA did not pass filters. Skipping...", {
         emitterChain: parsedVaa.emitterChain,
