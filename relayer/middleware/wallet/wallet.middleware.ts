@@ -13,6 +13,7 @@ import {
   EVMChainId,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
+import * as sui from "@mysten/sui.js";
 import { WalletToolBox } from "./walletToolBox";
 import { Middleware } from "../../compose.middleware";
 import { spawnWalletWorker } from "./wallet.worker";
@@ -30,6 +31,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export type EVMWallet = ethers.Wallet;
+export type SuiWallet = sui.RawSigner;
 
 export type SolanaWallet = {
   conn: solana.Connection;
@@ -100,6 +102,8 @@ function makeExecuteFunc(
   };
   func.onSolana = <T>(f: ActionFunc<T, SolanaWallet>) =>
     func(CHAIN_ID_SOLANA, f);
+  func.onSui = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
+    func(chainId, f);
   func.onEVM = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
     func(chainId, f);
   return func;

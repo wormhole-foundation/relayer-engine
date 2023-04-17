@@ -23,6 +23,7 @@
     "@certusone/wormhole-sdk": "^0.9.11",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
+    "@mysten/sui.js": "^0.32.1",
     "@xlabs-xyz/wallet-monitor": "^0.0.13",
     "bech32": "^2.0.0",
     "bullmq": "^3.10.1",
