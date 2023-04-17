@@ -53,8 +53,7 @@ export interface RelayerAppOpts {
 }
 
 export type FetchaVaasOpts = {
-  ids?: VaaId[];
-  txHash?: string;
+  ids: VaaId[];
   delayBetweenRequestsInMs?: number;
   attempts?: number;
 };
@@ -153,7 +152,7 @@ export class RelayerApp<ContextT extends Context> {
   }
 
   fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
-    const bundle = new VaaBundleFetcher(this.fetchVaa, {
+    const bundle = new VaaBundleFetcher(this.fetchVaa.bind(this), {
       vaaIds: opts.ids,
       maxAttempts: opts.attempts,
       delayBetweenAttemptsInMs: opts.delayBetweenRequestsInMs,
