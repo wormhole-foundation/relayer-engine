@@ -87,7 +87,7 @@ export async function fetchVaaHash(
       } else if (res.status > 500) {
         throw new Error(`Got: ${res.status}`);
       }
-      return (await res.json()).data?.txHash || "";
+      txHash = (await res.json()).data?.txHash;
     } catch (e) {
       logger?.error(
         `could not obtain txHash, attempt: ${attempt} of ${retries}.`,
