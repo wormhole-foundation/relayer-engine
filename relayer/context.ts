@@ -7,6 +7,7 @@ export type FetchVaaFn = (
   emitterChain: ChainId | string,
   emitterAddress: Buffer | string,
   sequence: bigint | string,
+  opts?: { retryTimeout?: number; retries?: number },
 ) => Promise<ParsedVaaWithBytes>;
 
 export type FetchVaasFn = (

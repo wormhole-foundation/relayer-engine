@@ -1,6 +1,6 @@
 import { ChainId, ParsedVaa } from "@certusone/wormhole-sdk";
 import { FetchVaaFn } from "./context";
-import { parseVaaWithBytes, sleep } from "./utils";
+import { EngineError, parseVaaWithBytes, sleep } from "./utils";
 import { ParsedVaaWithBytes } from "./application";
 
 export type VaaId = {
@@ -20,27 +20,26 @@ export type SerializedBatchFetcher = {
 interface VaaBundlerOpts {
   maxAttempts?: number;
   delayBetweenAttemptsInMs?: number;
-  vaaIds?: VaaId[];
+  vaaIds: VaaId[];
 }
 
-const defaultOpts: VaaBundlerOpts = {
+const defaultOpts: Omit<VaaBundlerOpts, "vaaIds"> = {
   maxAttempts: 10,
   delayBetweenAttemptsInMs: 1000,
 };
 
 export class VaaBundleFetcher {
-  private readonly fetchedVaas: Record<string, ParsedVaaWithBytes>;
-  private readonly pendingVaas: Record<string, VaaId>;
+  private readonly fetchedVaas: Record<string, ParsedVaaWithBytes> = {};
+  private readonly pendingVaas: Record<string, VaaId> = {};
+  private readonly fetchErrors: Record<string, Error> = {};
   private opts: VaaBundlerOpts;
 
   constructor(private fetchVaa: FetchVaaFn, opts?: VaaBundlerOpts) {
     this.opts = Object.assign({}, defaultOpts, opts);
 
-    this.pendingVaas = {};
     for (const id of this.opts.vaaIds) {
       this.pendingVaas[this.idToKey(id)] = id;
     }
-    this.fetchedVaas = {};
   }
 
   private idToKey = (id: VaaId) =>
@@ -54,19 +53,18 @@ export class VaaBundleFetcher {
       return true;
     }
     const fetched = await Promise.all(
-      Object.values(this.pendingVaas).map(
-        async ({ emitterChain, emitterAddress, sequence }) => {
-          try {
-            return await this.fetchVaa(
-              emitterChain as ChainId,
-              emitterAddress,
-              sequence,
-            );
-          } catch (e) {
-            return null;
-          }
-        },
-      ),
+      Object.values(this.pendingVaas).map(async id => {
+        try {
+          return await this.fetchVaa(
+            id.emitterChain as ChainId,
+            id.emitterAddress,
+            id.sequence,
+          );
+        } catch (e) {
+          this.fetchErrors[this.idToKey(id)] = e;
+          return null;
+        }
+      }),
     );
 
     const vaas = fetched.filter(vaa => vaa !== null);
@@ -139,7 +137,9 @@ export class VaaBundleFetcher {
       complete = await this.fetchPending();
     }
     if (!complete) {
-      throw new Error("could not fetch all vaas");
+      throw new EngineError("could not fetch all vaas", {
+        fetchErrors: this.fetchErrors,
+      }) as any;
     }
     return this.export();
   }
