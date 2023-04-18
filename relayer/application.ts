@@ -296,15 +296,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       vaa: parsedVaa,
       vaaBytes: vaa,
     };
-    Object.assign(ctx, opts, { storage: { job } });
+    Object.assign(ctx, opts);
     try {
-      await this.pipeline?.(ctx, () => {
-        this.emit(RelayerEvents.Completed, parsedVaa, job);
-      });
+      await this.pipeline?.(ctx, () => {});
+      this.emit(RelayerEvents.Completed, parsedVaa, job);
     } catch (e) {
-      this.errorPipeline?.(e, ctx, () => {
-        this.emit(RelayerEvents.Failed, parsedVaa, job);
-      });
+      this.errorPipeline?.(e, ctx, () => {});
+      this.emit(RelayerEvents.Failed, parsedVaa, job);
       throw e;
     }
   }
@@ -473,7 +471,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }
 
   private onVaaFromQueue = async (job: RelayJob) => {
-    await this.pushVaaThroughPipeline(job.data.vaaBytes, { job });
+    await this.pushVaaThroughPipeline(job.data.vaaBytes, { storage: { job } });
     await job.updateProgress(100);
     return [""];
   };
