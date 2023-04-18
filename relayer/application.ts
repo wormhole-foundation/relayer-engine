@@ -100,7 +100,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
   }[];
   private opts: RelayerAppOpts;
-  private shouldProcessVaa: FilterFN = () => true;
+  private vaaFilters: FilterFN[] = [];
 
   constructor(
     public env: Environment = Environment.TESTNET,
@@ -119,18 +119,45 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param newFilter pass in a function that will receive the raw bytes of the VAA and if it returns `true` or `Promise<true>` the VAA will be processed, otherwise it will be skipped
    */
   filter(newFilter: FilterFN) {
-    const previousFilters = this.shouldProcessVaa;
-    this.shouldProcessVaa = async (vaaBytes: ParsedVaaWithBytes) => {
+    this.vaaFilters.push(newFilter);
+  }
+
+  private async shouldProcessVaa(vaa: ParsedVaaWithBytes): Promise<boolean> {
+    if (this.vaaFilters.length === 0) {
+      return true;
+    }
+    for (let i = 0; i < this.vaaFilters.length; i++) {
+      const chain = vaa.emitterChain;
+      const emitterAddress = vaa.emitterAddress.toString("hex");
+      const sequence = vaa.sequence.toString();
+
+      const filter = this.vaaFilters[i];
+      let isOk;
       try {
-        let [should1, should2] = await Promise.all([
-          previousFilters(vaaBytes),
-          newFilter(vaaBytes),
-        ]);
-        return should1 && should2;
-      } catch {
+        isOk = await filter(vaa);
+      } catch (e: any) {
+        isOk = false;
+        this.rootLogger.debug(
+          `filter ${i} of ${this.vaaFilters.length} threw an exception`,
+          {
+            chain,
+            emitterAddress,
+            sequence,
+            message: e.message,
+            stack: e.stack,
+            name: e.name,
+          },
+        );
+      }
+      if (!isOk) {
+        this.rootLogger.debug(
+          `Vaa was skipped by filter ${i} of ${this.vaaFilters.length}`,
+          { chain, emitterAddress, sequence },
+        );
         return false;
       }
-    };
+    }
+    return true;
   }
 
   on(eventName: RelayerEvents, listener: ListenerFn): this {
