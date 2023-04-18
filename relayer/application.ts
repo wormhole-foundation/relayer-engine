@@ -463,6 +463,3 @@ export type ContractFilter = {
   emitterAddress: string; // Emitter contract address to filter for
   chainId: ChainId; // Wormhole ChainID to filter for
 };
-
-/**
- */
