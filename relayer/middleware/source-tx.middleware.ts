@@ -15,10 +15,10 @@ export interface SourceTxContext extends Context {
   sourceTxHash?: string;
 }
 
-export const wormscanEndpoints = {
+export const wormscanEndpoints: { [k in Environment]: string | undefined } = {
   [Environment.MAINNET]: "https://api.wormscan.io",
   [Environment.TESTNET]: "https://api.testnet.wormscan.io",
-  [Environment.DEVNET]: "",
+  [Environment.DEVNET]: undefined,
 };
 
 const defaultOptsByEnv = {
