@@ -106,7 +106,7 @@ function runUI(
       return;
     }
 
-    ctx.body = await relayer.metricsRegistry().metrics();
+    ctx.body = await store.registry.metrics();
   });
 
   port = Number(port) || 3000;
