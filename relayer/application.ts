@@ -71,7 +71,14 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   concurrency: 1,
 });
 
+interface SerializableVaaId {
+  emitterChain: ChainId;
+  emitterAddress: string;
+  sequence: string;
+}
+
 export interface ParsedVaaWithBytes extends ParsedVaa {
+  id: SerializableVaaId;
   bytes: SignedVaa;
 }
 
@@ -98,7 +105,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   storage: Storage;
   filters: {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
-  }[];
+  }[] = [];
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
 
@@ -323,7 +330,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       vaa: parsedVaa,
       vaaBytes: vaa,
     };
-    Object.assign(ctx, opts);
+    Object.assign(ctx, opts, { storage: { job } });
     try {
       await this.pipeline?.(ctx, () => {});
       this.emit(RelayerEvents.Completed, parsedVaa, job);
