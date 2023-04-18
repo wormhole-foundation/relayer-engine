@@ -8,6 +8,7 @@ import {
   ParsedTokenTransferVaa,
   ParsedVaa,
   parseTokenTransferVaa,
+  SignedVaa,
 } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
 import { ProviderContext } from "./providers.middleware";
@@ -101,7 +102,7 @@ function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
 }
 
 function tryToParseTokenTransferVaa(
-  vaaBytes: Buffer,
+  vaaBytes: SignedVaa,
 ): ParsedTokenTransferVaa | null {
   try {
     return parseTokenTransferVaa(vaaBytes);

@@ -1,7 +1,5 @@
 import { Job, Queue, Worker } from "bullmq";
 import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
-import { RelayerApp } from "./application";
-import { Context } from "./context";
 import { Logger } from "winston";
 import {
   Cluster,
@@ -10,9 +8,13 @@ import {
   Redis,
   RedisOptions,
 } from "ioredis";
-import { createStorageMetrics } from "./storage.metrics";
+import { createStorageMetrics } from "../storage.metrics";
 import { Gauge, Histogram, Registry } from "prom-client";
-import { sleep } from "./utils";
+import { sleep } from "../utils";
+import { onJobHandler, RelayJob, Storage } from "./storage";
+import { KoaAdapter } from "@bull-board/koa";
+import { createBullBoard } from "@bull-board/api";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 
 function serializeVaa(vaa: ParsedVaa) {
   return {
@@ -52,14 +54,6 @@ function deserializeVaa(vaa: Record<string, any>): ParsedVaa {
   };
 }
 
-export interface StorageContext extends Context {
-  storage: {
-    job: Job;
-    worker: Worker;
-    maxAttempts: number;
-  };
-}
-
 export interface StorageOptions {
   redisClusterEndpoints?: ClusterNode[];
   redisCluster?: ClusterOptions;
@@ -79,10 +73,10 @@ const defaultOptions: Partial<StorageOptions> = {
   concurrency: 3,
 };
 
-export class Storage<T extends Context> {
+export class RedisStorage implements Storage {
   logger: Logger;
   vaaQueue: Queue<JobData, string[], string>;
-  private worker: Worker<JobData, string[], string>;
+  private worker: Worker<JobData, void, string>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
   public registry: Registry;
@@ -95,7 +89,9 @@ export class Storage<T extends Context> {
   };
   private opts: StorageOptions;
 
-  constructor(private relayer: RelayerApp<T>, opts: StorageOptions) {
+  workerId: string;
+
+  constructor(opts: StorageOptions) {
     this.opts = Object.assign({}, defaultOptions, opts);
     // ensure redis is defined
     if (!this.opts.redis) {
@@ -120,7 +116,7 @@ export class Storage<T extends Context> {
     this.registry = registry;
   }
 
-  async addVaaToQueue(vaaBytes: Buffer) {
+  async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
@@ -129,7 +125,7 @@ export class Storage<T extends Context> {
       emitterAddress: parsedVaa.emitterAddress.toString("hex"),
       sequence: parsedVaa.sequence.toString(),
     });
-    return this.vaaQueue.add(
+    const job = await this.vaaQueue.add(
       idWithoutHash,
       {
         parsedVaa: serializeVaa(parsedVaa),
@@ -142,6 +138,16 @@ export class Storage<T extends Context> {
         attempts: this.opts.attempts,
       },
     );
+
+    return {
+      attempts: 0,
+      data: { vaaBytes, parsedVaa },
+      id: job.id,
+      name: job.name,
+      log: job.log.bind(job),
+      updateProgress: job.updateProgress.bind(job),
+      maxAttempts: this.opts.attempts,
+    };
   }
 
   private vaaId(vaa: ParsedVaa): string {
@@ -151,7 +157,7 @@ export class Storage<T extends Context> {
     return `${vaa.emitterChain}/${emitterAddress}/${sequence}/${hash}`;
   }
 
-  startWorker() {
+  startWorker(handleJob: onJobHandler) {
     this.logger?.debug(
       `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
@@ -168,17 +174,23 @@ export class Storage<T extends Context> {
         } else {
           this.logger.debug("Received job with no parsedVaa");
         }
-        await job.log(`processing by..${this.worker.id}`);
-        let vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
-        await this.relayer.pushVaaThroughPipeline(vaaBytes, {
-          storage: {
-            job,
-            worker: this.worker,
-            maxAttempts: this.opts.attempts,
+
+        const vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
+        const relayJob: RelayJob = {
+          attempts: job.attemptsMade,
+          data: {
+            vaaBytes,
+            parsedVaa: parseVaa(vaaBytes),
           },
-        });
-        await job.updateProgress(100);
-        return [""];
+          id: job.id,
+          maxAttempts: this.opts.attempts,
+          name: job.name,
+          log: job.log.bind(job),
+          updateProgress: job.updateProgress.bind(job),
+        };
+        await job.log(`processing by..${this.workerId}`);
+        await handleJob(relayJob);
+        return;
       },
       {
         prefix: this.prefix,
@@ -186,6 +198,7 @@ export class Storage<T extends Context> {
         concurrency: this.opts.concurrency,
       },
     );
+    this.workerId = this.worker.id;
 
     this.worker.on("completed", this.onCompleted.bind(this));
     this.spawnGaugeUpdateWorker();
@@ -223,5 +236,18 @@ export class Storage<T extends Context> {
     this.metrics.processedDuration
       .labels({ queue: this.vaaQueue.name })
       .observe(processedDuration);
+  }
+
+  storageKoaUI(path: string) {
+    // UI
+    const serverAdapter = new KoaAdapter();
+    serverAdapter.setBasePath(path);
+
+    createBullBoard({
+      queues: [new BullMQAdapter(this.vaaQueue)],
+      serverAdapter: serverAdapter,
+    });
+
+    return serverAdapter.registerPlugin();
   }
 }

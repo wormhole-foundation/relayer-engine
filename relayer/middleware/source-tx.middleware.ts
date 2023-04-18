@@ -4,6 +4,7 @@ import { Context } from "../context";
 import { Environment } from "../application";
 import { sleep } from "../utils";
 import { ChainId, isEVMChain } from "@certusone/wormhole-sdk";
+import { Logger } from "winston";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -14,15 +15,21 @@ export interface SourceTxContext extends Context {
   sourceTxHash?: string;
 }
 
+export const wormscanEndpoints: { [k in Environment]: string | undefined } = {
+  [Environment.MAINNET]: "https://api.wormscan.io",
+  [Environment.TESTNET]: "https://api.testnet.wormscan.io",
+  [Environment.DEVNET]: undefined,
+};
+
 const defaultOptsByEnv = {
   [Environment.MAINNET]: {
-    wormscanEndpoint: "https://api.wormscan.io",
+    wormscanEndpoint: wormscanEndpoints[Environment.MAINNET],
   },
   [Environment.TESTNET]: {
-    wormscanEndpoint: "https://api.testnet.wormscan.io",
+    wormscanEndpoint: wormscanEndpoints[Environment.TESTNET],
   },
   [Environment.DEVNET]: {
-    wormscanEndpoint: "",
+    wormscanEndpoint: wormscanEndpoints[Environment.DEVNET],
   },
 };
 
@@ -32,36 +39,21 @@ export function sourceTx(
   let opts: SourceTxOpts;
   return async (ctx, next) => {
     if (!opts) {
+      // initialize options now that we know the environment from context
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
     }
 
     const { emitterChain, emitterAddress, sequence } = ctx.vaa;
-    let attempt = 0;
-    let txHash = "";
     ctx.logger?.debug("Fetching tx hash...");
-    do {
-      try {
-        txHash = await fetchVaaHash(
-          opts.wormscanEndpoint,
-          emitterChain,
-          emitterAddress,
-          sequence,
-        );
-      } catch (e) {
-        ctx.logger?.error(
-          `could not obtain txHash, attempt: ${attempt} of ${opts.retries}.`,
-          e,
-        );
-        await sleep(attempt * 200); // linear wait
-      }
-    } while (attempt < opts.retries && !txHash);
-    if (
-      isEVMChain(ctx.vaa.emitterChain as ChainId) &&
-      txHash &&
-      !txHash.startsWith("0x")
-    ) {
-      txHash = `0x${txHash}`;
-    }
+    let txHash = await fetchVaaHash(
+      emitterChain,
+      emitterAddress,
+      sequence,
+      opts.retries,
+      ctx.logger,
+      ctx.env,
+      opts.wormscanEndpoint,
+    );
     ctx.logger?.debug(
       txHash === ""
         ? "Could not retrive tx hash."
@@ -72,21 +64,46 @@ export function sourceTx(
   };
 }
 
-async function fetchVaaHash(
-  baseEndpoint: string,
+export async function fetchVaaHash(
   emitterChain: number,
   emitterAddress: Buffer,
   sequence: bigint,
+  retries: number,
+  logger: Logger,
+  env: Environment,
+  baseEndpoint: string = wormscanEndpoints[env],
 ) {
-  const res = await fetch(
-    `${baseEndpoint}/api/v1/vaas/${emitterChain}/${emitterAddress.toString(
-      "hex",
-    )}/${sequence.toString()}`,
-  );
-  if (res.status === 404) {
-    throw new Error("Not found yet.");
-  } else if (res.status > 500) {
-    throw new Error(`Got: ${res.status}`);
+  let attempt = 0;
+  let txHash = "";
+  do {
+    try {
+      const res = await fetch(
+        `${baseEndpoint}/api/v1/vaas/${emitterChain}/${emitterAddress.toString(
+          "hex",
+        )}/${sequence.toString()}`,
+      );
+      if (res.status === 404) {
+        throw new Error("Not found yet.");
+      } else if (res.status > 500) {
+        throw new Error(`Got: ${res.status}`);
+      }
+      txHash = (await res.json()).data?.txHash;
+    } catch (e) {
+      logger?.error(
+        `could not obtain txHash, attempt: ${attempt} of ${retries}.`,
+        e,
+      );
+      await sleep((attempt + 1) * 200); // linear wait
+    }
+  } while (++attempt < retries && !txHash);
+
+  if (
+    isEVMChain(emitterChain as ChainId) &&
+    txHash &&
+    !txHash.startsWith("0x")
+  ) {
+    txHash = `0x${txHash}`;
   }
-  return (await res.json()).data?.txHash || "";
+
+  return txHash;
 }

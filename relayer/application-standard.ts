@@ -12,12 +12,16 @@ import {
   StagingAreaContext,
 } from "./middleware/staging-area.middleware";
 import { Logger } from "winston";
-import { StorageContext } from "./storage";
+import { StorageContext } from "./storage/storage";
+import { RedisStorage } from "./storage/redis-storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
 import { sourceTx, SourceTxContext } from "./middleware/source-tx.middleware";
 import { defaultLogger } from "./logging";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { KoaAdapter } from "@bull-board/koa";
+import { createBullBoard } from "@bull-board/api";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -55,6 +59,7 @@ export type StandardRelayerContext = LoggingContext &
 export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext,
 > extends RelayerApp<ContextT> {
+  private store: RedisStorage;
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger;
@@ -72,8 +77,8 @@ export class StandardRelayerApp<
       wormholeRpcs,
     } = opts;
     super(env, opts);
-    this.spy(spyEndpoint);
-    this.useStorage({
+
+    this.store = new RedisStorage({
       redis,
       redisClusterEndpoints,
       redisCluster,
@@ -81,6 +86,9 @@ export class StandardRelayerApp<
       namespace: name,
       queueName: `${name}-relays`,
     });
+
+    this.spy(spyEndpoint);
+    this.useStorage(this.store);
     this.logger(logger);
     this.use(logging(logger)); // <-- logging middleware
     this.use(
@@ -116,5 +124,35 @@ export class StandardRelayerApp<
     if (opts.fetchSourceTxhash) {
       this.use(sourceTx());
     }
+  }
+
+  /**
+   * Registry with prometheus metrics exported by the relayer.
+   * Metrics include:
+   * - active_workflows: Number of workflows currently running
+   * - delayed_workflows: Number of worklows which are scheduled in the future either because they were scheduled that way or because they failed.
+   * - waiting_workflows: Workflows waiting for a worker to pick them up.
+   * - worklow_processing_duration: Processing time for completed jobs (processing until completed)
+   * - workflow_total_duration: Processing time for completed jobs (processing until completed)
+   */
+  get metricsRegistry() {
+    return this.store.registry;
+  }
+
+  /**
+   * A UI that you can mount in a KOA app to show the status of the queue / jobs.
+   * @param path
+   */
+  storageKoaUI(path: string) {
+    // UI
+    const serverAdapter = new KoaAdapter();
+    serverAdapter.setBasePath(path);
+
+    createBullBoard({
+      queues: [new BullMQAdapter(this.store.vaaQueue)],
+      serverAdapter: serverAdapter,
+    });
+
+    return serverAdapter.registerPlugin();
   }
 }

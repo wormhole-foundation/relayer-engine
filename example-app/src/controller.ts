@@ -1,4 +1,4 @@
-import { Next } from "wormhole-relayer";
+import { Next } from "@wormhole-foundation/relayer-engine";
 import { MyRelayerContext } from "./app";
 
 export class ApiController {
