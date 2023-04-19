@@ -57,7 +57,12 @@ export function isObject(item: any) {
 
 export function parseVaaWithBytes(bytes: SignedVaa): ParsedVaaWithBytes {
   const parsedVaa = parseVaa(bytes);
-  return { ...parsedVaa, bytes };
+  const id = {
+    emitterChain: parsedVaa.emitterChain as ChainId,
+    emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+    sequence: parsedVaa.sequence.toString(),
+  };
+  return { ...parsedVaa, bytes, id };
 }
 
 /**

@@ -1,4 +1,4 @@
-import * as wormholeSdk from "@certusone/wormhole-sdk";
+import { EventEmitter } from "events";
 import {
   ChainId,
   ChainName,
@@ -23,10 +23,6 @@ import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
-import { Storage, StorageOptions } from "./storage";
-import { KoaAdapter } from "@bull-board/koa";
-import { createBullBoard } from "@bull-board/api";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
 import {
@@ -38,6 +34,8 @@ import {
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { defaultLogger } from "./logging";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
+import { RelayJob, Storage } from "./storage/storage";
+import * as Events from "events";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -72,27 +70,113 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   concurrency: 1,
 });
 
+interface SerializableVaaId {
+  emitterChain: ChainId;
+  emitterAddress: string;
+  sequence: string;
+}
+
 export interface ParsedVaaWithBytes extends ParsedVaa {
+  id: SerializableVaaId;
   bytes: SignedVaa;
 }
 
-export class RelayerApp<ContextT extends Context> {
-  private pipeline?: Middleware<Context>;
-  private errorPipeline?: ErrorMiddleware<Context>;
+export type FilterFN = (
+  vaaBytes: ParsedVaaWithBytes,
+) => Promise<boolean> | boolean;
+
+export enum RelayerEvents {
+  Received = "received",
+  Added = "added",
+  Skipped = "skipped",
+  Completed = "completed",
+  Failed = "failed",
+}
+
+export type ListenerFn = (vaa: ParsedVaaWithBytes, job?: RelayJob) => void;
+
+export class RelayerApp<ContextT extends Context> extends EventEmitter {
+  private pipeline?: Middleware;
+  private errorPipeline?: ErrorMiddleware;
   private chainRouters: Partial<Record<ChainId, ChainRouter<ContextT>>> = {};
   private spyUrl?: string;
   private rootLogger: Logger;
-  storage: Storage<ContextT>;
+  storage: Storage;
   filters: {
     emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
-  }[];
+  }[] = [];
   private opts: RelayerAppOpts;
+  private vaaFilters: FilterFN[] = [];
 
   constructor(
     public env: Environment = Environment.TESTNET,
     opts: RelayerAppOpts = {},
   ) {
+    super();
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
+  }
+
+  /**
+   *  This function will run as soon as a VAA is received and will determine whether we want to process it or skip it.
+   *  This is useful if you're listening to a contract but you don't care about every one of the VAAs emitted by it (eg. The Token Bridge contract).
+   *
+   *  WARNING: If your function throws, the VAA will be skipped (is this the right behavior?). If you want to process the VAA anyway, catch your errors and return true.
+   *
+   * @param newFilter pass in a function that will receive the raw bytes of the VAA and if it returns `true` or `Promise<true>` the VAA will be processed, otherwise it will be skipped
+   */
+  filter(newFilter: FilterFN) {
+    this.vaaFilters.push(newFilter);
+  }
+
+  private async shouldProcessVaa(vaa: ParsedVaaWithBytes): Promise<boolean> {
+    if (this.vaaFilters.length === 0) {
+      return true;
+    }
+    for (let i = 0; i < this.vaaFilters.length; i++) {
+      const chain = vaa.emitterChain;
+      const emitterAddress = vaa.emitterAddress.toString("hex");
+      const sequence = vaa.sequence.toString();
+
+      const filter = this.vaaFilters[i];
+      let isOk;
+      try {
+        isOk = await filter(vaa);
+      } catch (e: any) {
+        isOk = false;
+        this.rootLogger.debug(
+          `filter ${i} of ${this.vaaFilters.length} threw an exception`,
+          {
+            chain,
+            emitterAddress,
+            sequence,
+            message: e.message,
+            stack: e.stack,
+            name: e.name,
+          },
+        );
+      }
+      if (!isOk) {
+        this.rootLogger.debug(
+          `Vaa was skipped by filter ${i} of ${this.vaaFilters.length}`,
+          { chain, emitterAddress, sequence },
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  on(eventName: RelayerEvents, listener: ListenerFn): this {
+    return super.on(eventName, listener);
+  }
+
+  emit(
+    eventName: RelayerEvents,
+    vaa: ParsedVaaWithBytes,
+    job?: RelayJob,
+    ...args: any
+  ): boolean {
+    return super.emit(eventName, vaa, job, ...args);
   }
 
   /**
@@ -197,13 +281,26 @@ export class RelayerApp<ContextT extends Context> {
   /**
    * processVaa allows you to put a VAA through the pipeline leveraging storage if needed.
    * @param vaa
-   * @param opts
+   * @param opts You can use this to extend the context that will be passed to the middleware
    */
-  async processVaa(vaa: Buffer, opts?: any) {
+  async processVaa(vaa: Buffer, opts: any = {}) {
+    let parsedVaa = parseVaaWithBytes(vaa);
+    this.emit(RelayerEvents.Received, parsedVaa);
+    if (!(await this.shouldProcessVaa(parsedVaa)) && !opts.force) {
+      this.rootLogger?.debug("VAA did not pass filters. Skipping...", {
+        emitterChain: parsedVaa.emitterChain,
+        emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+        sequence: parsedVaa.sequence.toString(),
+      });
+      this.emit(RelayerEvents.Skipped, parsedVaa);
+      return;
+    }
     if (this.storage) {
-      await this.storage.addVaaToQueue(vaa);
+      const job = await this.storage.addVaaToQueue(parsedVaa.bytes);
+      this.emit(RelayerEvents.Added, parsedVaa, job);
     } else {
-      this.pushVaaThroughPipeline(vaa);
+      this.emit(RelayerEvents.Added, parsedVaa);
+      await this.pushVaaThroughPipeline(vaa, opts);
     }
   }
 
@@ -212,25 +309,33 @@ export class RelayerApp<ContextT extends Context> {
    * @param vaa
    * @param opts
    */
-  async pushVaaThroughPipeline(vaa: Buffer, opts?: any): Promise<void> {
-    const parsedVaa = wormholeSdk.parseVaa(vaa);
+  private async pushVaaThroughPipeline(
+    vaa: SignedVaa,
+    opts: any,
+  ): Promise<void> {
+    const parsedVaa = parseVaaWithBytes(vaa);
+    const job: RelayJob | undefined = opts.job;
+
     let ctx: Context = {
-      vaa: parsedVaa,
-      vaaBytes: vaa,
-      env: this.env,
-      fetchVaa: this.fetchVaa.bind(this),
-      fetchVaas: this.fetchVaas.bind(this),
-      processVaa: this.processVaa.bind(this),
       config: {
         spyFilters: await this.spyFilters(),
       },
+      env: this.env,
+      fetchVaa: this.fetchVaa.bind(this),
+      fetchVaas: this.fetchVaas.bind(this),
       locals: {},
+      on: this.on.bind(this),
+      processVaa: this.processVaa.bind(this),
+      vaa: parsedVaa,
+      vaaBytes: vaa,
     };
-    Object.assign(ctx, opts);
+    Object.assign(ctx, opts, { storage: { job } });
     try {
       await this.pipeline?.(ctx, () => {});
+      this.emit(RelayerEvents.Completed, parsedVaa, job);
     } catch (e) {
       this.errorPipeline?.(e, ctx, () => {});
+      this.emit(RelayerEvents.Failed, parsedVaa, job);
       throw e;
     }
   }
@@ -260,7 +365,7 @@ export class RelayerApp<ContextT extends Context> {
    *
    * Would run middleware1 and middleware2 for any tokenBridge vaa coming from ethereum or solana.
    *
-   * @param chains
+   * @param chainsOrChain
    * @param handlers
    */
   tokenBridge(
@@ -285,7 +390,7 @@ export class RelayerApp<ContextT extends Context> {
     { emitterFilter?: { chainId?: ChainID; emitterAddress?: string } }[]
   > {
     const spyFilters = new Set<any>();
-    for (const [chainId, chainRouter] of Object.entries(this.chainRouters)) {
+    for (const chainRouter of Object.values(this.chainRouters)) {
       for (const filter of await chainRouter.spyFilters()) {
         spyFilters.add(filter);
       }
@@ -329,43 +434,20 @@ export class RelayerApp<ContextT extends Context> {
    */
   logger(logger: Logger) {
     this.rootLogger = logger;
-    if (this.storage) {
-      this.storage.logger = logger;
-    }
   }
 
   /**
    * Configure your storage by passing info redis connection info among other details.
    * If you are using RelayerApp<any>, and you do not call this method, you will not be using storage.
    * Which means your VAAS will go straight through the pipeline instead of being added to a queue.
-   * @param storageOptions
+   * @param storage
    */
-  useStorage(storageOptions: StorageOptions) {
-    this.storage = new Storage(this, storageOptions);
-    if (this.rootLogger) {
-      this.storage.logger = this.rootLogger;
-    }
-  }
-
-  /**
-   * A UI that you can mount in a KOA app to show the status of the queue / jobs.
-   * @param path
-   */
-  storageKoaUI(path: string) {
-    // UI
-    const serverAdapter = new KoaAdapter();
-    serverAdapter.setBasePath(path);
-
-    createBullBoard({
-      queues: [new BullMQAdapter(this.storage.vaaQueue)],
-      serverAdapter: serverAdapter,
-    });
-
-    return serverAdapter.registerPlugin();
+  useStorage(storage: Storage) {
+    this.storage = storage;
   }
 
   private generateChainRoutes(): Middleware<ContextT> {
-    let chainRouting = async (ctx: ContextT, next: Next) => {
+    return async (ctx: ContextT, next: Next) => {
       let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
       if (!router) {
         this.rootLogger.error(
@@ -375,7 +457,6 @@ export class RelayerApp<ContextT extends Context> {
       }
       await router.process(ctx, next);
     };
-    return chainRouting;
   }
 
   /**
@@ -383,9 +464,6 @@ export class RelayerApp<ContextT extends Context> {
    */
   async listen() {
     this.rootLogger = this.rootLogger ?? defaultLogger;
-    if (this.storage && !this.storage.logger) {
-      this.storage.logger = this.rootLogger;
-    }
     this.use(this.generateChainRoutes());
 
     this.filters = await this.spyFilters();
@@ -394,7 +472,7 @@ export class RelayerApp<ContextT extends Context> {
       throw new Error("you need to setup the spy url");
     }
 
-    this.storage?.startWorker();
+    this.storage?.startWorker(this.onVaaFromQueue);
 
     while (true) {
       const client = createSpyRPCServiceClient(this.spyUrl!);
@@ -408,7 +486,7 @@ export class RelayerApp<ContextT extends Context> {
 
         for await (const vaa of stream) {
           this.rootLogger.debug(`Received VAA through spy`);
-          this.processVaa(vaa.vaaBytes).catch();
+          this.processVaa(vaa.vaaBytes);
         }
       } catch (err) {
         this.rootLogger.error("error connecting to the spy");
@@ -419,24 +497,17 @@ export class RelayerApp<ContextT extends Context> {
   }
 
   /**
-   * Registry with prometheus metrics exported by the relayer.
-   * Metrics include:
-   * - active_workflows: Number of workflows currently running
-   * - delayed_workflows: Number of worklows which are scheduled in the future either because they were scheduled that way or because they failed.
-   * - waiting_workflows: Workflows waiting for a worker to pick them up.
-   * - worklow_processing_duration: Processing time for completed jobs (processing until completed)
-   * - workflow_total_duration: Processing time for completed jobs (processing until completed)
-   */
-  get metricsRegistry() {
-    return this.storage?.registry;
-  }
-
-  /**
    * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
    */
   stop() {
     return this.storage.stopWorker();
   }
+
+  private onVaaFromQueue = async (job: RelayJob) => {
+    await this.pushVaaThroughPipeline(job.data.vaaBytes, { storage: { job } });
+    await job.updateProgress(100);
+    return [""];
+  };
 }
 
 class ChainRouter<ContextT extends Context> {
@@ -467,10 +538,9 @@ class ChainRouter<ContextT extends Context> {
 
   spyFilters(): { emitterFilter: ContractFilter }[] {
     let addresses = Object.keys(this._addressHandlers);
-    const filters = addresses.map(address => ({
+    return addresses.map(address => ({
       emitterFilter: { chainId: this.chainId, emitterAddress: address },
     }));
-    return filters;
   }
 
   async process(ctx: ContextT, next: Next): Promise<void> {

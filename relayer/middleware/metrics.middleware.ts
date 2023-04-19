@@ -1,7 +1,7 @@
 import { register } from "prom-client";
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
-import { StorageContext } from "../storage";
+import { StorageContext } from "../storage/storage";
 import { Job } from "bullmq";
 import { Counter, Registry } from "prom-client";
 

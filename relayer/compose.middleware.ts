@@ -5,7 +5,7 @@ export type Middleware<ContextT extends Context = Context> = (
   ctx: ContextT,
   next: Next,
 ) => Promise<void>;
-export type ErrorMiddleware<ContextT extends Context> = (
+export type ErrorMiddleware<ContextT extends Context = Context> = (
   err: Error,
   ctx: ContextT,
   next: Next,

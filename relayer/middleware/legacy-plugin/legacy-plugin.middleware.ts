@@ -10,15 +10,11 @@ import {
   Providers as LegacyProviders,
 } from "./legacy-plugin-definition";
 import * as legacy from "./legacy-plugin-definition";
-import { StorageContext } from "../../storage";
+import { StorageContext } from "../../storage/storage";
 import { LoggingContext } from "../logger.middleware";
 import { StagingAreaContext } from "../staging-area.middleware";
 import { ProviderContext, Providers } from "../providers.middleware";
-import {
-  SolanaWallet,
-  Wallet,
-  WalletContext,
-} from "../wallet/wallet.middleware";
+import { SolanaWallet, Wallet, WalletContext } from "../wallet";
 import { EVMWallet, WalletToolBox } from "../wallet";
 import { Connection } from "@solana/web3.js";
 
