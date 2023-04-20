@@ -39,6 +39,10 @@ export function encodeEmitterAddress(
   if (wormholeSdk.CHAIN_ID_NEAR === chainId) {
     return wormholeSdk.getEmitterAddressNear(emitterAddressStr);
   }
+  if (wormholeSdk.CHAIN_ID_SUI === chainId) {
+    return emitterAddressStr;
+  }
+
   throw new Error(`Unrecognized wormhole chainId ${chainId}`);
 }
 

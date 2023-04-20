@@ -17,6 +17,7 @@ import { ProviderContext, Providers } from "../providers.middleware";
 import { SolanaWallet, Wallet, WalletContext } from "../wallet";
 import { EVMWallet, WalletToolBox } from "../wallet";
 import { Connection } from "@solana/web3.js";
+import { JsonRpcProvider } from "@mysten/sui.js";
 
 export type PluginContext<Ext> = LoggingContext &
   StorageContext &
@@ -70,6 +71,7 @@ function makeExecuteWrapper(ctx: PluginContext<any>): {
   <T, W extends legacy.Wallet>(action: legacy.Action<T, W>): Promise<any>;
   onEVM<T>(action: legacy.Action<T, Wallet>): Promise<T>;
   onSolana<T>(f: any): Promise<T>;
+  onSui<T>(f: any): Promise<T>;
 } {
   const execute = async <T, W extends legacy.Wallet>(
     action: legacy.Action<T, W>,
@@ -102,6 +104,9 @@ function makeExecuteWrapper(ctx: PluginContext<any>): {
   execute.onSolana = <T>(f: any): Promise<T> => {
     return ctx.wallets.onSolana(f);
   };
+  execute.onSui = <T>(f: any): Promise<T> => {
+    return ctx.wallets.onSui(f);
+  };
   return execute;
 }
 
@@ -120,6 +125,10 @@ function providersShimToLegacy(providers: Providers): LegacyProviders {
     evm: Object.fromEntries(
       Object.entries(providers.evm).map(([chain, rpcs]) => [chain, rpcs[0]]),
     ),
+    sui:
+      providers.sui.length > 0
+        ? providers.sui[0]
+        : (undefined as JsonRpcProvider),
   };
 }
 
@@ -132,6 +141,7 @@ function providersShimFromLegacy(providers: LegacyProviders): Providers {
     evm: Object.fromEntries(
       Object.entries(providers.evm).map(([chain, rpc]) => [chain, [rpc]]),
     ),
+    sui: providers.sui ? [providers.sui] : [],
   };
 }
 

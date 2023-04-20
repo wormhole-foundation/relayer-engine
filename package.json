@@ -20,9 +20,10 @@
   "dependencies": {
     "@bull-board/api": "^5.0.0",
     "@bull-board/koa": "^5.0.0",
-    "@certusone/wormhole-sdk": "^0.9.11",
+    "@certusone/wormhole-sdk": "^0.9.14",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@mysten/sui.js": "^0.32.1",
     "@xlabs-xyz/wallet-monitor": "^0.0.14",
     "bech32": "^2.0.0",
