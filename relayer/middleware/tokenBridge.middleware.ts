@@ -3,12 +3,14 @@ import {
   CHAIN_ID_TO_NAME,
   ChainId,
   ChainName,
+  coalesceChainName,
   CONTRACTS,
   EVMChainId,
   ParsedTokenTransferVaa,
   ParsedVaa,
   parseTokenTransferVaa,
   SignedVaa,
+  TokenTransfer,
 } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
 import { ProviderContext } from "./providers.middleware";
@@ -55,6 +57,7 @@ export interface TokenBridgeContext extends ProviderContext {
       };
     };
     vaa?: ParsedTokenTransferVaa;
+    payload?: TokenTransfer;
   };
 }
 
@@ -85,7 +88,7 @@ function instantiateReadEvmContracts(
 
 function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
   let chainId = vaa.emitterChain as ChainId;
-  const chainName = CHAIN_ID_TO_NAME[chainId];
+  const chainName = coalesceChainName(chainId);
 
   // @ts-ignore TODO remove
   let tokenBridgeLocalAddress = tokenBridgeAddresses[env][chainName];
@@ -125,6 +128,25 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
       evmContracts = instantiateReadEvmContracts(ctx.env, ctx.providers.evm);
       ctx.logger?.debug(`Token Bridge Contracts initialized`);
     }
+    let parsedTokenTransferVaa = null;
+    let payload = null;
+    if (isTokenBridgeVaa(ctx.env, ctx.vaa)) {
+      parsedTokenTransferVaa = tryToParseTokenTransferVaa(ctx.vaaBytes);
+      if (parsedTokenTransferVaa) {
+        payload = {
+          payloadType: parsedTokenTransferVaa.payloadType,
+          amount: parsedTokenTransferVaa.amount,
+          tokenAddress: parsedTokenTransferVaa.tokenAddress,
+          tokenChain: parsedTokenTransferVaa.tokenChain,
+          to: parsedTokenTransferVaa.to,
+          toChain: parsedTokenTransferVaa.toChain,
+          fee: parsedTokenTransferVaa.fee,
+          fromAddress: parsedTokenTransferVaa.fromAddress,
+          tokenTransferPayload: parsedTokenTransferVaa.tokenTransferPayload,
+        };
+      }
+    }
+
     ctx.tokenBridge = {
       addresses: tokenBridgeAddresses[ctx.env],
       contractConstructor: ITokenBridge__factory.connect,
@@ -133,9 +155,8 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
           evm: evmContracts,
         },
       },
-      vaa: isTokenBridgeVaa(ctx.env, ctx.vaa)
-        ? tryToParseTokenTransferVaa(ctx.vaaBytes)
-        : null,
+      vaa: parsedTokenTransferVaa,
+      payload: payload,
     };
     ctx.logger?.debug("Token Bridge contracts attached to context");
     await next();
