@@ -99,10 +99,6 @@ export function startWalletManagement(
     logLevel: 'debug',
     metrics: metricsOpts,
   });
-
-  manager.withWallet('ethereum', async (wallet) => {
-    console.log(wallet.provider);
-  });
   
   return manager;
 }
