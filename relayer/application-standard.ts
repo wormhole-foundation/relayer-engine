@@ -108,7 +108,7 @@ export class StandardRelayerApp<
           logger,
           namespace: name,
           privateKeys,
-          metrics: { registry: this.metricsRegistry },
+          metrics: { enabled: true, registry: this.metricsRegistry },
         }),
       ); // <-- you need valid private keys to turn on this middleware
     }

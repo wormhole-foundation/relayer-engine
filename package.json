@@ -24,7 +24,7 @@
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
-    "@xlabs-xyz/wallet-monitor": "^0.0.14",
+    "@xlabs-xyz/wallet-monitor": "^0.1.5",
     "bech32": "^2.0.0",
     "bullmq": "^3.10.1",
     "ethers": "^5.7.2",
