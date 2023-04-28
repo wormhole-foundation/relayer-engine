@@ -469,9 +469,11 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     this.use(this.generateChainRoutes());
 
     this.filters = await this.spyFilters();
-    this.rootLogger.debug(JSON.stringify(this.filters, null, 2));
+    
+    this.rootLogger.debug(`VAA Filters: ${JSON.stringify(this.filters)}`);
+
     if (this.filters.length > 0 && !this.spyUrl) {
-      throw new Error("you need to setup the spy url");
+      throw new Error("Spy setup is not complete. Check spyUrl and filters.");
     }
 
     this.storage?.startWorker(this.onVaaFromQueue);
@@ -487,11 +489,11 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         this.rootLogger.info(`connected to the spy at: ${this.spyUrl}`);
 
         for await (const vaa of stream) {
-          this.rootLogger.debug(`Received VAA through spy`);
+          this.rootLogger.debug(`Received VAA from spy`);
           this.processVaa(vaa.vaaBytes);
         }
       } catch (err) {
-        this.rootLogger.error("error connecting to the spy");
+        this.rootLogger.error(`Spy connection error: ${err}`);
       }
 
       await sleep(300); // wait a bit before trying to reconnect.

@@ -90,7 +90,15 @@ export async function fetchVaaHash(
       } else if (res.status > 500) {
         throw new Error(`Got: ${res.status}`);
       }
-      txHash = (await res.json()).data?.txHash;
+
+      const responseTxHash = (await res.json()).data?.txHash;
+
+      // fail if the TX Hash is not present, unless this is the last retry.
+      if (!responseTxHash && attempt < retries - 1) {
+        throw new Error("No txHash in response.");
+      }
+
+      return responseTxHash;
     } catch (e) {
       logger?.error(
         `could not obtain txHash, attempt: ${attempt} of ${retries}.`,
