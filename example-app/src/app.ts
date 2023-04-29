@@ -18,7 +18,7 @@ import {
   WalletContext,
   wallets,
 } from "@wormhole-foundation/relayer-engine";
-import { CHAIN_ID_SOLANA, CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA, CHAIN_ID_ETH, CHAIN_ID_SUI } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
@@ -61,6 +61,9 @@ const privateKeys = {
     '0x6790f27fec85575792c7d1fab8de9955aff171b24329eacf2a279defa596c5d3',
     '0xe94000d730b9655850afc8e39facb7058678f11e765075d4806d27ed619f258c',
   ],
+  [CHAIN_ID_SUI]: [
+    '0x38357d5588b77929631165a6a5687cb3d9bf3f604d37153f569f23c000de35ec'
+  ]
 }
 
 async function main() {
@@ -84,7 +87,7 @@ async function main() {
   app.use(providers());
 
 
-  app.use(wallets(Environment.DEVNET, {
+  app.use(wallets(Environment.TESTNET, {
     privateKeys,
     namespace,
     metrics: { enabled: true, registry: store.registry }
