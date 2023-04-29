@@ -69,7 +69,7 @@ export function legacyPluginCompat<Ext>(
 
 function makeExecuteWrapper(ctx: PluginContext<any>): {
   <T, W extends legacy.Wallet>(action: legacy.Action<T, W>): Promise<any>;
-  onEVM<T>(action: legacy.Action<T, Wallet>): Promise<T>;
+  onEVM<T>(action: legacy.Action<T, EVMWallet>): Promise<T>;
   onSolana<T>(f: any): Promise<T>;
   onSui<T>(f: any): Promise<T>;
 } {
@@ -147,6 +147,7 @@ function providersShimFromLegacy(providers: LegacyProviders): Providers {
 
 function walletShimToLegacy<T extends Wallet>(
   wallets: WalletToolBox<T>,
+  // @ts-ignore
 ): legacy.WalletToolBox<T> {
   return {
     ...providersShimToLegacy(wallets),

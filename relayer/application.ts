@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import {
+  CHAIN_ID_SUI,
   ChainId,
   ChainName,
   coalesceChainId,
@@ -379,8 +380,11 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       const chainName = coalesceChainName(chainIdOrName);
       const chainId = coalesceChainId(chainIdOrName);
       let address =
-        // @ts-ignore TODO
-        CONTRACTS[this.env.toUpperCase()][chainName].token_bridge;
+        chainId === CHAIN_ID_SUI
+          ? "b22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610"
+          : CONTRACTS[
+              this.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"
+            ][chainName].token_bridge;
       this.chain(chainId).address(address, ...handlers);
     }
     return this;

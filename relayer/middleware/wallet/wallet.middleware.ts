@@ -7,6 +7,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_MOONBEAM,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
   ChainId,
   coalesceChainName,
@@ -38,7 +39,7 @@ export type SolanaWallet = {
   payer: solana.Keypair;
 };
 
-export type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
+export type Wallet = EVMWallet | SolanaWallet | UntypedWallet | SuiWallet;
 
 export type UntypedWallet = UntypedProvider & {
   privateKey: string;
@@ -72,6 +73,7 @@ export interface ActionExecutor {
   <T, W extends Wallet>(chaindId: ChainId, f: ActionFunc<T, W>): Promise<T>;
   onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
   onEVM<T>(chainId: EVMChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
+  onSui<T>(f: ActionFunc<T, SuiWallet>): Promise<T>;
 }
 
 function makeExecuteFunc(
@@ -102,8 +104,7 @@ function makeExecuteFunc(
   };
   func.onSolana = <T>(f: ActionFunc<T, SolanaWallet>) =>
     func(CHAIN_ID_SOLANA, f);
-  func.onSui = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
-    func(chainId, f);
+  func.onSui = <T>(f: ActionFunc<T, SuiWallet>) => func(CHAIN_ID_SUI, f);
   func.onEVM = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
     func(chainId, f);
   return func;
