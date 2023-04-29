@@ -21,6 +21,7 @@ import {
   CHAIN_ID_AVAX,
   CHAIN_ID_FANTOM,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_SUI,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 const networks = {
@@ -36,6 +37,7 @@ const networks = {
     [CHAIN_ID_POLYGON]: "mumbai",
     [CHAIN_ID_FANTOM]: "testnet",
     [CHAIN_ID_MOONBEAM]: "moonbase-alpha",
+    [CHAIN_ID_SUI]: 'testnet'
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: "devnet",
@@ -46,10 +48,12 @@ const networks = {
     [CHAIN_ID_POLYGON]: "devnet",
     [CHAIN_ID_FANTOM]: "devnet",
     [CHAIN_ID_MOONBEAM]: "devnet",
+    [CHAIN_ID_SUI]: 'devnet',
   },
 };
 
 export type PrivateKeys = Partial<{ [k in ChainId]: string[] }>;
+
 function buildWalletsConfig(
   env: Environment,
   privateKeys: PrivateKeys,
@@ -84,10 +88,15 @@ function buildWalletsConfig(
       }
     }
 
-    config[chainName] = {
-      wallets: chainWallets,
-      network: networkByChain[chainId],
-    };
+    else if (chainId === CHAIN_ID_SUI) {
+      for (const key of keys) {
+        chainWallets.push({
+          privateKey: key,
+        });
+      }
+    }
+
+    config[chainName] = { wallets: chainWallets, network: networkByChain[chainId] };
   }
   return config;
 }
@@ -100,7 +109,7 @@ export function startWalletManagement(
   const wallets = buildWalletsConfig(env, privateKeys);
 
   const manager = new WalletManager(wallets, {
-    logLevel: "debug",
+    logLevel: 'error',
     metrics: metricsOpts,
   });
 
