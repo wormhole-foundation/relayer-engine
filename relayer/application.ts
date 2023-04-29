@@ -315,7 +315,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     opts: any,
   ): Promise<void> {
     const parsedVaa = parseVaaWithBytes(vaa);
-    const job: RelayJob | undefined = opts.job;
 
     let ctx: Context = {
       config: {
@@ -330,13 +329,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       vaa: parsedVaa,
       vaaBytes: vaa,
     };
-    Object.assign(ctx, opts, { storage: { job } });
+    Object.assign(ctx, opts);
     try {
       await this.pipeline?.(ctx, () => {});
-      this.emit(RelayerEvents.Completed, parsedVaa, job);
+      this.emit(RelayerEvents.Completed, parsedVaa, opts?.storage?.job);
     } catch (e) {
       this.errorPipeline?.(e, ctx, () => {});
-      this.emit(RelayerEvents.Failed, parsedVaa, job);
+      this.emit(RelayerEvents.Failed, parsedVaa, opts?.storage?.job);
       throw e;
     }
   }

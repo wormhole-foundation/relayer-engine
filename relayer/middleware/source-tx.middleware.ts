@@ -8,7 +8,7 @@ import { Logger } from "winston";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
-  retries: 3;
+  retries: number;
 }
 
 export interface SourceTxContext extends Context {
@@ -21,15 +21,18 @@ export const wormscanEndpoints: { [k in Environment]: string | undefined } = {
   [Environment.DEVNET]: undefined,
 };
 
-const defaultOptsByEnv = {
+const defaultOptsByEnv: { [k in Environment]: Partial<SourceTxOpts> } = {
   [Environment.MAINNET]: {
     wormscanEndpoint: wormscanEndpoints[Environment.MAINNET],
+    retries: 5,
   },
   [Environment.TESTNET]: {
     wormscanEndpoint: wormscanEndpoints[Environment.TESTNET],
+    retries: 3,
   },
   [Environment.DEVNET]: {
     wormscanEndpoint: wormscanEndpoints[Environment.DEVNET],
+    retries: 3,
   },
 };
 
@@ -49,9 +52,9 @@ export function sourceTx(
       emitterChain,
       emitterAddress,
       sequence,
-      opts.retries,
       ctx.logger,
       ctx.env,
+      opts.retries,
       opts.wormscanEndpoint,
     );
     ctx.logger?.debug(
@@ -68,9 +71,9 @@ export async function fetchVaaHash(
   emitterChain: number,
   emitterAddress: Buffer,
   sequence: bigint,
-  retries: number,
   logger: Logger,
   env: Environment,
+  retries: number = 3,
   baseEndpoint: string = wormscanEndpoints[env],
 ) {
   let attempt = 0;

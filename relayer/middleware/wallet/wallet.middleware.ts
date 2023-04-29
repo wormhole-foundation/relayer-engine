@@ -2,17 +2,11 @@ import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
-  CHAIN_ID_BSC,
-  CHAIN_ID_CELO,
-  CHAIN_ID_ETH,
-  CHAIN_ID_MOONBEAM,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
   ChainId,
-  coalesceChainName,
   EVMChainId,
-  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import * as sui from "@mysten/sui.js";
 import { WalletToolBox } from "./walletToolBox";
@@ -21,15 +15,9 @@ import { spawnWalletWorker } from "./wallet.worker";
 import { Queue } from "@datastructures-js/queue";
 import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
-import { MultiWalletExporter } from "@xlabs-xyz/wallet-monitor";
+import { startWalletManagement } from './wallet-management';
 import { Registry } from "prom-client";
-import { MultiWalletWatcherConfig } from "@xlabs-xyz/wallet-monitor/lib/multi-wallet-watcher";
 import { Environment } from "../../application";
-import {
-  CHAIN_ID_AVAX,
-  CHAIN_ID_FANTOM,
-  CHAIN_ID_POLYGON,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export type EVMWallet = ethers.Wallet;
 export type SuiWallet = sui.RawSigner;
@@ -121,60 +109,11 @@ export interface WalletOpts {
   }>;
   logger?: Logger;
   metrics?: {
+    enabled: boolean;
     registry: Registry;
   };
 }
 
-const networks = {
-  [Environment.MAINNET]: {
-    [CHAIN_ID_ETH]: "mainnet",
-  },
-  [Environment.TESTNET]: {
-    [CHAIN_ID_ETH]: "goerli",
-    [CHAIN_ID_SOLANA]: "devnet",
-    [CHAIN_ID_AVAX]: "testnet",
-    [CHAIN_ID_CELO]: "alfajores",
-    [CHAIN_ID_BSC]: "testnet",
-    [CHAIN_ID_POLYGON]: "mumbai",
-    [CHAIN_ID_FANTOM]: "testnet",
-    [CHAIN_ID_MOONBEAM]: "moonbase-alpha",
-  },
-  [Environment.DEVNET]: {},
-};
-
-function buildMonitoringFromPrivateKeys(
-  env: Environment,
-  privateKeys: Partial<{
-    [k in ChainId]: any[];
-  }>,
-): MultiWalletWatcherConfig {
-  const networkByChain: any = networks[env];
-  const config: MultiWalletWatcherConfig = {};
-  for (const [chainIdStr, keys] of Object.entries(privateKeys)) {
-    const chainId = Number(chainIdStr) as ChainId;
-    const chainName = coalesceChainName(chainId);
-    let addresses: Record<string, string[]> = {};
-    if (isEVMChain(chainId)) {
-      for (const key of keys) {
-        addresses[new ethers.Wallet(key).address] = [];
-      }
-    } else if (CHAIN_ID_SOLANA === chainId) {
-      for (const key of keys) {
-        let secretKey;
-        try {
-          secretKey = new Uint8Array(JSON.parse(key));
-        } catch (e) {
-          secretKey = bs58.decode(key);
-        }
-        addresses[
-          solana.Keypair.fromSecretKey(secretKey).publicKey.toBase58()
-        ] = [];
-      }
-    }
-    config[chainName] = { addresses, network: networkByChain[chainId] };
-  }
-  return config;
-}
 
 export function wallets(
   env: Environment,
@@ -194,15 +133,10 @@ export function wallets(
     }),
   );
 
-  const wallets = buildMonitoringFromPrivateKeys(env, opts.privateKeys);
-  opts.logger?.info(JSON.stringify(wallets, null, 2));
+  
 
   if (opts.metrics) {
-    const exporter = new MultiWalletExporter(wallets, {
-      logger: opts.logger,
-      prometheus: { registry: opts.metrics.registry },
-    });
-    exporter.start();
+    startWalletManagement(env, opts.privateKeys, opts.metrics);
   }
 
   let executeFunction: ActionExecutor;
