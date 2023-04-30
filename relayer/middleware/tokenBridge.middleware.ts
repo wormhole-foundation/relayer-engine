@@ -1,6 +1,7 @@
 import { Middleware } from "../compose.middleware";
 import {
   CHAIN_ID_TO_NAME,
+    CHAIN_ID_SUI,
   ChainId,
   ChainName,
   coalesceChainName,
@@ -21,6 +22,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 import { Environment } from "../application";
 import { encodeEmitterAddress } from "../utils";
+import { JsonRpcProvider } from "@mysten/sui.js";
 
 function extractTokenBridgeAddressesFromSdk(env: Environment) {
   return Object.fromEntries(
@@ -86,12 +88,38 @@ function instantiateReadEvmContracts(
   return evmChainContracts;
 }
 
+// TODO refactor somewhere else or get from wh sdk
+export async function getObjectFields(
+  provider: JsonRpcProvider,
+  objectId: string,
+) {
+  // Fetch object.
+  const result = await provider.getObject({
+    id: objectId,
+    options: { showContent: true },
+  });
+
+  if (
+    typeof result.data!.content !== "string" &&
+    "fields" in result.data!.content!
+  ) {
+    return result.data!.content.fields;
+  } else {
+    return null;
+  }
+}
+
+let tokenBridgeEmitterCapSui = "";
+
 function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
   let chainId = vaa.emitterChain as ChainId;
   const chainName = coalesceChainName(chainId);
 
   // @ts-ignore TODO remove
-  let tokenBridgeLocalAddress = tokenBridgeAddresses[env][chainName];
+  let tokenBridgeLocalAddress =
+    vaa.emitterChain === CHAIN_ID_SUI
+      ? tokenBridgeEmitterCapSui
+      : tokenBridgeAddresses[env][chainName];
   if (!tokenBridgeLocalAddress) {
     return false;
   }
@@ -117,11 +145,21 @@ function tryToParseTokenTransferVaa(
 
 export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
   let evmContracts: Partial<{ [k in EVMChainId]: ITokenBridge[] }>;
+  // Sui State
+  let suiState: Record<any, any>;
+
   return async (ctx: TokenBridgeContext, next) => {
     if (!ctx.providers) {
       throw new UnrecoverableError(
         "You need to first use the providers middleware.",
       );
+    }
+    if (!suiState) {
+      suiState = await getObjectFields(
+        ctx.providers.sui[0],
+        CONTRACTS[ctx.env.toUpperCase() as "MAINNET"].sui.token_bridge,
+      );
+      tokenBridgeEmitterCapSui = suiState.emitter_cap.fields.id.id;
     }
     if (!evmContracts) {
       ctx.logger?.debug(`Token Bridge Contracts initializing...`);
