@@ -291,33 +291,6 @@ async function tryFetchAndProcess(
  * Storage Helpers
  */
 
-interface MissedVaaStorage<StoreType> {
-  markInProgress(
-    store: StoreType,
-    keyObj: VaaKey,
-    logger: Logger,
-  ): Promise<void>;
-
-  fetchIsInProgress(
-    redis: Redis | Cluster,
-    keyObj: VaaKey,
-    logger: Logger,
-  ): Promise<boolean>;
-
-  getAllProcessedSeqsInOrder(
-    redis: Redis | Cluster,
-    emitterChain: number,
-    emitterAddress: Buffer,
-  ): Promise<bigint[]>;
-
-  getLastSeenSeq(
-    redis: Redis | Cluster,
-    emitterChain: number,
-    emitterAddress: Buffer,
-    watch?: boolean,
-  ): Promise<undefined | bigint>;
-}
-
 async function markInProgress(
   redis: Redis | Cluster,
   keyObj: VaaKey,
