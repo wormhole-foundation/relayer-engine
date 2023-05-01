@@ -1,7 +1,7 @@
 import { Middleware } from "../compose.middleware";
 import {
   CHAIN_ID_TO_NAME,
-    CHAIN_ID_SUI,
+  CHAIN_ID_SUI,
   ChainId,
   ChainName,
   coalesceChainName,
@@ -23,6 +23,7 @@ import {
 import { Environment } from "../application";
 import { encodeEmitterAddress } from "../utils";
 import { JsonRpcProvider } from "@mysten/sui.js";
+import { getObjectFields } from "@certusone/wormhole-sdk/lib/cjs/sui";
 
 function extractTokenBridgeAddressesFromSdk(env: Environment) {
   return Object.fromEntries(
@@ -88,27 +89,7 @@ function instantiateReadEvmContracts(
   return evmChainContracts;
 }
 
-// TODO refactor somewhere else or get from wh sdk
-export async function getObjectFields(
-  provider: JsonRpcProvider,
-  objectId: string,
-) {
-  // Fetch object.
-  const result = await provider.getObject({
-    id: objectId,
-    options: { showContent: true },
-  });
-
-  if (
-    typeof result.data!.content !== "string" &&
-    "fields" in result.data!.content!
-  ) {
-    return result.data!.content.fields;
-  } else {
-    return null;
-  }
-}
-
+// initialized when then first vaa comes through
 let tokenBridgeEmitterCapSui = "";
 
 function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
