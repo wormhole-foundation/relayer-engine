@@ -15,7 +15,7 @@ import { spawnWalletWorker } from "./wallet.worker";
 import { Queue } from "@datastructures-js/queue";
 import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
-import { startWalletManagement } from './wallet-management';
+import { startWalletManagement } from "./wallet-management";
 import { Registry } from "prom-client";
 import { Environment } from "../../application";
 
@@ -114,7 +114,6 @@ export interface WalletOpts {
   };
 }
 
-
 export function wallets(
   env: Environment,
   opts: WalletOpts,
@@ -132,8 +131,6 @@ export function wallets(
       return [chainId, workerInfos];
     }),
   );
-
-  
 
   if (opts.metrics) {
     startWalletManagement(env, opts.privateKeys, opts.metrics);

@@ -1,4 +1,8 @@
-import { WalletManager, WalletManagerConfig, WalletManagerOptions } from "@xlabs-xyz/wallet-monitor";
+import {
+  WalletManager,
+  WalletManagerConfig,
+  WalletManagerOptions,
+} from "@xlabs-xyz/wallet-monitor";
 import { Environment } from "../../application";
 import * as bs58 from "bs58";
 
@@ -53,7 +57,6 @@ function buildWalletsConfig(
   const networkByChain: any = networks[env];
   const config: WalletManagerConfig = {};
   for (const [chainIdStr, keys] of Object.entries(privateKeys)) {
-    
     const chainId = Number(chainIdStr) as ChainId;
     const chainName = coalesceChainName(chainId);
 
@@ -61,12 +64,10 @@ function buildWalletsConfig(
     if (isEVMChain(chainId)) {
       for (const key of keys) {
         chainWallets.push({
-          privateKey: key
+          privateKey: key,
         });
       }
-    }
-    
-    else if (CHAIN_ID_SOLANA === chainId) {
+    } else if (CHAIN_ID_SOLANA === chainId) {
       for (const key of keys) {
         let secretKey;
         try {
@@ -83,7 +84,10 @@ function buildWalletsConfig(
       }
     }
 
-    config[chainName] = { wallets: chainWallets, network: networkByChain[chainId] };
+    config[chainName] = {
+      wallets: chainWallets,
+      network: networkByChain[chainId],
+    };
   }
   return config;
 }
@@ -91,14 +95,14 @@ function buildWalletsConfig(
 export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
-  metricsOpts: WalletManagerOptions['metrics']
+  metricsOpts: WalletManagerOptions["metrics"],
 ) {
   const wallets = buildWalletsConfig(env, privateKeys);
 
   const manager = new WalletManager(wallets, {
-    logLevel: 'debug',
+    logLevel: "debug",
     metrics: metricsOpts,
   });
-  
+
   return manager;
 }
