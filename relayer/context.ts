@@ -7,8 +7,6 @@ import {
   ListenerFn,
 } from "./application";
 import { Logger } from "winston";
-import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
-import { RelayJob } from "./storage/storage";
 
 export type FetchVaaFn = (
   emitterChain: ChainId | string,
@@ -33,7 +31,7 @@ export interface Context {
   on: (eventName: RelayerEvents, listener: ListenerFn) => void;
   config: {
     spyFilters: {
-      emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
+      emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
     }[];
   };
 }
