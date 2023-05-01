@@ -161,5 +161,9 @@ function walletShimFromLegacy<T extends legacy.Wallet>(
   return {
     ...providersShimFromLegacy(wallets),
     wallet: wallets.wallet,
+    async getBalance(): Promise<string> {
+      return "NOT IMPLEMENTED";
+    },
+    address: "NOT IMPLEMENTED",
   };
 }

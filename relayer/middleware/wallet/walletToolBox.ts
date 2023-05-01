@@ -13,6 +13,8 @@ import { Ed25519Keypair, RawSigner } from "@mysten/sui.js";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;
+  getBalance(): Promise<string>;
+  address: string;
 }
 
 export function createWalletToolbox(
@@ -43,9 +45,15 @@ function createEVMWalletToolBox(
   privateKey: string,
   chainId: wh.EVMChainId,
 ): WalletToolBox<EVMWallet> {
+  const wallet = new ethers.Wallet(privateKey, providers.evm[chainId][0]);
   return {
     ...providers,
-    wallet: new ethers.Wallet(privateKey, providers.evm[chainId][0]),
+    wallet: wallet,
+    async getBalance(): Promise<string> {
+      const b = await wallet.getBalance();
+      return b.toString();
+    },
+    address: wallet.address,
   };
 }
 
@@ -59,6 +67,10 @@ function createSolanaWalletToolBox(
       conn: providers.solana[0],
       payer: solana.Keypair.fromSecretKey(privateKey),
     },
+    async getBalance(): Promise<string> {
+      return "TODO";
+    },
+    address: "TODO",
   };
 }
 
@@ -67,8 +79,18 @@ function createSuiWalletToolBox(
   secret: Buffer,
 ): WalletToolBox<SuiWallet> {
   const keyPair = Ed25519Keypair.fromSecretKey(secret);
+  const suiProvider = providers.sui[0];
+  const wallet = new RawSigner(keyPair, suiProvider);
+  const address = keyPair.getPublicKey().toSuiAddress();
   return {
     ...providers,
-    wallet: new RawSigner(keyPair, providers.sui[0]),
+    wallet,
+    async getBalance(): Promise<string> {
+      const b = await suiProvider.getBalance({
+        owner: address,
+      });
+      return b.totalBalance.toString();
+    },
+    address: address,
   };
 }
