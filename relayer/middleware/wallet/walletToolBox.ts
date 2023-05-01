@@ -33,7 +33,8 @@ export function createWalletToolbox(
       }
       return createSolanaWalletToolBox(providers, secretKey);
     case wh.CHAIN_ID_SUI:
-      return createSuiWalletToolBox(providers, privateKey);
+      const secret = Buffer.from(privateKey, "base64");
+      return createSuiWalletToolBox(providers, secret);
   }
 }
 
@@ -63,9 +64,9 @@ function createSolanaWalletToolBox(
 
 function createSuiWalletToolBox(
   providers: Providers,
-  privateKey: string,
+  secret: Buffer,
 ): WalletToolBox<SuiWallet> {
-  const keyPair = Ed25519Keypair.fromSecretKey(Buffer.from(privateKey, "hex"));
+  const keyPair = Ed25519Keypair.fromSecretKey(secret);
   return {
     ...providers,
     wallet: new RawSigner(keyPair, providers.sui[0]),
