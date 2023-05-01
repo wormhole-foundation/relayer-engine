@@ -3,7 +3,13 @@ import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import { Providers } from "../providers.middleware";
-import { EVMWallet, SolanaWallet, Wallet } from "./wallet.middleware";
+import {
+  EVMWallet,
+  SolanaWallet,
+  SuiWallet,
+  Wallet,
+} from "./wallet.middleware";
+import { Ed25519Keypair, RawSigner } from "@mysten/sui.js";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;
@@ -26,6 +32,8 @@ export function createWalletToolbox(
         secretKey = new Uint8Array(JSON.parse(privateKey));
       }
       return createSolanaWalletToolBox(providers, secretKey);
+    case wh.CHAIN_ID_SUI:
+      return createSuiWalletToolBox(providers, privateKey);
   }
 }
 
@@ -50,5 +58,16 @@ function createSolanaWalletToolBox(
       conn: providers.solana[0],
       payer: solana.Keypair.fromSecretKey(privateKey),
     },
+  };
+}
+
+function createSuiWalletToolBox(
+  providers: Providers,
+  privateKey: string,
+): WalletToolBox<SuiWallet> {
+  const keyPair = Ed25519Keypair.fromSecretKey(Buffer.from(privateKey, "hex"));
+  return {
+    ...providers,
+    wallet: new RawSigner(keyPair, providers.sui[0]),
   };
 }
