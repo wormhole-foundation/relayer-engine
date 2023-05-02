@@ -14,7 +14,7 @@ import {
   markProcessed,
   missedVaaJob,
   tryFetchAndProcess,
-} from "./carefulMissedVaas.middleware";
+} from "./missedVaas.middleware";
 import { CHAIN_ID_AVAX, CHAIN_ID_BSC } from "@certusone/wormhole-sdk";
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc";
 import { Redis } from "ioredis";

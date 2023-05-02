@@ -1,2 +1,2 @@
-export { missedVaas } from "./carefulMissedVaas.middleware";
-export type { MissedVaaOpts } from "./carefulMissedVaas.middleware";
+export { missedVaas } from "./missedVaas.middleware";
+export type { MissedVaaOpts } from "./missedVaas.middleware";
