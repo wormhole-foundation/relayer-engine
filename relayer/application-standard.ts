@@ -1,6 +1,6 @@
 import { Environment, RelayerApp, RelayerAppOpts } from "./application";
 import { logging, LoggingContext } from "./middleware/logger.middleware";
-import { missedVaas } from "./middleware/missedVaas.middleware";
+import { missedVaas } from "./middleware/missedVaas";
 import { providers, ProvidersOpts } from "./middleware/providers.middleware";
 import { WalletContext, wallets } from "./middleware/wallet/wallet.middleware";
 import {
