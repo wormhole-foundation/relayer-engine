@@ -1,6 +1,6 @@
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
-import { Middleware } from "../compose.middleware";
-import { Context } from "../context";
+import { Middleware } from "../../compose.middleware";
+import { Context } from "../../context";
 import Redis, { Cluster, RedisOptions } from "ioredis";
 import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
 import {
@@ -8,11 +8,11 @@ import {
   ParsedVaaWithBytes,
   RelayerApp,
   RelayerEvents,
-} from "../application";
+} from "../../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
-import { dbg, minute, sleep } from "../utils";
-import { RedisConnectionOpts } from "../storage/redis-storage";
+import { dbg, minute, sleep } from "../../utils";
+import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc";
 
 const IN_PROGRESS_TIMEOUT = 5 * minute;
@@ -54,11 +54,14 @@ export function missedVaas(
   app: RelayerApp<any>,
   opts: MissedVaaOpts,
 ): Middleware {
+  // set defaults
   opts.redis = opts.redis || { host: "localhost", port: 6379 };
   opts.redis.keyPrefix = opts.namespace;
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
+
   const redisPool = createRedisPool(opts);
 
+  // mark vaa processed when app emits "Added" event
   app.addListener(RelayerEvents.Added, (vaa: ParsedVaaWithBytes) => {
     redisPool.use(redis =>
       markProcessed(
@@ -72,8 +75,14 @@ export function missedVaas(
       ),
     );
   });
+
+  // construct dependency
   const fetchVaaFn = (vaaKey: VaaKey) => fetchVaa(opts.wormholeRpcs, vaaKey);
+
+  // start worker
   setTimeout(() => startMissedVaaWorker(redisPool, app, fetchVaaFn, opts), 100); // start worker once config is done.
+
+  // return middleware
   return middlewareFn(opts, fetchVaaFn, redisPool);
 }
 
@@ -250,7 +259,7 @@ export async function missedVaaJob(
 }
 
 // returns true if fetched and processed
-async function tryFetchAndProcess(
+export async function tryFetchAndProcess(
   processVaa: ProcessVaaFn,
   fetchVaa: FetchVaaFn,
   redis: Redis | Cluster,
@@ -273,7 +282,7 @@ async function tryFetchAndProcess(
     await markInProgress(redis, key, logger);
     // TODO: should this be await'ed? I think not since this could block for a long time and vaas should processable async
     // push the missed vaa through all the middleware / storage service if used.
-    processVaa(Buffer.from(fetchedVaa.vaaBytes)) 
+    processVaa(Buffer.from(fetchedVaa.vaaBytes));
     return true;
   } catch (e) {
     // code 5 means vaa not found in store
@@ -291,7 +300,7 @@ async function tryFetchAndProcess(
  * Storage Helpers
  */
 
-async function markInProgress(
+export async function markInProgress(
   redis: Redis | Cluster,
   keyObj: VaaKey,
   logger: Logger,

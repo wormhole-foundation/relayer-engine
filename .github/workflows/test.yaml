@@ -9,11 +9,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # - name: Start Redis
-      #   uses: supercharge/redis-github-action@1.4.0
-      #   with:
-      #     redis-version: ${{ matrix.redis-version }}
-      #     redis-port: 6301
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: ${{ matrix.redis-version }}
+          redis-port: 6301
       - name: Checkout repo
         uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -26,8 +26,8 @@ jobs:
         run: npm ci
       - name: typecheck
         run: npm run build
-      # - name: Run tests
-      #   run: npm test
+      - name: Run tests
+        run: npm test
   prettier:
     runs-on: ubuntu-latest
 
