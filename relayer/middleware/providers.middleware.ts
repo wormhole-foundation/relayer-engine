@@ -66,6 +66,11 @@ const defaultSupportedChains = {
     [CHAIN_ID_APTOS]: {
       endpoints: ["https://fullnode.mainnet.aptoslabs.com/v1"],
     },
+    [CHAIN_ID_SUI]: {
+      endpoints: ["https://rpc.mainnet.sui.io:443"],
+      faucets: [""],
+      websockets: [""],
+    },
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
