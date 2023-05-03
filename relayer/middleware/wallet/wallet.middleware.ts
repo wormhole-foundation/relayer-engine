@@ -133,7 +133,7 @@ export function wallets(
   );
 
   if (opts.metrics) {
-    startWalletManagement(env, opts.privateKeys, opts.metrics);
+    startWalletManagement(env, opts.privateKeys, opts.metrics, opts.logger);
   }
 
   let executeFunction: ActionExecutor;

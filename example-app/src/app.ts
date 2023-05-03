@@ -86,14 +86,6 @@ async function main() {
   app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
   app.use(providers());
 
-  app.use(
-    wallets(Environment.DEVNET, {
-      privateKeys,
-      namespace,
-      metrics: { enabled: true, registry: store.registry },
-    })
-  ); // <-- you need a valid private key to turn on this middleware
-
   app.use(wallets(Environment.TESTNET, {
     privateKeys,
     namespace,

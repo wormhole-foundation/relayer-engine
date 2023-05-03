@@ -3,6 +3,7 @@ import {
   WalletManagerConfig,
   WalletManagerOptions,
 } from "@xlabs-xyz/wallet-monitor";
+import { Logger } from 'winston';
 import { Environment } from "../../application";
 import * as bs58 from "bs58";
 
@@ -105,10 +106,12 @@ export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
   metricsOpts: WalletManagerOptions["metrics"],
+  logger?: Logger,
 ) {
   const wallets = buildWalletsConfig(env, privateKeys);
 
   const manager = new WalletManager(wallets, {
+    logger,
     logLevel: 'error',
     metrics: metricsOpts,
   });
