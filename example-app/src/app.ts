@@ -62,7 +62,7 @@ const privateKeys = {
     "0xe94000d730b9655850afc8e39facb7058678f11e765075d4806d27ed619f258c",
   ],
   [CHAIN_ID_SUI]: [
-    '0x38357d5588b77929631165a6a5687cb3d9bf3f604d37153f569f23c000de35ec'
+    'ODV9VYi3eSljEWWmpWh8s9m/P2BNNxU/Vp8jwADeNew='
   ]
 }
 
