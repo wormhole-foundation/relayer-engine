@@ -90,7 +90,7 @@ async function main() {
     wallets(Environment.DEVNET, {
       privateKeys,
       namespace,
-      metrics: { registry: store.registry },
+      metrics: { enabled: true, registry: store.registry },
     })
   ); // <-- you need a valid private key to turn on this middleware
 
