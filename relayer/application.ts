@@ -37,7 +37,9 @@ import { defaultLogger } from "./logging";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 import { RelayJob, Storage } from "./storage/storage";
 
-const tokenBridgeEmitterCap =
+const tokenBridgeEmitterCapTestnet =
+  "b22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610";
+const tokenBridgeEmitterCapMainnet =
   "b22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610";
 
 export enum Environment {
@@ -381,9 +383,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       const chainName = coalesceChainName(chainIdOrName);
       const chainId = coalesceChainId(chainIdOrName);
       const env = this.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET";
+      const suiTokenBridgeEmitter =
+        this.env === Environment.MAINNET // TODO: FIX ME PLEASE :pray:
+          ? tokenBridgeEmitterCapMainnet
+          : tokenBridgeEmitterCapTestnet;
       let address =
         chainId === CHAIN_ID_SUI
-          ? tokenBridgeEmitterCap
+          ? suiTokenBridgeEmitter
           : CONTRACTS[env][chainName].token_bridge;
       this.chain(chainId).address(address, ...handlers);
     }
