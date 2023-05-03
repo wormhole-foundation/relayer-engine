@@ -40,7 +40,7 @@ import { RelayJob, Storage } from "./storage/storage";
 const tokenBridgeEmitterCapTestnet =
   "b22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610";
 const tokenBridgeEmitterCapMainnet =
-  "b22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610";
+  "ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5";
 
 export enum Environment {
   MAINNET = "mainnet",
