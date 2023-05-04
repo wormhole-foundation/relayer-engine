@@ -25,7 +25,7 @@
     "@datastructures-js/queue": "^4.2.3",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@mysten/sui.js": "^0.32.2",
-    "@xlabs-xyz/wallet-monitor": "0.1.8",
+    "@xlabs-xyz/wallet-monitor": "0.1.9",
     "bech32": "^2.0.0",
     "bullmq": "^3.10.1",
     "ethers": "^5.7.2",

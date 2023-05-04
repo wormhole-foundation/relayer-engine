@@ -28,6 +28,14 @@ import {
 const networks = {
   [Environment.MAINNET]: {
     [CHAIN_ID_ETH]: "mainnet",
+    [CHAIN_ID_SOLANA]: "mainnet-beta",
+    [CHAIN_ID_AVAX]: "mainnet",
+    [CHAIN_ID_CELO]: "mainnet",
+    [CHAIN_ID_BSC]: "mainnet",
+    [CHAIN_ID_POLYGON]: "mainnet",
+    [CHAIN_ID_FANTOM]: "mainnet",
+    [CHAIN_ID_MOONBEAM]: "moonbeam-mainnet",
+    [CHAIN_ID_SUI]: 'mainnet',
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ETH]: "goerli",
