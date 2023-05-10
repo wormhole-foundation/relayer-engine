@@ -62,7 +62,7 @@ export class StandardRelayerApp<
   private store: RedisStorage;
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
-    const logger = opts.logger;
+    const logger = opts.logger ?? defaultLogger;
     delete opts.logger;
     // now we can merge
     opts = mergeDeep({}, [defaultOpts, opts]);
