@@ -141,6 +141,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       return false;
     }
     for (let i = 0; i < this.vaaFilters.length; i++) {
+      const { emitterChain, emitterAddress, sequence } = vaa.id;
       const filter = this.vaaFilters[i];
       let isOk;
       try {
@@ -163,7 +164,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         this.alreadyFilteredCache.set(id, true);
         this.rootLogger.debug(
           `Vaa was skipped by filter ${i} of ${this.vaaFilters.length}`,
-          { chain: emitterChain, emitterAddress, sequence },
+          { emitterChain, emitterAddress, sequence },
         );
         return false;
       }
