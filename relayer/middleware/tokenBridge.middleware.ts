@@ -140,7 +140,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         ctx.providers.sui[0],
         CONTRACTS[ctx.env.toUpperCase() as "MAINNET"].sui.token_bridge,
       );
-      tokenBridgeEmitterCapSui = suiState.emitter_cap.fields.id.id;
+      tokenBridgeEmitterCapSui = suiState?.emitter_cap.fields.id.id;
     }
     if (!evmContracts) {
       ctx.logger?.debug(`Token Bridge Contracts initializing...`);

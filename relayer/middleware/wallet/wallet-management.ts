@@ -120,7 +120,7 @@ export function startWalletManagement(
   const wallets = buildWalletsConfig(env, privateKeys);
 
   const manager = new WalletManager(wallets, {
-    logger,
+    logger: logger ?? logger.child({ module: "wallet-manager" }),
     logLevel: "error",
     metrics: metricsOpts,
   });
