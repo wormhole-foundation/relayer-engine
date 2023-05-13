@@ -1,5 +1,6 @@
 import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
+import * as sui from "@mysten/sui.js";
 import {
   ChainId,
   EVMChainId,
@@ -51,11 +52,12 @@ export interface ActionExecutor {
   <T, W extends Wallet>(action: Action<T, W>): Promise<T>;
   onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
   onEVM<T>(action: Action<T, EVMWallet>): Promise<T>;
+  onSui<T>(action: Action<T, EVMWallet>): Promise<T>;
 }
 
 export type ActionFunc<T, W extends Wallet> = (
   walletToolBox: WalletToolBox<W>,
-  chaidId: ChainId,
+  chaindId: ChainId,
 ) => Promise<T>;
 
 export interface Action<T, W extends Wallet> {
@@ -91,6 +93,7 @@ export interface Providers {
   untyped: Partial<Record<ChainId, UntypedProvider>>;
   evm: Partial<Record<EVMChainId, ethers.providers.Provider>>;
   solana: solana.Connection;
+  sui: sui.JsonRpcProvider;
 }
 
 export interface ParsedVaaWithBytes extends ParsedVaa {

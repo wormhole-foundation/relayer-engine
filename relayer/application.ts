@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import {
+  CHAIN_ID_SUI,
   ChainId,
   ChainName,
   coalesceChainId,
@@ -35,7 +36,8 @@ import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-tr
 import { defaultLogger } from "./logging";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 import { RelayJob, Storage } from "./storage/storage";
-import * as Events from "events";
+import { emitterCapByEnv } from "./configs/sui";
+import { LRUCache } from "lru-cache";
 
 export enum Environment {
   MAINNET = "mainnet",
@@ -107,6 +109,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }[] = [];
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
+  private alreadyFilteredCache = new LRUCache<string, boolean>({ max: 1000 });
 
   constructor(
     public env: Environment = Environment.TESTNET,
@@ -132,11 +135,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     if (this.vaaFilters.length === 0) {
       return true;
     }
+    const { emitterChain, emitterAddress, sequence } = vaa.id;
+    const id = `${emitterChain}-${emitterAddress}-${sequence}`;
+    if (this.alreadyFilteredCache.get(id)) {
+      return false;
+    }
     for (let i = 0; i < this.vaaFilters.length; i++) {
-      const chain = vaa.emitterChain;
-      const emitterAddress = vaa.emitterAddress.toString("hex");
-      const sequence = vaa.sequence.toString();
-
+      const { emitterChain, emitterAddress, sequence } = vaa.id;
       const filter = this.vaaFilters[i];
       let isOk;
       try {
@@ -146,7 +151,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         this.rootLogger.debug(
           `filter ${i} of ${this.vaaFilters.length} threw an exception`,
           {
-            chain,
+            emitterChain,
             emitterAddress,
             sequence,
             message: e.message,
@@ -156,9 +161,10 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         );
       }
       if (!isOk) {
+        this.alreadyFilteredCache.set(id, true);
         this.rootLogger.debug(
           `Vaa was skipped by filter ${i} of ${this.vaaFilters.length}`,
-          { chain, emitterAddress, sequence },
+          { emitterChain, emitterAddress, sequence },
         );
         return false;
       }
@@ -377,9 +383,11 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     for (const chainIdOrName of chains) {
       const chainName = coalesceChainName(chainIdOrName);
       const chainId = coalesceChainId(chainIdOrName);
+      const env = this.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET";
       let address =
-        // @ts-ignore TODO
-        CONTRACTS[this.env.toUpperCase()][chainName].token_bridge;
+        chainId === CHAIN_ID_SUI
+          ? emitterCapByEnv[this.env] // sui is different from evm in that you can't use the package id or state id, you have to use the emitter cap
+          : CONTRACTS[env][chainName].token_bridge;
       this.chain(chainId).address(address, ...handlers);
     }
     return this;
