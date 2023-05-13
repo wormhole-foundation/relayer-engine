@@ -3,7 +3,7 @@ import {
   WalletManagerConfig,
   WalletManagerOptions,
 } from "@xlabs-xyz/wallet-monitor";
-import { Logger } from 'winston';
+import { Logger } from "winston";
 import { Environment } from "../../application";
 import * as bs58 from "bs58";
 
@@ -35,7 +35,7 @@ const networks = {
     [CHAIN_ID_POLYGON]: "mainnet",
     [CHAIN_ID_FANTOM]: "mainnet",
     [CHAIN_ID_MOONBEAM]: "moonbeam-mainnet",
-    [CHAIN_ID_SUI]: 'mainnet',
+    [CHAIN_ID_SUI]: "mainnet",
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ETH]: "goerli",
@@ -46,7 +46,7 @@ const networks = {
     [CHAIN_ID_POLYGON]: "mumbai",
     [CHAIN_ID_FANTOM]: "testnet",
     [CHAIN_ID_MOONBEAM]: "moonbase-alpha",
-    [CHAIN_ID_SUI]: 'testnet'
+    [CHAIN_ID_SUI]: "testnet",
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: "devnet",
@@ -57,7 +57,7 @@ const networks = {
     [CHAIN_ID_POLYGON]: "devnet",
     [CHAIN_ID_FANTOM]: "devnet",
     [CHAIN_ID_MOONBEAM]: "devnet",
-    [CHAIN_ID_SUI]: 'devnet',
+    [CHAIN_ID_SUI]: "devnet",
   },
 };
 
@@ -95,9 +95,7 @@ function buildWalletsConfig(
           privateKey: secretKey.toString(),
         });
       }
-    }
-
-    else if (chainId === CHAIN_ID_SUI) {
+    } else if (chainId === CHAIN_ID_SUI) {
       for (const key of keys) {
         chainWallets.push({
           privateKey: key,
@@ -105,7 +103,10 @@ function buildWalletsConfig(
       }
     }
 
-    config[chainName] = { wallets: chainWallets, network: networkByChain[chainId] };
+    config[chainName] = {
+      wallets: chainWallets,
+      network: networkByChain[chainId],
+    };
   }
   return config;
 }
@@ -120,7 +121,7 @@ export function startWalletManagement(
 
   const manager = new WalletManager(wallets, {
     logger,
-    logLevel: 'error',
+    logLevel: "error",
     metrics: metricsOpts,
   });
 
