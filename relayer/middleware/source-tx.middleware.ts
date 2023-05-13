@@ -108,7 +108,7 @@ export async function fetchVaaHash(
     txHash = `0x${txHash}`;
   }
 
-  logger.debug('Source Transaction Hash: ' + txHash || 'Not Found');
+  logger.debug("Source Transaction Hash: " + txHash || "Not Found");
 
   return txHash;
 }

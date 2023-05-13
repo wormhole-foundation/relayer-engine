@@ -18,7 +18,11 @@ import {
   WalletContext,
   wallets,
 } from "@wormhole-foundation/relayer-engine";
-import { CHAIN_ID_SOLANA, CHAIN_ID_ETH, CHAIN_ID_SUI } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SUI,
+} from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
@@ -61,10 +65,8 @@ const privateKeys = {
     "0x6790f27fec85575792c7d1fab8de9955aff171b24329eacf2a279defa596c5d3",
     "0xe94000d730b9655850afc8e39facb7058678f11e765075d4806d27ed619f258c",
   ],
-  [CHAIN_ID_SUI]: [
-    'ODV9VYi3eSljEWWmpWh8s9m/P2BNNxU/Vp8jwADeNew='
-  ]
-}
+  [CHAIN_ID_SUI]: ["ODV9VYi3eSljEWWmpWh8s9m/P2BNNxU/Vp8jwADeNew="],
+};
 
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
@@ -86,12 +88,14 @@ async function main() {
   app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
   app.use(providers());
 
-  app.use(wallets(Environment.TESTNET, {
-    privateKeys,
-    namespace,
-    metrics: { enabled: true, registry: store.registry }
-  })); // <-- you need a valid private key to turn on this middleware
-  
+  app.use(
+    wallets(Environment.TESTNET, {
+      privateKeys,
+      namespace,
+      metrics: { enabled: true, registry: store.registry },
+    })
+  ); // <-- you need a valid private key to turn on this middleware
+
   app.use(tokenBridgeContracts());
   app.use(stagingArea());
   app.use(sourceTx());
