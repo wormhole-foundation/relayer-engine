@@ -1,4 +1,3 @@
-import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
@@ -17,7 +16,7 @@ import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
 import { startWalletManagement } from "./wallet-management";
 import { Registry } from "prom-client";
-import { Environment } from "../../application";
+import { Environment } from "../../environment";
 
 export type EVMWallet = ethers.Wallet;
 export type SuiWallet = sui.RawSigner;

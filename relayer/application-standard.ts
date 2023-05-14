@@ -1,4 +1,4 @@
-import { Environment, RelayerApp, RelayerAppOpts } from "./application";
+import { RelayerApp, RelayerAppOpts } from "./application";
 import { logging, LoggingContext } from "./middleware/logger.middleware";
 import { missedVaas } from "./middleware/missedVaas.middleware";
 import { providers, ProvidersOpts } from "./middleware/providers.middleware";
@@ -22,6 +22,7 @@ import { defaultLogger } from "./logging";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
+import { Environment } from "./environment";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;

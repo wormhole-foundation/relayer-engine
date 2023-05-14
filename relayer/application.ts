@@ -38,12 +38,7 @@ import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 import { RelayJob, Storage } from "./storage/storage";
 import { emitterCapByEnv } from "./configs/sui";
 import { LRUCache } from "lru-cache";
-
-export enum Environment {
-  MAINNET = "mainnet",
-  TESTNET = "testnet",
-  DEVNET = "devnet",
-}
+import { Environment } from "./environment";
 
 export { UnrecoverableError };
 

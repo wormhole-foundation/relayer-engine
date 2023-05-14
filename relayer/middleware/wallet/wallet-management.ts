@@ -4,7 +4,6 @@ import {
   WalletManagerOptions,
 } from "@xlabs-xyz/wallet-monitor";
 import { Logger } from "winston";
-import { Environment } from "../../application";
 import * as bs58 from "bs58";
 
 import {
@@ -24,6 +23,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SUI,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { Environment } from "../../environment";
 
 const networks = {
   [Environment.MAINNET]: {
@@ -120,7 +120,7 @@ export function startWalletManagement(
   const wallets = buildWalletsConfig(env, privateKeys);
 
   const manager = new WalletManager(wallets, {
-    logger: logger ?? logger.child({ module: "wallet-manager" }),
+    logger: logger?.child({ module: "wallet-manager" }),
     logLevel: "error",
     metrics: metricsOpts,
   });

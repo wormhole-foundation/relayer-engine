@@ -16,13 +16,13 @@ import {
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
-import { Environment } from "../application";
 import {
   CHAIN_ID_AVAX,
   CHAIN_ID_FANTOM,
   CHAIN_ID_POLYGON,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import * as sui from "@mysten/sui.js";
+import { Environment } from "../environment";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;

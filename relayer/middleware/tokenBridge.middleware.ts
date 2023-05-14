@@ -20,10 +20,10 @@ import {
   ITokenBridge,
   ITokenBridge__factory,
 } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
-import { Environment } from "../application";
 import { encodeEmitterAddress } from "../utils";
 import { JsonRpcProvider } from "@mysten/sui.js";
 import { getObjectFields } from "@certusone/wormhole-sdk/lib/cjs/sui";
+import { Environment } from "../environment";
 
 function extractTokenBridgeAddressesFromSdk(env: Environment) {
   return Object.fromEntries(
