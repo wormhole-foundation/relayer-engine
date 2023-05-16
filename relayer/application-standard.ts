@@ -33,7 +33,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   }>;
   tokenAddresses?: Partial<{
     [k in ChainId]: any[];
-  }>
+  }>;
   workflows?: {
     retries: number;
   };

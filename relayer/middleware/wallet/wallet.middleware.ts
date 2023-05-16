@@ -135,7 +135,13 @@ export function wallets(
   );
 
   if (opts.metrics) {
-    startWalletManagement(env, opts.privateKeys, opts.tokenAddresses, opts.metrics, opts.logger);
+    startWalletManagement(
+      env,
+      opts.privateKeys,
+      opts.tokenAddresses,
+      opts.metrics,
+      opts.logger
+    );
   }
 
   let executeFunction: ActionExecutor;
