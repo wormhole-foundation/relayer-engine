@@ -31,6 +31,9 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   privateKeys?: Partial<{
     [k in ChainId]: any[];
   }>;
+  tokenAddresses?: Partial<{
+    [k in ChainId]: any[];
+  }>
   workflows?: {
     retries: number;
   };
@@ -70,6 +73,7 @@ export class StandardRelayerApp<
 
     const {
       privateKeys,
+      tokenAddresses,
       name,
       spyEndpoint,
       redis,
@@ -109,6 +113,7 @@ export class StandardRelayerApp<
           logger,
           namespace: name,
           privateKeys,
+          tokenAddresses,
           metrics: { enabled: true, registry: this.metricsRegistry },
         }),
       ); // <-- you need valid private keys to turn on this middleware

@@ -62,10 +62,12 @@ const networks = {
 };
 
 export type PrivateKeys = Partial<{ [k in ChainId]: string[] }>;
+export type TokenAddresses = Partial<{ [k in ChainId]: string[] }>;
 
 function buildWalletsConfig(
   env: Environment,
   privateKeys: PrivateKeys,
+  tokenAddresses: TokenAddresses,
 ): WalletManagerConfig {
   const networkByChain: any = networks[env];
   const config: WalletManagerConfig = {};
@@ -78,6 +80,7 @@ function buildWalletsConfig(
       for (const key of keys) {
         chainWallets.push({
           privateKey: key,
+          tokens: tokenAddresses[chainId],
         });
       }
     } else if (CHAIN_ID_SOLANA === chainId) {
@@ -93,12 +96,14 @@ function buildWalletsConfig(
 
         chainWallets.push({
           privateKey: secretKey.toString(),
+          tokens: tokenAddresses[chainId],
         });
       }
     } else if (chainId === CHAIN_ID_SUI) {
       for (const key of keys) {
         chainWallets.push({
           privateKey: key,
+          tokens: tokenAddresses[chainId],
         });
       }
     }
@@ -114,10 +119,11 @@ function buildWalletsConfig(
 export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
+  tokenAddresses: TokenAddresses,
   metricsOpts: WalletManagerOptions["metrics"],
   logger?: Logger,
 ) {
-  const wallets = buildWalletsConfig(env, privateKeys);
+  const wallets = buildWalletsConfig(env, privateKeys, tokenAddresses);
 
   const manager = new WalletManager(wallets, {
     logger: logger?.child({ module: "wallet-manager" }),

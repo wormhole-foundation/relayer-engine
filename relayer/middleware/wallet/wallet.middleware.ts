@@ -106,6 +106,9 @@ export interface WalletOpts {
   privateKeys: Partial<{
     [k in ChainId]: any[];
   }>;
+  tokenAddresses: Partial<{
+    [k in ChainId]: any[];
+  }>;
   logger?: Logger;
   metrics?: {
     enabled: boolean;
@@ -132,7 +135,7 @@ export function wallets(
   );
 
   if (opts.metrics) {
-    startWalletManagement(env, opts.privateKeys, opts.metrics, opts.logger);
+    startWalletManagement(env, opts.privateKeys, opts.tokenAddresses, opts.metrics, opts.logger);
   }
 
   let executeFunction: ActionExecutor;
