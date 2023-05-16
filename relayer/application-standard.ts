@@ -23,6 +23,7 @@ import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { Environment } from "./environment";
+import { TokensByChain } from "./middleware/wallet/wallet-management";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -31,9 +32,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   privateKeys?: Partial<{
     [k in ChainId]: any[];
   }>;
-  tokenAddresses?: Partial<{
-    [k in ChainId]: any[];
-  }>;
+  tokensByChain?: TokensByChain;
   workflows?: {
     retries: number;
   };
@@ -73,7 +72,7 @@ export class StandardRelayerApp<
 
     const {
       privateKeys,
-      tokenAddresses,
+      tokensByChain,
       name,
       spyEndpoint,
       redis,
@@ -113,7 +112,7 @@ export class StandardRelayerApp<
           logger,
           namespace: name,
           privateKeys,
-          tokenAddresses,
+          tokensByChain,
           metrics: { enabled: true, registry: this.metricsRegistry },
         }),
       ); // <-- you need valid private keys to turn on this middleware
