@@ -113,7 +113,7 @@ async function createSeiWalletToolBox(
 
   return {
     ...providers,
-    wallet: seiAccount,
+    wallet: seiWallet,
     address: seiAccount.address,
     async getBalance(): Promise<string> {
       const b = await seiProvider.getBalance(seiAccount.address, "usei");

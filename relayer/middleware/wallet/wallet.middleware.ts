@@ -18,11 +18,11 @@ import { Logger } from "winston";
 import { TokensByChain, startWalletManagement } from "./wallet-management";
 import { Registry } from "prom-client";
 import { Environment } from "../../environment";
-import { AccountData } from "@cosmjs/proto-signing";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
 export type EVMWallet = ethers.Wallet;
 export type SuiWallet = sui.RawSigner;
-export type SeiWallet = AccountData;
+export type SeiWallet = DirectSecp256k1HdWallet;
 
 export type SolanaWallet = {
   conn: solana.Connection;
