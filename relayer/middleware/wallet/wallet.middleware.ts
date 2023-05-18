@@ -14,7 +14,7 @@ import { spawnWalletWorker } from "./wallet.worker";
 import { Queue } from "@datastructures-js/queue";
 import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
-import { startWalletManagement } from "./wallet-management";
+import { TokensByChain, startWalletManagement } from "./wallet-management";
 import { Registry } from "prom-client";
 import { Environment } from "../../environment";
 
@@ -106,6 +106,7 @@ export interface WalletOpts {
   privateKeys: Partial<{
     [k in ChainId]: any[];
   }>;
+  tokensByChain?: TokensByChain;
   logger?: Logger;
   metrics?: {
     enabled: boolean;
@@ -132,7 +133,13 @@ export function wallets(
   );
 
   if (opts.metrics) {
-    startWalletManagement(env, opts.privateKeys, opts.metrics, opts.logger);
+    startWalletManagement(
+      env,
+      opts.privateKeys,
+      opts.tokensByChain,
+      opts.metrics,
+      opts.logger,
+    );
   }
 
   let executeFunction: ActionExecutor;
