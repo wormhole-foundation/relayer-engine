@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
+  CHAIN_ID_SEI,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
@@ -17,16 +18,23 @@ import { Logger } from "winston";
 import { TokensByChain, startWalletManagement } from "./wallet-management";
 import { Registry } from "prom-client";
 import { Environment } from "../../environment";
+import { AccountData } from "@cosmjs/proto-signing";
 
 export type EVMWallet = ethers.Wallet;
 export type SuiWallet = sui.RawSigner;
+export type SeiWallet = AccountData;
 
 export type SolanaWallet = {
   conn: solana.Connection;
   payer: solana.Keypair;
 };
 
-export type Wallet = EVMWallet | SolanaWallet | UntypedWallet | SuiWallet;
+export type Wallet =
+  | EVMWallet
+  | SolanaWallet
+  | UntypedWallet
+  | SuiWallet
+  | SeiWallet;
 
 export type UntypedWallet = UntypedProvider & {
   privateKey: string;
@@ -60,6 +68,7 @@ export interface ActionExecutor {
   <T, W extends Wallet>(chaindId: ChainId, f: ActionFunc<T, W>): Promise<T>;
   onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
   onEVM<T>(chainId: EVMChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
+  onSei<T>(f: ActionFunc<T, SeiWallet>): Promise<T>;
   onSui<T>(f: ActionFunc<T, SuiWallet>): Promise<T>;
 }
 
@@ -92,6 +101,7 @@ function makeExecuteFunc(
   func.onSolana = <T>(f: ActionFunc<T, SolanaWallet>) =>
     func(CHAIN_ID_SOLANA, f);
   func.onSui = <T>(f: ActionFunc<T, SuiWallet>) => func(CHAIN_ID_SUI, f);
+  func.onSei = <T>(f: ActionFunc<T, SeiWallet>) => func(CHAIN_ID_SEI, f);
   func.onEVM = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
     func(chainId, f);
   return func;

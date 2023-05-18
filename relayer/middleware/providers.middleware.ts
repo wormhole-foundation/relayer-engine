@@ -9,6 +9,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_MOONBEAM,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SEI,
   CHAIN_ID_SUI,
   ChainId,
   EVMChainId,
@@ -23,12 +24,15 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import * as sui from "@mysten/sui.js";
 import { Environment } from "../environment";
+import { getCosmWasmClient } from "@sei-js/core";
+import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
   solana: solana.Connection[];
   untyped: Partial<Record<ChainId, UntypedProvider[]>>;
   sui: sui.JsonRpcProvider[];
+  sei: CosmWasmClient[];
 }
 
 export type UntypedProvider = {
@@ -106,6 +110,9 @@ const defaultSupportedChains = {
       faucets: [sui.testnetConnection.faucet],
       websockets: [sui.testnetConnection.websocket],
     },
+    [CHAIN_ID_SEI]: {
+      endpoints: ["https://sei.kingnodes.com"],
+    },
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: {
@@ -127,7 +134,7 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
   return async (ctx: ProviderContext, next) => {
     if (!providers) {
       ctx.logger?.debug(`Providers initializing...`);
-      providers = buildProviders(ctx.env, opts);
+      providers = await buildProviders(ctx.env, opts);
       ctx.logger?.debug(`Providers Initialized`);
     }
     ctx.providers = providers;
@@ -136,7 +143,10 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
   };
 }
 
-function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
+async function buildProviders(
+  env: Environment,
+  opts?: ProvidersOpts,
+): Promise<Providers> {
   const supportedChains = Object.assign(
     {},
     defaultSupportedChains[env],
@@ -146,6 +156,7 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
     evm: {},
     solana: [],
     sui: [],
+    sei: [],
     untyped: {},
   };
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
@@ -166,6 +177,9 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
         });
         return new sui.JsonRpcProvider(conn);
       });
+    } else if (chainId === CHAIN_ID_SEI) {
+      const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
+      providers.sei = await Promise.all(seiProviderPromises);
     } else {
       providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
     }

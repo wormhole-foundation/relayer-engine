@@ -21,6 +21,7 @@ import {
   CHAIN_ID_AVAX,
   CHAIN_ID_FANTOM,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_SEI,
   CHAIN_ID_SUI,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { Environment } from "../../environment";
@@ -107,6 +108,14 @@ function buildWalletsConfig(
           tokens: tokens[chainId] ?? [],
         });
       }
+    } else if (chainId === CHAIN_ID_SEI) {
+      continue;
+      // The continue should be removed and the below section uncommented once wallet-monitor has been implemented for Sei
+      // for (const mnemonic of keys) {
+      //   chainWallets.push({
+      //     privateKey: mnemonic,
+      //   });
+      // }
     }
 
     config[chainName] = {
