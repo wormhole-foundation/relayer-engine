@@ -1,6 +1,7 @@
 import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
 import * as sui from "@mysten/sui.js";
+import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import {
   ChainId,
   EVMChainId,
@@ -94,6 +95,7 @@ export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.Provider>>;
   solana: solana.Connection;
   sui: sui.JsonRpcProvider;
+  sei: CosmWasmClient;
 }
 
 export interface ParsedVaaWithBytes extends ParsedVaa {

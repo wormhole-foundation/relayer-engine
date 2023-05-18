@@ -18,6 +18,7 @@ import { SolanaWallet, Wallet, WalletContext } from "../wallet";
 import { EVMWallet, WalletToolBox } from "../wallet";
 import { Connection } from "@solana/web3.js";
 import { JsonRpcProvider } from "@mysten/sui.js";
+import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
 export type PluginContext<Ext> = LoggingContext &
   StorageContext &
@@ -129,6 +130,10 @@ function providersShimToLegacy(providers: Providers): LegacyProviders {
       providers.sui.length > 0
         ? providers.sui[0]
         : (undefined as JsonRpcProvider),
+    sei:
+      providers.sei.length > 0
+        ? providers.sei[0]
+        : (undefined as CosmWasmClient),
   };
 }
 
@@ -142,6 +147,7 @@ function providersShimFromLegacy(providers: LegacyProviders): Providers {
       Object.entries(providers.evm).map(([chain, rpc]) => [chain, [rpc]]),
     ),
     sui: providers.sui ? [providers.sui] : [],
+    sei: providers.sei ? [providers.sei] : [],
   };
 }
 

@@ -5,11 +5,13 @@ import * as solana from "@solana/web3.js";
 import { Providers } from "../providers.middleware";
 import {
   EVMWallet,
+  SeiWallet,
   SolanaWallet,
   SuiWallet,
   Wallet,
 } from "./wallet.middleware";
 import { Ed25519Keypair, RawSigner } from "@mysten/sui.js";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;
@@ -17,11 +19,11 @@ export interface WalletToolBox<T extends Wallet> extends Providers {
   address: string;
 }
 
-export function createWalletToolbox(
+export async function createWalletToolbox(
   providers: Providers,
   privateKey: string,
   chainId: wh.ChainId,
-): WalletToolBox<any> {
+): Promise<WalletToolBox<any>> {
   if (wh.isEVMChain(chainId)) {
     return createEVMWalletToolBox(providers, privateKey, chainId);
   }
@@ -37,6 +39,9 @@ export function createWalletToolbox(
     case wh.CHAIN_ID_SUI:
       const secret = Buffer.from(privateKey, "base64");
       return createSuiWalletToolBox(providers, secret);
+    case wh.CHAIN_ID_SEI:
+      const mnemonic = privateKey;
+      return createSeiWalletToolBox(providers, mnemonic);
   }
 }
 
@@ -92,5 +97,27 @@ function createSuiWalletToolBox(
       return b.totalBalance.toString();
     },
     address: address,
+  };
+}
+
+async function createSeiWalletToolBox(
+  providers: Providers,
+  mnemonic: string,
+): Promise<WalletToolBox<SeiWallet>> {
+  const seiWallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
+    prefix: "sei",
+  });
+  const [seiAccount] = await seiWallet.getAccounts();
+
+  const seiProvider = providers.sei[0];
+
+  return {
+    ...providers,
+    wallet: seiAccount,
+    address: seiAccount.address,
+    async getBalance(): Promise<string> {
+      const b = await seiProvider.getBalance(seiAccount.address, "usei");
+      return b.amount;
+    },
   };
 }
