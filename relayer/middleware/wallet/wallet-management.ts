@@ -111,9 +111,9 @@ function buildWalletsConfig(
     } else if (chainId === CHAIN_ID_SEI) {
       continue;
       // The continue should be removed and the below section uncommented once wallet-monitor has been implemented for Sei
-      // for (const mnemonic of keys) {
+      // for (const key of keys) {
       //   chainWallets.push({
-      //     privateKey: mnemonic,
+      //     privateKey: key,
       //   });
       // }
     }

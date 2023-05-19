@@ -11,7 +11,7 @@ import {
   Wallet,
 } from "./wallet.middleware";
 import { Ed25519Keypair, RawSigner } from "@mysten/sui.js";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;
@@ -40,8 +40,8 @@ export async function createWalletToolbox(
       const secret = Buffer.from(privateKey, "base64");
       return createSuiWalletToolBox(providers, secret);
     case wh.CHAIN_ID_SEI:
-      const mnemonic = privateKey;
-      return createSeiWalletToolBox(providers, mnemonic);
+      const seiPkBuf = Buffer.from(privateKey, "hex");
+      return createSeiWalletToolBox(providers, seiPkBuf);
   }
 }
 
@@ -102,11 +102,9 @@ function createSuiWalletToolBox(
 
 async function createSeiWalletToolBox(
   providers: Providers,
-  mnemonic: string,
+  privateKey: Buffer,
 ): Promise<WalletToolBox<SeiWallet>> {
-  const seiWallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-    prefix: "sei",
-  });
+  const seiWallet = await DirectSecp256k1Wallet.fromKey(privateKey, "sei");
   const [seiAccount] = await seiWallet.getAccounts();
 
   const seiProvider = providers.sei[0];
