@@ -11,7 +11,7 @@ import {
 } from "../../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
-import { dbg, minute, sleep } from "../../utils";
+import { minute, sleep } from "../../utils";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc";
 
@@ -26,7 +26,7 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
 
 export interface VaaKey {
   emitterChain: number;
-  emitterAddress: string; // todo: string, wh format
+  emitterAddress: string; 
   seq: bigint;
 }
 
@@ -82,60 +82,8 @@ export function missedVaas(
   // start worker
   setTimeout(() => startMissedVaaWorker(redisPool, app, fetchVaaFn, opts), 100); // start worker once config is done.
 
-  // return middleware
-  return middlewareFn(opts, fetchVaaFn, redisPool);
-}
-
-function middlewareFn(
-  opts: MissedVaaOpts,
-  fetchVaa: FetchVaaFn,
-  redisPool: Pool<Redis | Cluster>,
-): Middleware {
-  return async (ctx: Context, next) => {
-    const wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[ctx.env];
-
-    let vaa = ctx.vaa;
-    if (!vaa) {
-      await next();
-      return;
-    }
-
-    redisPool.use(async redis => {
-      const key = (seq: bigint) => ({
-        emitterAddress: vaa.emitterAddress.toString("hex"),
-        emitterChain: vaa.emitterChain,
-        seq,
-      });
-      const lastSeenSeq = await getLastSeenSeq(
-        redis,
-        vaa.emitterChain,
-        vaa.emitterAddress.toString("hex"),
-      );
-
-      if (lastSeenSeq !== null && lastSeenSeq + 1n < vaa.sequence) {
-        // possibly missed some vaas
-        for (
-          let currentSeq = lastSeenSeq;
-          currentSeq < vaa.sequence;
-          currentSeq++
-        ) {
-          await tryFetchAndProcess(
-            ctx.processVaa.bind(ctx),
-            fetchVaa,
-            redis,
-            key(currentSeq),
-          );
-        }
-      } else {
-        ctx.logger?.debug(
-          "No missed VAAs detected between this VAA and the last VAA we processed.",
-        );
-      }
-      await markProcessed(redis, key(vaa.sequence), ctx.logger);
-    });
-
-    await next(); // <-- process the current vaa
-  };
+  // return noop middleware
+  return async (ctx: Context, next) => next()
 }
 
 // Background job to ensure no vaas are missed
@@ -186,7 +134,7 @@ export async function missedVaaJob(
 ) {
   try {
     logger?.debug(`Checking for missed VAAs.`);
-    let addressWithLastSequence = await Promise.all(
+    let addressWithSeenSeqs = await Promise.all(
       filters
         .map(filter => ({
           emitterChain: filter.emitterFilter.chainId,
@@ -205,7 +153,7 @@ export async function missedVaaJob(
     for (const {
       address: { emitterAddress, emitterChain },
       seenSeqs,
-    } of addressWithLastSequence) {
+    } of addressWithSeenSeqs) {
       if (seenSeqs.length === 0) {
         continue;
       }
@@ -280,7 +228,6 @@ export async function tryFetchAndProcess(
 
     // before re-triggering middleware, mark key as in progress to avoid recursion
     await markInProgress(redis, key, logger);
-    // TODO: should this be await'ed? I think not since this could block for a long time and vaas should processable async
     // push the missed vaa through all the middleware / storage service if used.
     processVaa(Buffer.from(fetchedVaa.vaaBytes));
     return true;
@@ -345,26 +292,6 @@ async function getAllProcessedSeqsInOrder(
   return results.map(BigInt);
 }
 
-async function getLastSeenSeq(
-  redis: Redis | Cluster,
-  emitterChain: number,
-  emitterAddress: string,
-  watch: boolean = false,
-): Promise<undefined | bigint> {
-  let key = getKey(emitterChain, emitterAddress);
-  if (watch) {
-    await redis.watch(key);
-  }
-  const resp = await redis.zrange(key, "+", "-", "BYLEX", "REV", "LIMIT", 0, 1);
-  if (resp.length === 0) {
-    if (watch) {
-      await redis.unwatch();
-    }
-    return null;
-  }
-  return BigInt(resp[0]);
-}
-
 export async function markProcessed(
   redis: Redis | Cluster,
   { emitterAddress, emitterChain, seq }: VaaKey,
@@ -386,7 +313,7 @@ function getInProgressKey({
   emitterAddress,
   seq,
 }: VaaKey): string {
-  return `missedVaas:${emitterChain}:${emitterAddress}:${seq.toString()}`;
+  return `missedVaasInProgress:${emitterChain}:${emitterAddress}:${seq.toString()}`;
 }
 
 /*
