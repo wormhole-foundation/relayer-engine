@@ -182,3 +182,11 @@ export function assertChainId(chainId: number): ChainId {
   }
   return chainId as ChainId;
 }
+
+export function dbg<T>(x: T, msg?: string): T {
+  if (msg) {
+    console.log(msg);
+  }
+  console.log(x);
+  return x;
+}

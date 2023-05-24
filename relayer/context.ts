@@ -32,7 +32,7 @@ export interface Context {
   on: (eventName: RelayerEvents, listener: ListenerFn) => void;
   config: {
     spyFilters: {
-      emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
+      emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
     }[];
   };
 }

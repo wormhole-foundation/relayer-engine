@@ -24,7 +24,6 @@ import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
-import { ChainID } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
 import { UnrecoverableError } from "bullmq";
 import {
   encodeEmitterAddress,
@@ -100,7 +99,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   private rootLogger: Logger;
   storage: Storage;
   filters: {
-    emitterFilter?: { chainId?: ChainID; emitterAddress?: string };
+    emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
   }[] = [];
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
@@ -389,7 +388,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }
 
   private async spyFilters(): Promise<
-    { emitterFilter?: { chainId?: ChainID; emitterAddress?: string } }[]
+    { emitterFilter?: { chainId?: ChainId; emitterAddress?: string } }[]
   > {
     const spyFilters = new Set<any>();
     for (const chainRouter of Object.values(this.chainRouters)) {
@@ -481,6 +480,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
 
       try {
         const stream = await subscribeSignedVAA(client, {
+          // @ts-ignore spy sdk uses ChainID but js uses ChainId...
           filters: this.filters,
         });
 

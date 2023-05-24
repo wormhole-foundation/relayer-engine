@@ -54,13 +54,16 @@ function deserializeVaa(vaa: Record<string, any>): ParsedVaa {
   };
 }
 
-export interface StorageOptions {
+export interface RedisConnectionOpts {
   redisClusterEndpoints?: ClusterNode[];
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
+  namespace?: string;
+}
+
+export interface StorageOptions extends RedisConnectionOpts {
   queueName: string;
   attempts: number;
-  namespace?: string;
   concurrency?: number;
 }
 

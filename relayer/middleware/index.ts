@@ -1,6 +1,6 @@
 export * from "./logger.middleware";
 export * from "./metrics.middleware";
-export * from "./missedVaas.middleware";
+export * from "./missedVaas";
 export * from "./providers.middleware";
 export * from "./source-tx.middleware";
 export * from "./staging-area.middleware";
