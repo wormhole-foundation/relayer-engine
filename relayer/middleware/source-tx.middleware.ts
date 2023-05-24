@@ -1,10 +1,10 @@
 /// <reference lib="dom" />
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
-import { Environment } from "../application";
 import { sleep } from "../utils";
 import { ChainId, isEVMChain } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
+import { Environment } from "../environment";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -107,6 +107,8 @@ export async function fetchVaaHash(
   ) {
     txHash = `0x${txHash}`;
   }
+
+  logger.debug("Source Transaction Hash: " + txHash || "Not Found");
 
   return txHash;
 }

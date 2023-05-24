@@ -1,42 +1,40 @@
-import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
-  CHAIN_ID_BSC,
-  CHAIN_ID_CELO,
-  CHAIN_ID_ETH,
-  CHAIN_ID_MOONBEAM,
+  CHAIN_ID_SEI,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
   ChainId,
-  coalesceChainName,
   EVMChainId,
-  isEVMChain,
 } from "@certusone/wormhole-sdk";
+import * as sui from "@mysten/sui.js";
 import { WalletToolBox } from "./walletToolBox";
 import { Middleware } from "../../compose.middleware";
 import { spawnWalletWorker } from "./wallet.worker";
 import { Queue } from "@datastructures-js/queue";
 import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
-import { MultiWalletExporter } from "@xlabs-xyz/wallet-monitor";
+import { TokensByChain, startWalletManagement } from "./wallet-management";
 import { Registry } from "prom-client";
-import { MultiWalletWatcherConfig } from "@xlabs-xyz/wallet-monitor/lib/multi-wallet-watcher";
-import { Environment } from "../../application";
-import {
-  CHAIN_ID_AVAX,
-  CHAIN_ID_FANTOM,
-  CHAIN_ID_POLYGON,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { Environment } from "../../environment";
+import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
 
 export type EVMWallet = ethers.Wallet;
+export type SuiWallet = sui.RawSigner;
+export type SeiWallet = DirectSecp256k1Wallet;
 
 export type SolanaWallet = {
   conn: solana.Connection;
   payer: solana.Keypair;
 };
 
-export type Wallet = EVMWallet | SolanaWallet | UntypedWallet;
+export type Wallet =
+  | EVMWallet
+  | SolanaWallet
+  | UntypedWallet
+  | SuiWallet
+  | SeiWallet;
 
 export type UntypedWallet = UntypedProvider & {
   privateKey: string;
@@ -70,6 +68,8 @@ export interface ActionExecutor {
   <T, W extends Wallet>(chaindId: ChainId, f: ActionFunc<T, W>): Promise<T>;
   onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
   onEVM<T>(chainId: EVMChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
+  onSei<T>(f: ActionFunc<T, SeiWallet>): Promise<T>;
+  onSui<T>(f: ActionFunc<T, SuiWallet>): Promise<T>;
 }
 
 function makeExecuteFunc(
@@ -100,6 +100,8 @@ function makeExecuteFunc(
   };
   func.onSolana = <T>(f: ActionFunc<T, SolanaWallet>) =>
     func(CHAIN_ID_SOLANA, f);
+  func.onSui = <T>(f: ActionFunc<T, SuiWallet>) => func(CHAIN_ID_SUI, f);
+  func.onSei = <T>(f: ActionFunc<T, SeiWallet>) => func(CHAIN_ID_SEI, f);
   func.onEVM = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
     func(chainId, f);
   return func;
@@ -114,61 +116,12 @@ export interface WalletOpts {
   privateKeys: Partial<{
     [k in ChainId]: any[];
   }>;
+  tokensByChain?: TokensByChain;
   logger?: Logger;
   metrics?: {
+    enabled: boolean;
     registry: Registry;
   };
-}
-
-const networks = {
-  [Environment.MAINNET]: {
-    [CHAIN_ID_ETH]: "mainnet",
-  },
-  [Environment.TESTNET]: {
-    [CHAIN_ID_ETH]: "goerli",
-    [CHAIN_ID_SOLANA]: "devnet",
-    [CHAIN_ID_AVAX]: "testnet",
-    [CHAIN_ID_CELO]: "alfajores",
-    [CHAIN_ID_BSC]: "testnet",
-    [CHAIN_ID_POLYGON]: "mumbai",
-    [CHAIN_ID_FANTOM]: "testnet",
-    [CHAIN_ID_MOONBEAM]: "moonbase-alpha",
-  },
-  [Environment.DEVNET]: {},
-};
-
-function buildMonitoringFromPrivateKeys(
-  env: Environment,
-  privateKeys: Partial<{
-    [k in ChainId]: any[];
-  }>,
-): MultiWalletWatcherConfig {
-  const networkByChain: any = networks[env];
-  const config: MultiWalletWatcherConfig = {};
-  for (const [chainIdStr, keys] of Object.entries(privateKeys)) {
-    const chainId = Number(chainIdStr) as ChainId;
-    const chainName = coalesceChainName(chainId);
-    let addresses: Record<string, string[]> = {};
-    if (isEVMChain(chainId)) {
-      for (const key of keys) {
-        addresses[new ethers.Wallet(key).address] = [];
-      }
-    } else if (CHAIN_ID_SOLANA === chainId) {
-      for (const key of keys) {
-        let secretKey;
-        try {
-          secretKey = new Uint8Array(JSON.parse(key));
-        } catch (e) {
-          secretKey = bs58.decode(key);
-        }
-        addresses[
-          solana.Keypair.fromSecretKey(secretKey).publicKey.toBase58()
-        ] = [];
-      }
-    }
-    config[chainName] = { addresses, network: networkByChain[chainId] };
-  }
-  return config;
 }
 
 export function wallets(
@@ -189,15 +142,14 @@ export function wallets(
     }),
   );
 
-  const wallets = buildMonitoringFromPrivateKeys(env, opts.privateKeys);
-  opts.logger?.info(JSON.stringify(wallets, null, 2));
-
   if (opts.metrics) {
-    const exporter = new MultiWalletExporter(wallets, {
-      logger: opts.logger,
-      prometheus: { registry: opts.metrics.registry },
-    });
-    exporter.start();
+    startWalletManagement(
+      env,
+      opts.privateKeys,
+      opts.tokensByChain,
+      opts.metrics,
+      opts.logger,
+    );
   }
 
   let executeFunction: ActionExecutor;

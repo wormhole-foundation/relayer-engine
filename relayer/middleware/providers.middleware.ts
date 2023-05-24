@@ -9,23 +9,30 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_MOONBEAM,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SEI,
+  CHAIN_ID_SUI,
   ChainId,
   EVMChainId,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
-import { Connection } from "@solana/web3.js";
-import { Environment } from "../application";
+import * as solana from "@solana/web3.js";
 import {
   CHAIN_ID_AVAX,
   CHAIN_ID_FANTOM,
   CHAIN_ID_POLYGON,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import * as sui from "@mysten/sui.js";
+import { Environment } from "../environment";
+import { getCosmWasmClient } from "@sei-js/core";
+import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
-  solana: Connection[];
+  solana: solana.Connection[];
   untyped: Partial<Record<ChainId, UntypedProvider[]>>;
+  sui: sui.JsonRpcProvider[];
+  sei: CosmWasmClient[];
 }
 
 export type UntypedProvider = {
@@ -37,7 +44,11 @@ export interface ProviderContext extends Context {
 }
 
 export type ChainConfigInfo = {
-  [k in ChainId]: { endpoints: string[] };
+  [k in ChainId]: {
+    endpoints: string[];
+    faucets?: string[];
+    websockets?: string[];
+  };
 };
 
 export interface ProvidersOpts {
@@ -58,6 +69,11 @@ const defaultSupportedChains = {
     [CHAIN_ID_ALGORAND]: { endpoints: ["https://node.algoexplorerapi.io/"] },
     [CHAIN_ID_APTOS]: {
       endpoints: ["https://fullnode.mainnet.aptoslabs.com/v1"],
+    },
+    [CHAIN_ID_SUI]: {
+      endpoints: ["https://rpc.mainnet.sui.io:443"],
+      faucets: [""],
+      websockets: [""],
     },
   },
   [Environment.TESTNET]: {
@@ -89,6 +105,14 @@ const defaultSupportedChains = {
     [CHAIN_ID_APTOS]: {
       endpoints: ["https://fullnode.devnet.aptoslabs.com/v1"],
     },
+    [CHAIN_ID_SUI]: {
+      endpoints: [sui.testnetConnection.fullnode],
+      faucets: [sui.testnetConnection.faucet],
+      websockets: [sui.testnetConnection.websocket],
+    },
+    [CHAIN_ID_SEI]: {
+      endpoints: ["https://sei.kingnodes.com"],
+    },
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: {
@@ -110,7 +134,7 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
   return async (ctx: ProviderContext, next) => {
     if (!providers) {
       ctx.logger?.debug(`Providers initializing...`);
-      providers = buildProviders(ctx.env, opts);
+      providers = await buildProviders(ctx.env, opts);
       ctx.logger?.debug(`Providers Initialized`);
     }
     ctx.providers = providers;
@@ -119,7 +143,10 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
   };
 }
 
-function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
+async function buildProviders(
+  env: Environment,
+  opts?: ProvidersOpts,
+): Promise<Providers> {
   const supportedChains = Object.assign(
     {},
     defaultSupportedChains[env],
@@ -128,17 +155,31 @@ function buildProviders(env: Environment, opts?: ProvidersOpts): Providers {
   const providers: Providers = {
     evm: {},
     solana: [],
+    sui: [],
+    sei: [],
     untyped: {},
   };
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
     const chainId = Number(chainIdStr) as ChainId;
-    const { endpoints } = chainCfg;
+    const { endpoints, faucets, websockets } = chainCfg;
     if (isEVMChain(chainId)) {
       providers.evm[chainId] = endpoints.map(
         url => new ethers.providers.JsonRpcProvider(url),
       );
     } else if (chainId === CHAIN_ID_SOLANA) {
-      providers.solana = endpoints.map(url => new Connection(url));
+      providers.solana = endpoints.map(url => new solana.Connection(url));
+    } else if (chainId === CHAIN_ID_SUI) {
+      providers.sui = endpoints.map((url, i) => {
+        let conn = new sui.Connection({
+          fullnode: url,
+          faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
+          websocket: (websockets && websockets[i]) || websockets[0], // same as above
+        });
+        return new sui.JsonRpcProvider(conn);
+      });
+    } else if (chainId === CHAIN_ID_SEI) {
+      const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
+      providers.sei = await Promise.all(seiProviderPromises);
     } else {
       providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
     }

@@ -5,6 +5,20 @@ import {
   Plugin,
   WorkflowOptions,
 } from "./legacy-plugin-definition";
+import * as fs from "fs";
+import * as nodePath from "path";
+import {
+  assertArray,
+  assertBool,
+  assertInt,
+  assertStr,
+  EngineError,
+  nnull,
+} from "../../utils";
+import { StandardRelayerApp } from "../../application-standard";
+import { defaultLogger } from "../../logging";
+import { legacyPluginCompat } from "./legacy-plugin.middleware";
+import { Environment } from "../../environment";
 
 type RelayerEngineConfigs = {
   commonEnv: CommonEnv;
@@ -346,21 +360,6 @@ function validateStringEnum<B>(enumObj: Object, value: string | undefined): B {
 /*
  * Loads config files and env vars, resolves them into untyped objects
  */
-
-import * as fs from "fs";
-import * as nodePath from "path";
-import {
-  assertInt,
-  assertBool,
-  assertArray,
-  assertStr,
-  nnull,
-  EngineError,
-} from "../../utils";
-import { StandardRelayerApp } from "../../application-standard";
-import { Environment } from "../../application";
-import { defaultLogger } from "../../logging";
-import { legacyPluginCompat } from "./legacy-plugin.middleware";
 
 async function loadUntypedEnvs(
   dir: string,

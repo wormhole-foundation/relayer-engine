@@ -39,8 +39,15 @@ export function encodeEmitterAddress(
   if (wormholeSdk.CHAIN_ID_NEAR === chainId) {
     return wormholeSdk.getEmitterAddressNear(emitterAddressStr);
   }
+  if (wormholeSdk.CHAIN_ID_SUI === chainId) {
+    return strip0x(emitterAddressStr);
+  }
+
   throw new Error(`Unrecognized wormhole chainId ${chainId}`);
 }
+
+export const strip0x = (str: string) =>
+  str.startsWith("0x") ? str.substring(2) : str;
 
 export function sleep(ms: number) {
   return new Promise((resolve, reject) => setTimeout(resolve, ms));

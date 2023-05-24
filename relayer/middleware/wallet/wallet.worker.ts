@@ -15,7 +15,7 @@ export async function spawnWalletWorker(
   logger: Logger,
 ): Promise<void> {
   const workerIntervalMS = DEFAULT_WORKER_INTERVAL_MS;
-  const walletToolBox = createWalletToolbox(
+  const walletToolBox = await createWalletToolbox(
     providers,
     workerInfo.walletPrivateKey,
     workerInfo.targetChainId,

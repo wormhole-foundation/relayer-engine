@@ -1,4 +1,4 @@
-import { Environment, RelayerApp, RelayerAppOpts } from "./application";
+import { RelayerApp, RelayerAppOpts } from "./application";
 import { logging, LoggingContext } from "./middleware/logger.middleware";
 import { missedVaas } from "./middleware/missedVaas";
 import { providers, ProvidersOpts } from "./middleware/providers.middleware";
@@ -22,6 +22,8 @@ import { defaultLogger } from "./logging";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
+import { Environment } from "./environment";
+import { TokensByChain } from "./middleware/wallet/wallet-management";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -30,6 +32,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   privateKeys?: Partial<{
     [k in ChainId]: any[];
   }>;
+  tokensByChain?: TokensByChain;
   workflows?: {
     retries: number;
   };
@@ -62,13 +65,14 @@ export class StandardRelayerApp<
   private store: RedisStorage;
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
-    const logger = opts.logger;
+    const logger = opts.logger ?? defaultLogger;
     delete opts.logger;
     // now we can merge
     opts = mergeDeep({}, [defaultOpts, opts]);
 
     const {
       privateKeys,
+      tokensByChain,
       name,
       spyEndpoint,
       redis,
@@ -108,7 +112,8 @@ export class StandardRelayerApp<
           logger,
           namespace: name,
           privateKeys,
-          metrics: { registry: this.metricsRegistry },
+          tokensByChain,
+          metrics: { enabled: true, registry: this.metricsRegistry },
         }),
       ); // <-- you need valid private keys to turn on this middleware
     }
