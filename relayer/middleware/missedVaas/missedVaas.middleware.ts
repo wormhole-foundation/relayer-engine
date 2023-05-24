@@ -26,7 +26,7 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
 
 export interface VaaKey {
   emitterChain: number;
-  emitterAddress: string; 
+  emitterAddress: string;
   seq: bigint;
 }
 
@@ -83,7 +83,7 @@ export function missedVaas(
   setTimeout(() => startMissedVaaWorker(redisPool, app, fetchVaaFn, opts), 100); // start worker once config is done.
 
   // return noop middleware
-  return async (ctx: Context, next) => next()
+  return async (ctx: Context, next) => next();
 }
 
 // Background job to ensure no vaas are missed
