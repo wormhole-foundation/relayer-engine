@@ -12,7 +12,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { ParsedVaaWithBytes } from "./application";
 import { ethers } from "ethers";
-import { map } from 'bluebird';
+import { map } from "bluebird";
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -192,6 +192,10 @@ export function dbg<T>(x: T, msg?: string): T {
   return x;
 }
 
-export function mapCocurrent(arr: any[], fn: (...args: any[]) => any, concurrency: number = 5) {
+export function mapCocurrent(
+  arr: any[],
+  fn: (...args: any[]) => any,
+  concurrency: number = 5,
+) {
   return map(arr, fn, { concurrency });
-};
+}

@@ -134,7 +134,7 @@ export async function missedVaaJob(
 ) {
   try {
     logger?.debug(`Checking for missed VAAs.`);
-    
+
     const addressWithSeenSeqs = await mapCocurrent(filters, async filter => {
       const address = {
         emitterChain: filter.emitterFilter.chainId,
@@ -193,11 +193,15 @@ export async function missedVaaJob(
       }
 
       if (missing.length > 0) {
-        logger?.info(`missedVaaWorker found ${missing.length} missed vaas ${JSON.stringify({
-          emitterAddress,
-          emitterChain,
-          missedSequences: missing,
-        })}`);
+        logger?.info(
+          `missedVaaWorker found ${missing.length} missed vaas ${JSON.stringify(
+            {
+              emitterAddress,
+              emitterChain,
+              missedSequences: missing,
+            },
+          )}`,
+        );
       }
     }
   } catch (e) {
