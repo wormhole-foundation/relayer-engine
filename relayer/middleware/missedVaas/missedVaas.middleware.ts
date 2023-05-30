@@ -11,7 +11,7 @@ import {
 } from "../../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
-import { mapCocurrent, minute, sleep } from "../../utils";
+import { mapConcurrent, minute, sleep } from "../../utils";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc";
 
@@ -135,7 +135,7 @@ export async function missedVaaJob(
   try {
     logger?.debug(`Checking for missed VAAs.`);
 
-    const addressWithSeenSeqs = await mapCocurrent(filters, async filter => {
+    const addressWithSeenSeqs = await mapConcurrent(filters, async filter => {
       const address = {
         emitterChain: filter.emitterFilter.chainId,
         emitterAddress: filter.emitterFilter.emitterAddress,

@@ -192,7 +192,7 @@ export function dbg<T>(x: T, msg?: string): T {
   return x;
 }
 
-export function mapCocurrent(
+export function mapConcurrent(
   arr: any[],
   fn: (...args: any[]) => any,
   concurrency: number = 5,
