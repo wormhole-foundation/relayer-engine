@@ -11,7 +11,7 @@ import {
 } from "../../application";
 import { Logger } from "winston";
 import { createPool, Pool } from "generic-pool";
-import { minute, sleep } from "../../utils";
+import { mapConcurrent, minute, sleep } from "../../utils";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc";
 
@@ -134,21 +134,20 @@ export async function missedVaaJob(
 ) {
   try {
     logger?.debug(`Checking for missed VAAs.`);
-    let addressWithSeenSeqs = await Promise.all(
-      filters
-        .map(filter => ({
-          emitterChain: filter.emitterFilter.chainId,
-          emitterAddress: filter.emitterFilter.emitterAddress,
-        }))
-        .map(async address => {
-          const seenSeqs = await getAllProcessedSeqsInOrder(
-            redis,
-            address.emitterChain,
-            address.emitterAddress,
-          );
-          return { address, seenSeqs };
-        }),
-    );
+
+    const addressWithSeenSeqs = await mapConcurrent(filters, async filter => {
+      const address = {
+        emitterChain: filter.emitterFilter.chainId,
+        emitterAddress: filter.emitterFilter.emitterAddress,
+      };
+
+      const seenSeqs = await getAllProcessedSeqsInOrder(
+        redis,
+        address.emitterChain,
+        address.emitterAddress,
+      );
+      return { address, seenSeqs };
+    });
 
     for (const {
       address: { emitterAddress, emitterChain },
@@ -194,11 +193,15 @@ export async function missedVaaJob(
       }
 
       if (missing.length > 0) {
-        logger?.info(`missedVaaWorker found ${missing.length} missed vaas`, {
-          emitterAddress,
-          emitterChain,
-          missedSequences: missing,
-        });
+        logger?.info(
+          `missedVaaWorker found ${missing.length} missed vaas ${JSON.stringify(
+            {
+              emitterAddress,
+              emitterChain,
+              missedSequences: missing,
+            },
+          )}`,
+        );
       }
     }
   } catch (e) {
@@ -305,7 +308,7 @@ export async function markProcessed(
 }
 
 function getKey(emitterChain: number, emitterAddress: string): string {
-  return `missedVaas:${emitterChain}:${emitterAddress}`;
+  return `missedVaasV2:${emitterChain}:${emitterAddress}`;
 }
 
 function getInProgressKey({
