@@ -1,7 +1,6 @@
 import {
-  WalletManager,
-  WalletManagerConfig,
-  WalletManagerOptions,
+  buildWalletManager,
+  WalletManagerFullConfig,
 } from "@xlabs-xyz/wallet-monitor";
 import { Logger } from "winston";
 import * as bs58 from "bs58";
@@ -69,9 +68,9 @@ function buildWalletsConfig(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
-): WalletManagerConfig {
+): WalletManagerFullConfig['config'] {
   const networkByChain: any = networks[env];
-  const config: WalletManagerConfig = {};
+  const config: WalletManagerFullConfig['config'] = {};
   const tokens = tokensByChain ?? {};
   for (const [chainIdStr, keys] of Object.entries(privateKeys)) {
     const chainId = Number(chainIdStr) as ChainId;
@@ -130,15 +129,18 @@ export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
-  metricsOpts?: WalletManagerOptions["metrics"],
+  metricsOpts?: WalletManagerFullConfig['options']["metrics"],
   logger?: Logger,
 ) {
   const wallets = buildWalletsConfig(env, privateKeys, tokensByChain);
 
-  const manager = new WalletManager(wallets, {
-    logger: logger?.child({ module: "wallet-manager" }),
-    logLevel: "error",
-    metrics: metricsOpts,
+  const manager = buildWalletManager({
+    config: wallets,
+    options: {
+      logger: logger?.child({ module: "wallet-manager" }),
+      logLevel: "error",
+      metrics: metricsOpts,
+    }
   });
 
   return manager;
