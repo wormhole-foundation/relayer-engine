@@ -198,7 +198,7 @@ export async function missedVaaJob(
             {
               emitterAddress,
               emitterChain,
-              missedSequences: missing,
+              missedSequences: missing.map(seq => seq.toString()),
             },
           )}`,
         );
