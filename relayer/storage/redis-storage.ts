@@ -9,7 +9,7 @@ import {
   RedisOptions,
 } from "ioredis";
 import { createStorageMetrics } from "../storage.metrics";
-import { Gauge, Histogram, Registry } from "prom-client";
+import { Counter, Gauge, Histogram, Registry } from "prom-client";
 import { sleep } from "../utils";
 import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
@@ -87,6 +87,8 @@ export class RedisStorage implements Storage {
     delayedGauge: Gauge<string>;
     waitingGauge: Gauge<string>;
     activeGauge: Gauge<string>;
+    completedCounter: Counter<string>;
+    failedCounter: Counter<string>;
     completedDuration: Histogram<string>;
     processedDuration: Histogram<string>;
   };
@@ -204,6 +206,7 @@ export class RedisStorage implements Storage {
     this.workerId = this.worker.id;
 
     this.worker.on("completed", this.onCompleted.bind(this));
+    this.worker.on("failed", this.onFailed.bind(this));
     this.spawnGaugeUpdateWorker();
   }
 
@@ -233,12 +236,22 @@ export class RedisStorage implements Storage {
   private async onCompleted(job: Job) {
     const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
     const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
+    this.metrics.completedCounter
+      .labels({ queue: this.vaaQueue.name })
+      .inc();
     this.metrics.completedDuration
       .labels({ queue: this.vaaQueue.name })
       .observe(completedDuration);
     this.metrics.processedDuration
       .labels({ queue: this.vaaQueue.name })
       .observe(processedDuration);
+  }
+
+  private async onFailed(job: Job) {
+    // TODO: Add a failed duration metric for processing time for failed jobs
+    this.metrics.failedCounter
+      .labels({ queue: this.vaaQueue.name })
+      .inc();
   }
 
   storageKoaUI(path: string) {
