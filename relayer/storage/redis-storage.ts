@@ -236,9 +236,7 @@ export class RedisStorage implements Storage {
   private async onCompleted(job: Job) {
     const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
     const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
-    this.metrics.completedCounter
-      .labels({ queue: this.vaaQueue.name })
-      .inc();
+    this.metrics.completedCounter.labels({ queue: this.vaaQueue.name }).inc();
     this.metrics.completedDuration
       .labels({ queue: this.vaaQueue.name })
       .observe(completedDuration);
@@ -249,9 +247,7 @@ export class RedisStorage implements Storage {
 
   private async onFailed(job: Job) {
     // TODO: Add a failed duration metric for processing time for failed jobs
-    this.metrics.failedCounter
-      .labels({ queue: this.vaaQueue.name })
-      .inc();
+    this.metrics.failedCounter.labels({ queue: this.vaaQueue.name }).inc();
   }
 
   storageKoaUI(path: string) {
