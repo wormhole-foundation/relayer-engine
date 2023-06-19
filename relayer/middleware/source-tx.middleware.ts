@@ -5,6 +5,7 @@ import { sleep } from "../utils";
 import { ChainId, isEVMChain } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { Environment } from "../environment";
+import { LRUCache } from "lru-cache";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -40,10 +41,23 @@ export function sourceTx(
   optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
+  const alreadyFetchedHashes = new LRUCache({ max: 100 });
+
   return async (ctx, next) => {
     if (!opts) {
       // initialize options now that we know the environment from context
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
+    }
+    const vaaId = `${ctx.vaa.id.emitterChain}-${ctx.vaa.id.emitterAddress}-${ctx.vaa.id.sequence}`;
+    const txHashFromCache = alreadyFetchedHashes.get(vaaId) as
+      | string
+      | undefined;
+
+    if (txHashFromCache) {
+      ctx.logger?.debug(`Already fetched tx hash: ${txHashFromCache}`);
+      ctx.sourceTxHash = txHashFromCache;
+      await next();
+      return;
     }
 
     const { emitterChain, emitterAddress, sequence } = ctx.vaa;
@@ -57,11 +71,13 @@ export function sourceTx(
       opts.retries,
       opts.wormscanEndpoint,
     );
-    ctx.logger?.debug(
-      txHash === ""
-        ? "Could not retrive tx hash."
-        : `Retrieved tx hash: ${txHash}`,
-    );
+    if (txHash === "") {
+      ctx.logger?.debug("Could not retrive tx hash.");
+    } else {
+      // TODO look at consistency level before using cache? (not sure what the checks are)
+      alreadyFetchedHashes.set(vaaId, txHash);
+      ctx.logger?.debug(`Retrieved tx hash: ${txHash}`);
+    }
     ctx.sourceTxHash = txHash;
     await next();
   };
