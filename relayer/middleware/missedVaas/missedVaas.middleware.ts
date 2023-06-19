@@ -62,7 +62,7 @@ export function missedVaas(
   const redisPool = createRedisPool(opts);
 
   // mark vaa processed when app emits "Added" event
-  app.addListener(RelayerEvents.Added, (vaa: ParsedVaaWithBytes) => {
+  const markVaaAsProcessed = (vaa: ParsedVaaWithBytes) => {
     redisPool.use(redis =>
       markProcessed(
         redis,
@@ -74,7 +74,10 @@ export function missedVaas(
         opts.logger,
       ),
     );
-  });
+  };
+
+  app.addListener(RelayerEvents.Added, markVaaAsProcessed);
+  app.addListener(RelayerEvents.Skipped, markVaaAsProcessed);
 
   // construct dependency
   const fetchVaaFn = (vaaKey: VaaKey) => fetchVaa(opts.wormholeRpcs, vaaKey);
