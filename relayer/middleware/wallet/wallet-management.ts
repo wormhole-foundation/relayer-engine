@@ -137,7 +137,6 @@ export function startWalletManagement(
   const manager = buildWalletManager({
     config: wallets,
     options: {
-      failOnInvalidChain: false,
       logger: logger?.child({ module: "wallet-manager" }),
       logLevel: "error",
       metrics: metricsOpts,
