@@ -14,6 +14,7 @@ import {
   ChainId,
   EVMChainId,
   isEVMChain,
+  CHAIN_ID_ARBITRUM,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
@@ -112,6 +113,12 @@ const defaultSupportedChains = {
     },
     [CHAIN_ID_SEI]: {
       endpoints: ["https://sei.kingnodes.com"],
+    },
+    [CHAIN_ID_ARBITRUM]: {
+      endpoints: [
+        "https://arbitrum-goerli.public.blastapi.io",
+        "https://arbitrum-goerli.publicnode.com",
+      ],
     },
   },
   [Environment.DEVNET]: {
