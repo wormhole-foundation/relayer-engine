@@ -19,8 +19,11 @@ import {
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_AVAX,
   CHAIN_ID_FANTOM,
+  CHAIN_ID_KLAYTN,
+  CHAIN_ID_OPTIMISM,
   CHAIN_ID_POLYGON,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import * as sui from "@mysten/sui.js";
@@ -82,6 +85,15 @@ const defaultSupportedChains = {
       faucets: [""],
       websockets: [""],
     },
+    [CHAIN_ID_KLAYTN]: {
+      endpoints: ["https://public-node-api.klaytnapi.com/v1/cypress"],
+    },
+    [CHAIN_ID_OPTIMISM]: {
+      endpoints: ["https://optimism.api.onfinality.io/public"],
+    },
+    [CHAIN_ID_ARBITRUM]: {
+      endpoints: ["https://rpc.arb1.arbitrum.gateway.fm"],
+    }
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
