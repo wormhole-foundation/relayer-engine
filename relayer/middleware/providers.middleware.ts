@@ -4,12 +4,13 @@ import {
   CHAIN_ID_ACALA,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_BSC,
   CHAIN_ID_CELO,
   CHAIN_ID_ETH,
   CHAIN_ID_MOONBEAM,
-  CHAIN_ID_SOLANA,
   CHAIN_ID_SEI,
+  CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   ChainId,
   EVMChainId,
@@ -67,6 +68,12 @@ const defaultSupportedChains = {
     [CHAIN_ID_MOONBEAM]: { endpoints: ["https://rpc.api.moonbeam.network"] },
     [CHAIN_ID_ACALA]: { endpoints: ["https://eth-rpc-acala.aca-api.network"] },
     [CHAIN_ID_ALGORAND]: { endpoints: ["https://node.algoexplorerapi.io/"] },
+    [CHAIN_ID_ARBITRUM]: {
+      endpoints: [
+        "https://arbitrum-one.publicnode.com",
+        "https://rpc.ankr.com/arbitrum",
+      ],
+    },
     [CHAIN_ID_APTOS]: {
       endpoints: ["https://fullnode.mainnet.aptoslabs.com/v1"],
     },
@@ -112,6 +119,12 @@ const defaultSupportedChains = {
     },
     [CHAIN_ID_SEI]: {
       endpoints: ["https://sei.kingnodes.com"],
+    },
+    [CHAIN_ID_ARBITRUM]: {
+      endpoints: [
+        "https://arbitrum-goerli.public.blastapi.io",
+        "https://arbitrum-goerli.publicnode.com",
+      ],
     },
   },
   [Environment.DEVNET]: {
