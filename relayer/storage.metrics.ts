@@ -1,8 +1,18 @@
-import { Gauge, Histogram, Registry } from "prom-client";
+import { Counter, Gauge, Histogram, Registry } from "prom-client";
 
+export interface StorageMetrics {
+  delayedGauge: Gauge<string>;
+  waitingGauge: Gauge<string>;
+  activeGauge: Gauge<string>;
+  failedGauge: Gauge<string>;
+  completedCounter: Counter<string>;
+  failedCounter: Counter<string>;
+  completedDuration: Histogram<string>;
+  processedDuration: Histogram<string>;
+}
 export function createStorageMetrics(
   storageRegistry: Registry = new Registry(),
-) {
+): { registry: Registry; metrics: StorageMetrics } {
   return {
     registry: storageRegistry,
     metrics: {
@@ -21,6 +31,24 @@ export function createStorageMetrics(
       waitingGauge: new Gauge({
         name: `waiting_workflows`,
         help: "Total number of jobs waiting to be processed",
+        labelNames: ["queue"],
+        registers: [storageRegistry],
+      }),
+      failedGauge: new Gauge({
+        name: `failed_workflows`,
+        help: "Total number of jobs currently in a failed state",
+        labelNames: ["queue"],
+        registers: [storageRegistry],
+      }),
+      completedCounter: new Counter({
+        name: `completed_workflows_total`,
+        help: "Total number of completed jobs",
+        labelNames: ["queue"],
+        registers: [storageRegistry],
+      }),
+      failedCounter: new Counter({
+        name: `failed_workflows_total`,
+        help: "Total number of failed jobs",
         labelNames: ["queue"],
         registers: [storageRegistry],
       }),
