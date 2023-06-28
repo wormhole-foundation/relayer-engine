@@ -6,7 +6,8 @@ export interface StorageMetrics {
   activeGauge: Gauge<string>;
   failedGauge: Gauge<string>;
   completedCounter: Counter<string>;
-  failedCounter: Counter<string>;
+  failedWithMaxRetriesCounter: Counter<string>;
+  failedRunsCounter: Counter<string>;
   completedDuration: Histogram<string>;
   processedDuration: Histogram<string>;
 }
@@ -46,9 +47,15 @@ export function createStorageMetrics(
         labelNames: ["queue"],
         registers: [storageRegistry],
       }),
-      failedCounter: new Counter({
-        name: `failed_workflows_total`,
-        help: "Total number of failed jobs",
+      failedRunsCounter: new Counter({
+        name: `failed_workflow_runs_total`,
+        help: "Total number of failed job runs",
+        labelNames: ["queue"],
+        registers: [storageRegistry],
+      }),
+      failedWithMaxRetriesCounter: new Counter({
+        name: `failed_with_max_retries_workflows_total`,
+        help: "Total number of jobs that failed after max retries. Eg: they will require manual intervention to succeed",
         labelNames: ["queue"],
         registers: [storageRegistry],
       }),

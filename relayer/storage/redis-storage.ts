@@ -241,7 +241,13 @@ export class RedisStorage implements Storage {
 
   private async onFailed(job: Job) {
     // TODO: Add a failed duration metric for processing time for failed jobs
-    this.metrics.failedCounter.labels({ queue: this.vaaQueue.name }).inc();
+    this.metrics.failedRunsCounter.labels({ queue: this.vaaQueue.name }).inc();
+
+    if (job.attemptsMade === this.opts.attempts) {
+      this.metrics.failedWithMaxRetriesCounter
+        .labels({ queue: this.vaaQueue.name })
+        .inc();
+    }
   }
 
   storageKoaUI(path: string) {
