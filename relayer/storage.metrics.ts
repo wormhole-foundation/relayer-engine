@@ -6,12 +6,8 @@ export interface StorageMetrics {
   activeGauge: Gauge<string>;
   failedGauge: Gauge<string>;
   completedCounter: Counter<string>;
-<<<<<<< HEAD
   failedWithMaxRetriesCounter: Counter<string>;
   failedRunsCounter: Counter<string>;
-=======
-  failedCounter: Counter<string>;
->>>>>>> 19f1846 (Adds failed metrics (counters) and adds a failed gauge)
   completedDuration: Histogram<string>;
   processedDuration: Histogram<string>;
 }
