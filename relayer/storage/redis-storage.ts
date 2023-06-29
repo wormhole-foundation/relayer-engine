@@ -8,8 +8,8 @@ import {
   Redis,
   RedisOptions,
 } from "ioredis";
-import { createStorageMetrics } from "../storage.metrics";
-import { Gauge, Histogram, Registry } from "prom-client";
+import { createStorageMetrics, StorageMetrics } from "../storage.metrics";
+import { Counter, Gauge, Histogram, Registry } from "prom-client";
 import { sleep } from "../utils";
 import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
@@ -83,13 +83,7 @@ export class RedisStorage implements Storage {
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
   public registry: Registry;
-  private metrics: {
-    delayedGauge: Gauge<string>;
-    waitingGauge: Gauge<string>;
-    activeGauge: Gauge<string>;
-    completedDuration: Histogram<string>;
-    processedDuration: Histogram<string>;
-  };
+  private metrics: StorageMetrics;
   private opts: StorageOptions;
 
   workerId: string;
@@ -204,6 +198,7 @@ export class RedisStorage implements Storage {
     this.workerId = this.worker.id;
 
     this.worker.on("completed", this.onCompleted.bind(this));
+    this.worker.on("failed", this.onFailed.bind(this));
     this.spawnGaugeUpdateWorker();
   }
 
@@ -220,7 +215,8 @@ export class RedisStorage implements Storage {
   }
 
   private async updateGauges() {
-    const { active, delayed, waiting } = await this.vaaQueue.getJobCounts();
+    const { active, delayed, waiting, failed } =
+      await this.vaaQueue.getJobCounts();
     this.metrics.activeGauge.labels({ queue: this.vaaQueue.name }).set(active);
     this.metrics.delayedGauge
       .labels({ queue: this.vaaQueue.name })
@@ -228,17 +224,30 @@ export class RedisStorage implements Storage {
     this.metrics.waitingGauge
       .labels({ queue: this.vaaQueue.name })
       .set(waiting);
+    this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
   }
 
   private async onCompleted(job: Job) {
     const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
     const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
+    this.metrics.completedCounter.labels({ queue: this.vaaQueue.name }).inc();
     this.metrics.completedDuration
       .labels({ queue: this.vaaQueue.name })
       .observe(completedDuration);
     this.metrics.processedDuration
       .labels({ queue: this.vaaQueue.name })
       .observe(processedDuration);
+  }
+
+  private async onFailed(job: Job) {
+    // TODO: Add a failed duration metric for processing time for failed jobs
+    this.metrics.failedRunsCounter.labels({ queue: this.vaaQueue.name }).inc();
+
+    if (job.attemptsMade === this.opts.attempts) {
+      this.metrics.failedWithMaxRetriesCounter
+        .labels({ queue: this.vaaQueue.name })
+        .inc();
+    }
   }
 
   storageKoaUI(path: string) {
