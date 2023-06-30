@@ -1,29 +1,32 @@
 import { RelayerApp, RelayerAppOpts } from "./application";
-import { logging, LoggingContext } from "./middleware/logger.middleware";
-import { missedVaas } from "./middleware/missedVaas";
-import { providers, ProvidersOpts } from "./middleware/providers.middleware";
-import { WalletContext, wallets } from "./middleware/wallet/wallet.middleware";
 import {
-  TokenBridgeContext,
-  tokenBridgeContracts,
-} from "./middleware/tokenBridge.middleware";
-import {
+  logging,
+  LoggingContext,
+  missedVaas,
+  providers,
+  ProvidersOpts,
+  sourceTx,
+  SourceTxContext,
   stagingArea,
   StagingAreaContext,
-} from "./middleware/staging-area.middleware";
+  TokenBridgeContext,
+  tokenBridgeContracts,
+  WalletContext,
+  wallets,
+} from "./middleware";
 import { Logger } from "winston";
 import { StorageContext } from "./storage/storage";
 import { RedisStorage } from "./storage/redis-storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
-import { sourceTx, SourceTxContext } from "./middleware/source-tx.middleware";
 import { defaultLogger } from "./logging";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { Environment } from "./environment";
 import { TokensByChain } from "./middleware/wallet/wallet-management";
+import { Registry } from "prom-client";
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -62,7 +65,8 @@ export type StandardRelayerContext = LoggingContext &
 export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext,
 > extends RelayerApp<ContextT> {
-  private store: RedisStorage;
+  private readonly store: RedisStorage;
+  private readonly mergedRegistry: Registry;
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger ?? defaultLogger;
@@ -90,6 +94,11 @@ export class StandardRelayerApp<
       namespace: name,
       queueName: `${name}-relays`,
     });
+
+    this.mergedRegistry = Registry.merge([
+      this.store.registry,
+      super.metricsRegistry,
+    ]);
 
     this.spy(spyEndpoint);
     this.useStorage(this.store);
@@ -141,7 +150,7 @@ export class StandardRelayerApp<
    * - workflow_total_duration: Processing time for completed jobs (processing until completed)
    */
   get metricsRegistry() {
-    return this.store.registry;
+    return this.mergedRegistry;
   }
 
   /**
