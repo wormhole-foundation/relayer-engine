@@ -88,16 +88,15 @@ export async function fetchVaaHash(
       );
       if (res.status === 404) {
         throw new Error("Not found yet.");
-      } else if (!res.ok) {
-        throw new Error(
-          `Unexpected HTTP response. Status: ${
-            res.status
-          } Response: ${await res.text()}`,
-        );
       }
-      // TODO: consider restricting this code path further to just status 200 and a few others.
+
       // Note that we're assuming the response is UTF8 encoded here.
       body = await res.text();
+      if (!res.ok) {
+        throw new Error(`Unexpected HTTP response. Status: ${res.status}`);
+      }
+
+      // TODO: consider restricting this code path further to just status 200 and a few others.
       txHash = JSON.parse(body).data?.txHash;
     } catch (error) {
       const httpBodyText =
