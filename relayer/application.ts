@@ -39,6 +39,8 @@ import { emitterCapByEnv } from "./configs/sui";
 import { LRUCache } from "lru-cache";
 import { Environment } from "./environment";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
+import { Registry } from "prom-client";
+import { createRelayerMetrics, RelayerMetrics } from "./application.metrics";
 
 export { UnrecoverableError };
 
@@ -105,6 +107,8 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
   private alreadyFilteredCache = new LRUCache<string, boolean>({ max: 1000 });
+  private metrics: RelayerMetrics;
+  private registry: Registry;
 
   constructor(
     public env: Environment = Environment.TESTNET,
@@ -112,6 +116,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   ) {
     super();
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
+    const { metrics, registry } = createRelayerMetrics();
+    this.metrics = metrics;
+    this.registry = registry;
+  }
+
+  get metricsRegistry(): Registry {
+    return this.registry;
   }
 
   /**
@@ -469,6 +480,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     this.use(this.generateChainRoutes());
 
     this.filters = await this.spyFilters();
+    this.metrics.spySubscribedFilters.set(this.filters.length);
     this.rootLogger.debug(JSON.stringify(this.filters, null, 2));
     if (this.filters.length > 0 && !this.spyUrl) {
       throw new Error("you need to setup the spy url");
@@ -495,6 +507,8 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
 
         for await (const vaa of stream) {
           this.rootLogger.debug(`Received VAA through spy`);
+          this.metrics.lastVaaReceived.set(Date.now());
+          this.metrics.vaasViaSpyTotal.inc();
           this.processVaa(vaa.vaaBytes);
         }
       } catch (err) {
@@ -514,8 +528,10 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       deadline.setSeconds(deadline.getSeconds() + 1); // TODO parametrize wait time
       client.waitForReady(deadline, err => {
         if (err) {
+          this.metrics.connectedSpies.set(0);
           reject(err);
         } else {
+          this.metrics.connectedSpies.set(1);
           resolve(undefined);
         }
       });
