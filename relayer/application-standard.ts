@@ -93,6 +93,7 @@ export class StandardRelayerApp<
       attempts: opts.workflows.retries ?? 3,
       namespace: name,
       queueName: `${name}-relays`,
+      concurrency: opts.concurrency ?? 30,
     });
 
     this.mergedRegistry = Registry.merge([
