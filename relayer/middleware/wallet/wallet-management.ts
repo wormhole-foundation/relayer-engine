@@ -63,11 +63,20 @@ const networks = {
 
 export type PrivateKeys = Partial<{ [k in ChainId]: string[] }>;
 export type TokensByChain = Partial<{ [k in ChainId]: string[] }>;
+export type WalletRebalanceConfig = {
+  enabled: boolean;
+  strategy?: string;
+  interval?: number;
+  minBalanceThreshold?: number;
+  maxGasPrice?: number;
+  gasLimit?: number;
+};
 
 function buildWalletsConfig(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
+  rebalance?: WalletRebalanceConfig,
 ): WalletManagerFullConfig["config"] {
   const networkByChain: any = networks[env];
   const config: WalletManagerFullConfig["config"] = {};
@@ -120,6 +129,7 @@ function buildWalletsConfig(
     config[chainName] = {
       wallets: chainWallets,
       network: networkByChain[chainId],
+      rebalance,
     };
   }
   return config;
@@ -131,8 +141,14 @@ export function startWalletManagement(
   tokensByChain?: TokensByChain,
   metricsOpts?: WalletManagerFullConfig["options"]["metrics"],
   logger?: Logger,
+  walletRebalanceConfig?: WalletRebalanceConfig,
 ) {
-  const wallets = buildWalletsConfig(env, privateKeys, tokensByChain);
+  const wallets = buildWalletsConfig(
+    env,
+    privateKeys,
+    tokensByChain,
+    walletRebalanceConfig,
+  );
 
   const manager = buildWalletManager({
     config: wallets,
