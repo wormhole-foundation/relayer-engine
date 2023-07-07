@@ -18,7 +18,7 @@ import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
 import {
   TokensByChain,
-  WalletRebalanceConfig,
+  WalletRebalanceSettingsByChain,
   startWalletManagement,
 } from "./wallet-management";
 import { Registry } from "prom-client";
@@ -122,7 +122,7 @@ export interface WalletOpts {
     [k in ChainId]: any[];
   }>;
   tokensByChain?: TokensByChain;
-  walletRebalance?: WalletRebalanceConfig;
+  walletRebalanceSettings?: WalletRebalanceSettingsByChain;
   logger?: Logger;
   metrics?: {
     enabled: boolean;
@@ -153,9 +153,9 @@ export function wallets(
       env,
       opts.privateKeys,
       opts.tokensByChain,
+      opts.walletRebalanceSettings,
       opts.metrics,
       opts.logger,
-      opts.walletRebalance,
     );
   }
 

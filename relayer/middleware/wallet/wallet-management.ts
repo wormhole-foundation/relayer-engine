@@ -71,12 +71,15 @@ export type WalletRebalanceConfig = {
   maxGasPrice?: number;
   gasLimit?: number;
 };
+export type WalletRebalanceSettingsByChain = Partial<{
+  [k in ChainId]: WalletRebalanceConfig;
+}>;
 
 function buildWalletsConfig(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
-  rebalance?: WalletRebalanceConfig,
+  rebalanceSettings?: WalletRebalanceSettingsByChain,
 ): WalletManagerFullConfig["config"] {
   const networkByChain: any = networks[env];
   const config: WalletManagerFullConfig["config"] = {};
@@ -129,7 +132,7 @@ function buildWalletsConfig(
     config[chainName] = {
       wallets: chainWallets,
       network: networkByChain[chainId],
-      rebalance,
+      rebalance: rebalanceSettings?.[chainId],
     };
   }
   return config;
@@ -139,15 +142,15 @@ export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
+  walletRebalanceSettings?: WalletRebalanceSettingsByChain,
   metricsOpts?: WalletManagerFullConfig["options"]["metrics"],
   logger?: Logger,
-  walletRebalanceConfig?: WalletRebalanceConfig,
 ) {
   const wallets = buildWalletsConfig(
     env,
     privateKeys,
     tokensByChain,
-    walletRebalanceConfig,
+    walletRebalanceSettings,
   );
 
   const manager = buildWalletManager({
