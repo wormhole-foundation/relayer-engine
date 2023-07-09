@@ -24,6 +24,7 @@ import {
   CHAIN_ID_SUI,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { Environment } from "../../environment";
+import { WalletRebalancingConfig } from "@xlabs-xyz/wallet-monitor/lib/wallet-manager";
 
 const networks = {
   [Environment.MAINNET]: {
@@ -63,16 +64,8 @@ const networks = {
 
 export type PrivateKeys = Partial<{ [k in ChainId]: string[] }>;
 export type TokensByChain = Partial<{ [k in ChainId]: string[] }>;
-export type WalletRebalanceConfig = {
-  enabled: boolean;
-  strategy?: string;
-  interval?: number;
-  minBalanceThreshold?: number;
-  maxGasPrice?: number;
-  gasLimit?: number;
-};
 export type WalletRebalanceSettingsByChain = Partial<{
-  [k in ChainId]: WalletRebalanceConfig;
+  [k in ChainId]: WalletRebalancingConfig;
 }>;
 
 function buildWalletsConfig(
