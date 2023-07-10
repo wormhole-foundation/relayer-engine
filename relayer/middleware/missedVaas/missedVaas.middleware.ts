@@ -55,7 +55,8 @@ export function missedVaas(
   opts: MissedVaaOpts,
 ): Middleware {
   // set defaults
-  opts.redis = opts.redis || { host: "localhost", port: 6379 };
+  // what happens if we are actually using the cluster? (as we indeed are)
+  opts.redis = opts.redis || { host: "localhost", port: 6379 }; 
   opts.redis.keyPrefix = opts.namespace;
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
 
@@ -79,7 +80,6 @@ export function missedVaas(
   app.addListener(RelayerEvents.Added, markVaaAsProcessed);
   app.addListener(RelayerEvents.Skipped, markVaaAsProcessed);
 
-  // construct dependency
   const fetchVaaFn = (vaaKey: VaaKey) => fetchVaa(opts.wormholeRpcs, vaaKey);
 
   // start worker
@@ -99,6 +99,7 @@ async function startMissedVaaWorker(
     checkForMissedVaasEveryMs?: number;
   },
 ) {
+  opts.logger?.warn("starting missed vaa middleware");
   while (true) {
     await pool
       .use(redis =>
@@ -136,7 +137,7 @@ export async function missedVaaJob(
   logger?: Logger,
 ) {
   try {
-    logger?.debug(`Checking for missed VAAs.`);
+    logger?.warn(`Checking for missed VAAs.`);
 
     const addressWithSeenSeqs = await mapConcurrent(filters, async filter => {
       const address = {
@@ -152,6 +153,9 @@ export async function missedVaaJob(
       return { address, seenSeqs };
     });
 
+    logger?.warn("seqs " + JSON.stringify(addressWithSeenSeqs.map(x => {
+      return { ...x, seenSeqs: x.seenSeqs.map((s: BigInt) => s.toString()) };
+    })));
     for (const {
       address: { emitterAddress, emitterChain },
       seenSeqs,
@@ -176,12 +180,14 @@ export async function missedVaaJob(
           emitterChain,
           seq: seq,
         };
+        logger?.warn(`fetching vaa ${vaaKeyReadable(vaaKey)}`)
         await tryFetchAndProcess(redis, vaaKey, logger);
       }
 
       // look ahead of greatest seen sequence in case the next vaa was missed
       // continue looking ahead until a vaa can't be fetched
       for (let seq = seenSeqs[seenSeqs.length - 1] + 1n; true; seq++) {
+        logger?.warn("scanning ahead for missed vaas")
         // iterate until fetchVaa throws because we couldn't find a next vaa.
         const vaaKey = {
           emitterAddress,
@@ -223,17 +229,21 @@ export async function tryFetchAndProcess(
   try {
     const isInProgress = await fetchIsInProgress(redis, key, logger);
     if (isInProgress) {
-      // short circuit is missedVaa middleware has already detected this vaa
+      // short circuit if missedVaa middleware has already detected this vaa
+      logger.warn("vaa in progress, skipping");
       return false;
     }
+
+    // before re-triggering middleware, mark key as in progress to avoid recursion
+    await markInProgress(redis, key, logger);
+
     const fetchedVaa = await fetchVaa(key);
     logger?.info(
       `Possibly missed a vaa, adding to queue.`,
       vaaKeyReadable(key),
     );
 
-    // before re-triggering middleware, mark key as in progress to avoid recursion
-    await markInProgress(redis, key, logger);
+
     // push the missed vaa through all the middleware / storage service if used.
     processVaa(Buffer.from(fetchedVaa.vaaBytes));
     return true;

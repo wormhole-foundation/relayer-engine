@@ -104,6 +104,8 @@ export class RedisStorage implements Storage {
             this.opts.redisCluster,
           )
         : new Redis(this.opts.redis);
+
+    // TODO: consider using a queue per chain
     this.vaaQueue = new Queue(this.opts.queueName, {
       prefix: this.prefix,
       connection: this.redis,
@@ -113,6 +115,10 @@ export class RedisStorage implements Storage {
     this.registry = registry;
   }
 
+  getPrefix() {
+    return this.prefix;
+  }
+  
   async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
