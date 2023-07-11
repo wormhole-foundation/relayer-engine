@@ -9,6 +9,7 @@ import { Logger } from "winston";
 import { mapConcurrent, sleep } from "../../utils";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
 
+
 export interface MissedVaaOpts extends RedisConnectionOpts {
   storagePrefix: string;
   registry?: Registry;
@@ -16,7 +17,9 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
   wormholeRpcs?: string[];
   missedVaasConcurrency?: number;
   checkForMissedVaasEveryMs?: number;
-  fetchConcurrency: number;
+  fetchConcurrency?: number;
+  // The minimal sequence number the VAA worker will assume that should exist, by chain ID.
+  startingSequenceConfig?: Record<Partial<ChainId>, bigint>;
 }
 
 export interface VaaKey {
@@ -46,7 +49,7 @@ export function missedVaasV3(app: RelayerApp<any>, opts: MissedVaaOpts): void {
         emitterAddress: filter.emitterFilter.emitterAddress,
       };
     });
-    startMissedVaasWorkers(filters, redisPool, app.processVaa, opts);
+    startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
     registerEventListeners(app, redisPool, opts);
   }, 100);
 }
@@ -60,6 +63,18 @@ async function startMissedVaasWorkers(
   const metrics: any = opts.registry ? initMetrics(opts.registry) : {};
 
   if (opts.storagePrefix) {
+    /**
+     * "storagePrefix" is the prefix used by the storage (currently redis-storage) to
+     * store workflows. See RedisStorage.getPrefix
+     * 
+     * This is generating a dependency with the storage implementation, which is not ideal.
+     * To solve this problem, we could add a new method to the storage interface to get seen sequences
+     * and pass it to the missed vaas middleware
+     * 
+     * Untill that happens, we assume that if you pass in a storagePrefix property,
+     * then you are using redis-storage
+     */
+
     const startTime = Date.now();
     const scannedKeys = await updateSeenSequences(filters, redisPool, opts);
     const elapsedTime = Date.now() - startTime;
@@ -228,15 +243,22 @@ async function checkForMissedVaas(
 
   // look ahead of greatest seen sequence in case the next vaa was missed
   // continue looking ahead until a vaa can't be fetched
-  const lastSeenSequence = seenSequences[seenSequences.length - 1] || 0n;
+  const lastSeenSequence = seenSequences[seenSequences.length - 1]
+    || opts.startingSequenceConfig?.[filter.emitterChain as ChainId];
 
-  for (let seq = lastSeenSequence + 1n; true; seq++) {
-    const vaaKey = { ...filter, sequence: seq };
-    const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
-    if (!success) break;
-    missingVaasFound.push(seq);
+  if (lastSeenSequence) {
+    for (let seq = lastSeenSequence + 1n; true; seq++) {
+      const vaaKey = { ...filter, sequence: seq };
+      const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
+      if (!success) break;
+      missingVaasFound.push(seq);
+    }
   }
 
+  else {
+    opts.logger?.warn(`No VAAs seen for filter: ${
+      filter.emitterChain}/${filter.emitterAddress} and no starting sequence was configured. Won't check for missed VAAs.`);
+  }
   return missingVaasFound.length;
 }
 
@@ -280,7 +302,11 @@ async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts
       2,
     );
   } catch (error) {
-    opts.logger?.error(`Failed to fetch vaa found missing. ${vaaKeyReadable(vaaKey)}`, error);
+    if (error.code !== 5) {
+      const vaaReadable = vaaKeyReadable(vaaKey);
+      opts.logger?.error(`Failed to fetch vaa found missing. ${vaaReadable}`, error);
+    }
+    opts.logger?.error(`Vaa found missing not found on wormhole rpc: ${vaaKey.sequence.toString()}`);
     return false;
   }
 
@@ -288,10 +314,7 @@ async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts
     await processVaa(Buffer.from(vaa.vaaBytes));
   } catch (error) {
     const vaaReadable = vaaKeyReadable(vaaKey);
-    if (error.code !== 5) {
-      opts.logger?.error(`Failed to process vaa found missing. ${vaaReadable}`, error);
-    }
-    opts.logger?.error(`Vaa found missing not found on wormhole rpc: ${vaaKey.sequence.toString()}`);
+    opts.logger?.error(`Failed to process vaa found missing. ${vaaReadable}`, error);
     return false;
   }
 
@@ -378,14 +401,10 @@ export function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster
   return createPool(factory, poolOpts);
 }
 
-function vaaKeyReadable(key: VaaKey): {
-  emitterAddress: string;
-  emitterChain: string;
-  sequence: string;
-} {
-  return {
+function vaaKeyReadable(key: VaaKey): string {
+  return JSON.stringify({
     emitterAddress: key.emitterAddress,
     emitterChain: key.emitterChain.toString(),
     sequence: key.sequence.toString(),
-  };
+  });
 }
