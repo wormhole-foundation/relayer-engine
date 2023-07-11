@@ -25,7 +25,7 @@ export interface VaaKey {
   sequence: bigint;
 }
 
-interface FilterIndentifier {
+interface FilterIdentifier {
   emitterChain: number;
   emitterAddress: string;
 }
@@ -52,7 +52,7 @@ export function missedVaasV3(app: RelayerApp<any>, opts: MissedVaaOpts): void {
 }
 
 async function startMissedVaasWorkers(
-  filters: FilterIndentifier[],
+  filters: FilterIdentifier[],
   redisPool: Pool<Cluster | Redis>,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
@@ -107,7 +107,7 @@ async function startMissedVaasWorkers(
 }
 
 async function updateSeenSequences(
-  filters: FilterIndentifier[],
+  filters: FilterIdentifier[],
   redisPool: Pool<Cluster | Redis>,
   opts: MissedVaaOpts,
 ) {
@@ -124,7 +124,7 @@ async function updateSeenSequences(
 const CURSOR_IDENTIFIER = "0";
 async function scanNextBatchAndUpdateSeenSequences(
   redis: Redis | Cluster,
-  filter: FilterIndentifier,
+  filter: FilterIdentifier,
   storagePrefix: string,
   cursor: string = CURSOR_IDENTIFIER,
   scannedKeys: number = 0,
@@ -186,7 +186,7 @@ async function registerEventListeners(
 }
 
 async function checkForMissedVaas(
-  filter: FilterIndentifier,
+  filter: FilterIdentifier,
   redisPool: Pool<Cluster | Redis>,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
