@@ -116,9 +116,9 @@ export class RedisStorage implements Storage {
   }
 
   getPrefix() {
-    return this.prefix;
+    return [this.prefix, this.opts.queueName].join(":");
   }
-  
+
   async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
