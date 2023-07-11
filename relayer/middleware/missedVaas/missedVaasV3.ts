@@ -49,9 +49,40 @@ export function missedVaasV3(app: RelayerApp<any>, opts: MissedVaaOpts): void {
         emitterAddress: filter.emitterFilter.emitterAddress,
       };
     });
-    startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
     registerEventListeners(app, redisPool, opts);
+    startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
   }, 100);
+}
+
+async function registerEventListeners(
+  app: RelayerApp<any>,
+  redisPool: Pool<Redis | Cluster>,
+  opts: MissedVaaOpts,
+) {
+  async function markVaaSeen(vaa: ParsedVaaWithBytes) {
+    let redis: Redis | Cluster;
+    try {
+      redis = await redisPool.acquire();
+    } catch (error) {
+      opts.logger?.error(
+        `Failed to acquire redis client while trying to mark vaa seen.`, error
+      );
+      return;
+    }
+
+    const { emitterChain, emitterAddress, sequence } = vaa;
+    const seenVaaKey = getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress.toString());
+
+    try {
+      await redis.zadd(seenVaaKey, 0, sequence.toString());
+    } catch (error) {
+      opts.logger?.error("Failed to mark VAA ass seen", error);
+      return;
+    }
+  };
+
+  app.addListener(RelayerEvents.Added, markVaaSeen);
+  app.addListener(RelayerEvents.Skipped, markVaaSeen);
 }
 
 async function startMissedVaasWorkers(
@@ -169,36 +200,6 @@ async function scanNextBatchAndUpdateSeenSequences(
   return scannedKeys + nextBatchScannedKeys;
 }
 
-async function registerEventListeners(
-  app: RelayerApp<any>,
-  redisPool: Pool<Redis | Cluster>,
-  opts: MissedVaaOpts,
-) {
-  async function markVaaSeen(vaa: ParsedVaaWithBytes) {
-    let redis: Redis | Cluster;
-    try {
-      redis = await redisPool.acquire();
-    } catch (error) {
-      opts.logger?.error(
-        `Failed to acquire redis client while trying to mark vaa seen.`, error
-      );
-      return;
-    }
-
-    const { emitterChain, emitterAddress, sequence } = vaa;
-    const seenVaaKey = getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress.toString());
-
-    try {
-      await redis.zadd(seenVaaKey, 0, sequence.toString());
-    } catch (error) {
-      opts.logger?.error("Failed to mark VAA ass seen", error);
-      return;
-    }
-  };
-
-  app.addListener(RelayerEvents.Added, markVaaSeen);
-  app.addListener(RelayerEvents.Skipped, markVaaSeen);
-}
 
 async function checkForMissedVaas(
   filter: FilterIdentifier,
