@@ -155,21 +155,21 @@ Other options for the `StandardRelayerAppOpts` include:
   redis?: RedisOptions;
 ```
 
-The next meaningful line in the example adds a filter middleware component. This middleware will cause the Relayer app to request a subscription from the Spy for any VAAs that match the criteria and invoke the callback with the VAA. 
+The next meaningful line in the example adds a filter middleware component. This middleware will cause the Relayer app to request a subscription from the Spy for any VAAs that match the criteria and invoke the callback with the VAA.
 
 If you'd like your program to subscribe to multiple chains and addresses, the same method can be called several times or the `multiple` helper can be used.
 
 ```ts
 app.multiple(
-  { 
+  {
     [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
     [CHAIN_ID_ETH]: ["0xabc1230000000...","0xdef456000....."]
-  }, 
-  myCallback 
+  },
+  myCallback
 );
 ```
 
-The last line in the simple example runs `await app.listen()`, which will start the relayer engine. Once started, the relayer engine will issue subscription requests to the spy and begin any other workflows (e.g. tracking missed VAAs).  
+The last line in the simple example runs `await app.listen()`, which will start the relayer engine. Once started, the relayer engine will issue subscription requests to the spy and begin any other workflows (e.g. tracking missed VAAs).
 
 This will run until the process is killed or it encounters an unrecoverable error. If you'd like to shut down the relayer gracefully, call `app.stop()`.
 
