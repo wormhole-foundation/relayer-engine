@@ -93,7 +93,7 @@ async function main() {
       privateKeys,
       namespace,
       metrics: { enabled: true, registry: store.registry },
-    })
+    }),
   ); // <-- you need a valid private key to turn on this middleware
 
   app.use(tokenBridgeContracts());
@@ -104,7 +104,7 @@ async function main() {
     .chain(CHAIN_ID_SOLANA)
     .address(
       "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
-      fundsCtrl.processFundsTransfer
+      fundsCtrl.processFundsTransfer,
     );
 
   // Another way to do it if you want to listen to multiple addresses on different chaints:
@@ -125,7 +125,7 @@ async function main() {
 
 function configRelayer<T extends Context>(
   app: RelayerApp<T>,
-  store: RedisStorage
+  store: RedisStorage,
 ) {
   app.spy("localhost:7073");
   app.useStorage(store);
@@ -136,7 +136,7 @@ function runUI(
   relayer: RelayerApp<any>,
   store: RedisStorage,
   { port }: any,
-  logger: Logger
+  logger: Logger,
 ) {
   const app = new Koa();
 

@@ -108,7 +108,10 @@ export const minute = 60 * second;
 export const hour = 60 * minute;
 
 export class EngineError extends Error {
-  constructor(msg: string, public args?: Record<any, any>) {
+  constructor(
+    msg: string,
+    public args?: Record<any, any>,
+  ) {
     super(msg);
   }
 }
