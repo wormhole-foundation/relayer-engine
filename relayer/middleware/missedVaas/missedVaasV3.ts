@@ -11,13 +11,27 @@ import { RedisConnectionOpts } from "../../storage/redis-storage";
 
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
-  storagePrefix: string;
   registry?: Registry;
   logger?: Logger;
   wormholeRpcs?: string[];
+  // How many "source" chains will be scanned for missed VAAs concurrently.
   concurrency?: number;
+  // Interval at which the worker will check for missed VAAs.
   checkInterval?: number;
-  fetchConcurrency?: number;
+  // Max concurrency used for fetching VAAs from wormscan.
+  vaasFetchConcurrency?: number;
+  /**
+   * "storagePrefix" is the prefix used by the storage (currently redis-storage) to
+   * store workflows. See RedisStorage.getPrefix
+   * 
+   * This is generating a dependency with the storage implementation, which is not ideal.
+   * To solve this problem, we could add a new method to the storage interface to get seen sequences
+   * and pass it to the missed vaas middleware
+   * 
+   * Untill that happens, we assume that if you pass in a storagePrefix property,
+   * then you are using redis-storage
+   */
+  storagePrefix: string;
   // The minimal sequence number the VAA worker will assume that should exist, by chain ID.
   startingSequenceConfig?: Partial<Record<ChainId, bigint>>;
   // If true the key will remove the existing sorted set containing seen keys and reindex all keys
@@ -40,23 +54,24 @@ interface FilterIdentifier {
 
 type ProcessVaaFn = (x: Buffer) => Promise<void>;
 
-export function missedVaasV3(app: RelayerApp<any>, opts: MissedVaaOpts): void {
-  opts.redis.keyPrefix = opts.namespace;
+/**
+ * 
+ * @param app 
+ * @param opts 
+ */
+export function spawnMissedVaaWorker(app: RelayerApp<any>, opts: MissedVaaOpts): void {
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
   const metrics: any = opts.registry ? initMetrics(opts.registry) : {};
   const redisPool = createRedisPool(opts);
 
-  // Start workers after filters have been loaded:
-  setTimeout(async () => {
-    const filters = app.filters.map(filter => {
-      return {
-        emitterChain: filter.emitterFilter.chainId,
-        emitterAddress: filter.emitterFilter.emitterAddress,
-      };
-    });
-    registerEventListeners(app, redisPool, opts);
-    startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts, metrics);
-  }, 100);
+  const filters = app.filters.map(filter => {
+    return {
+      emitterChain: filter.emitterFilter.chainId,
+      emitterAddress: filter.emitterFilter.emitterAddress,
+    };
+  });
+  registerEventListeners(app, redisPool, opts);
+  startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts, metrics);
 }
 
 async function registerEventListeners(
@@ -99,19 +114,9 @@ async function startMissedVaasWorkers(
   opts: MissedVaaOpts,
   metrics: MissedVaaMetrics,
 ) {
+  // The prefix used by the storage to store workflows.
+  // We'll use it to go into the queue, and check if 
   if (opts.storagePrefix) {
-    /**
-     * "storagePrefix" is the prefix used by the storage (currently redis-storage) to
-     * store workflows. See RedisStorage.getPrefix
-     * 
-     * This is generating a dependency with the storage implementation, which is not ideal.
-     * To solve this problem, we could add a new method to the storage interface to get seen sequences
-     * and pass it to the missed vaas middleware
-     * 
-     * Untill that happens, we assume that if you pass in a storagePrefix property,
-     * then you are using redis-storage
-     */
-
     const startTime = Date.now();
     const scannedKeys = await updateSeenSequences(filters, redisPool, opts);
     const elapsedTime = Date.now() - startTime;
@@ -200,8 +205,6 @@ async function scanNextBatchAndUpdateSeenSequences(
 ): Promise<number> {
   const { emitterChain, emitterAddress } = filter;
   const prefix = `${storagePrefix}:${emitterChain}/${emitterAddress}`;
-  
-
   const [nextCursor, keysFound] = await redis.scan(cursor, "MATCH", `${prefix}*`);
 
   const pipeline = redis.pipeline();
@@ -260,7 +263,7 @@ async function checkForMissedVaas(
         pipeline.zadd(seenVaaKey, 0, sequence.toString());
       }
       missingVaasFound.push(sequence);
-    });
+    }, opts.vaasFetchConcurrency);
 
     if (pipelineTouched) {
       try {
@@ -318,7 +321,7 @@ async function getAllProcessedSeqsInOrder(
   key: string,
 ): Promise<bigint[]> {
   const results = await redis.zrange(key, "-", "+", "BYLEX");
-  return results.map(r => Number(r)).sort((a,b) => a - b).map(BigInt);
+  return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
 }
 
 async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts: MissedVaaOpts) {
