@@ -69,7 +69,9 @@ export function createStorageMetrics(
       completedDuration: new Histogram({
         name: `workflow_total_duration`,
         help: "Completion time in ms for jobs (created until completed)",
-        buckets: [7500, 10000, 20000, 30000, 45000, 60000, 90000, 120000, 240000],
+        buckets: [
+          7500, 10000, 20000, 30000, 45000, 60000, 90000, 120000, 240000,
+        ],
         labelNames: ["queue"],
         registers: [storageRegistry],
       }),
