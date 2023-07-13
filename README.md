@@ -14,7 +14,7 @@ Checkout the full [example app](https://github.com/wormhole-foundation/relayer-e
 
 ## Install Package
 
-First, install the relayer engine package with `npm` or `yarn`
+First, install the `relayer-engine` package with your favorite package manager
 
 ```sh
 npm i @wormhole-foundation/relayer-engine
@@ -25,6 +25,8 @@ npm i @wormhole-foundation/relayer-engine
 > note: These processes _must_ be running in order for the relayer app below to work
 
 Next, we must start a Spy to listen for available VAAs published on the guardian network as well as a persistence layer, in this case we're using Redis.
+
+More details about the Spy are available in the [docs](https://docs.wormhole.com/wormhole/explore-wormhole/spy)
 
 ### Wormhole Network Spy
 
@@ -64,13 +66,13 @@ spy \
 
 ### Redis Persistence
 
+> Note: While we're using Redis here, the persistence layer can be swapped out for some other db by implementing the appropriate [interface](https://github.com/wormhole-foundation/relayer-engine/blob/main/relayer/storage/redis-storage.ts).
+
 A Redis instance must also be available to persist job data for fetching VAAs from the Spy.
 
 ```bash
 docker run --rm -p 6379:6379 --name redis-docker -d redis
 ```
-
-> Note: While we're using Redis here, the persistence layer can be swapped out for some other db by implementing the appropriate [interface](https://github.com/wormhole-foundation/relayer-engine/blob/main/relayer/storage/redis-storage.ts).
 
 ## Simple Relayer Code Example
 
@@ -92,9 +94,9 @@ import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
   // initialize relayer engine app, pass relevant config options
   const app = new StandardRelayerApp<StandardRelayerContext>(
     Environment.TESTNET,
+    // other app specific config options can be set here for things
+    // like retries, logger, or redis connection settings.
     {
-      // other app specific config options can be set here for things
-      // like retries, logger, or redis connection settings.
       name: "ExampleRelayer",
     },
   );
@@ -114,7 +116,63 @@ import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
     },
   );
 
+  // add and configure any other middleware ..
+
   // start app, blocks until unrecoverable error or process is stopped
   await app.listen();
 })();
 ```
+
+### Explanation
+
+The first meaningful line instantiates the `StandardRelayerApp`, which is a subclass of the `RelayerApp` with common defaults.
+
+```ts
+export class StandardRelayerApp<
+  ContextT extends StandardRelayerContext = StandardRelayerContext,
+> extends RelayerApp<ContextT> {
+  // ...
+  constructor(env: Environment, opts: StandardRelayerAppOpts) {
+```
+
+The only field we pass in the `StandardRelayerAppOpts` is the name to help with identifying log messages and reserve a namespace in Redis.
+
+Other options for the `StandardRelayerAppOpts` include:
+
+```ts
+  wormholeRpcs?: string[];  // List of URLs from which to query missed VAAs
+  concurrency?: number;     // How many concurrent requests to make for workflows
+  spyEndpoint?: string;     // The hostname and port of our Spy
+  logger?: Logger;          // A custom Logger
+  privateKeys?: Partial<{ [k in ChainId]: any[]; }>; // A set of keys that can be used to sign and send transactions
+  tokensByChain?: TokensByChain;    // The token list we care about
+  workflows?: { retries: number; }; // How many times to retry a given workflow
+  providers?: ProvidersOpts;        // Configuration for the default providers
+  fetchSourceTxhash?: boolean;      // whether or not to get the original transaction id/hash
+  // Redis config
+  redisClusterEndpoints?: ClusterNode[];
+  redisCluster?: ClusterOptions;
+  redis?: RedisOptions;
+```
+
+The next meaningful line in the example adds a filter middleware component. This middleware will cause the Relayer app to request a subscription from the Spy for any VAAs that match the criteria and invoke the callback with the VAA. 
+
+If you'd like your program to subscribe to multiple chains and addresses, the same method can be called several times or the `multiple` helper can be used.
+
+```ts
+app.multiple(
+  { 
+    [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
+    [CHAIN_ID_ETH]: ["0xabc1230000000...","0xdef456000....."]
+  }, 
+  myCallback 
+);
+```
+
+The last line in the simple example runs `await app.listen()`, which will start the relayer engine. Once started, the relayer engine will issue subscription requests to the spy and begin any other workflows (e.g. tracking missed VAAs).  
+
+This will run until the process is killed or it encounters an unrecoverable error. If you'd like to shut down the relayer gracefully, call `app.stop()`.
+
+## Advanced Example
+
+For a more advanced example that details other middleware and more complex configuration and actions including a built in UI, see the [Advanced Tutorial](./example-app/README.md)
