@@ -15,11 +15,16 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
   logger?: Logger;
   wormholeRpcs?: string[];
-  missedVaasConcurrency?: number;
-  checkForMissedVaasEveryMs?: number;
+  concurrency?: number;
+  checkInterval?: number;
   fetchConcurrency?: number;
   // The minimal sequence number the VAA worker will assume that should exist, by chain ID.
   startingSequenceConfig?: Partial<Record<ChainId, bigint>>;
+  // If true the key will remove the existing sorted set containing seen keys and reindex all keys
+  // getting the from storage. This probably can be used in combination with startingSequenceConfig
+  // to force reprocessing of certain VAAs.
+  // WARN: skipped VAAs will be reprocessed.
+  forceSeenKeysReindex?: boolean;
 }
 
 export interface VaaKey {
@@ -72,13 +77,12 @@ async function registerEventListeners(
     }
 
     const { emitterChain, emitterAddress, sequence } = vaa;
-    const seenVaaKey = getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress.toString());
+    const seenVaaKey = getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress.toString('hex'));
 
     try {
       await redis.zadd(seenVaaKey, 0, sequence.toString());
     } catch (error) {
       opts.logger?.error("Failed to mark VAA ass seen", error);
-      return;
     } finally {
       await redisPool.release(redis);
     }
@@ -138,22 +142,22 @@ async function startMissedVaasWorkers(
           metrics.workerFailedRuns?.labels({ emitterChain, emitterAddress }).inc();
 
           opts.logger?.error(
-            `Error checking for missed vaas for filter: ${JSON.stringify(filter)}. Error: ${error.toString()}`,
+            `Error checking for missed vaas for filter: ${JSON.stringify(filter)}}`, error
           );
         } finally {
           const endTime = Date.now();
           metrics.workersRunDuration?.labels({ emitterChain, emitterAddress }).observe(endTime - startTime);
           redisPool.release(redis);
         }
-        opts.logger?.debug(
+        opts.logger?.info(
           `Finished missed vaas check for emitterChain: ${emitterChain}. Found: ${vaasFound}`
         );
       },
-      opts.missedVaasConcurrency || 1,
+      opts.concurrency || 1,
     );
 
     // TODO: if possible handle this in a more event driven way (intervals + locks on a per chain basis)
-    sleep(opts.checkForMissedVaasEveryMs || 30_000);
+    await sleep(opts.checkInterval || 30_000);
   }
 }
 
@@ -166,9 +170,18 @@ async function updateSeenSequences(
   let scannedKeys = 0;
   try {
     for (const filter of filters) {
-      const { emitterChain, emitterAddress } = filter;
-      opts.logger?.info(`Updating seen sequences for filter: ${emitterChain}/${emitterAddress}`);
-      scannedKeys += await scanNextBatchAndUpdateSeenSequences(redis, filter, opts.storagePrefix);
+      const seenVaaKey = getSeenVaaKey(
+        opts.storagePrefix,
+        filter.emitterChain,
+        filter.emitterAddress
+      );
+
+      if (opts.forceSeenKeysReindex) {
+        opts.logger?.info(`Deleting ${seenVaaKey} key to force reindexing of seen keys`);
+        await redis.del(seenVaaKey);
+      }
+
+      scannedKeys += await scanNextBatchAndUpdateSeenSequences(redis, filter, opts.storagePrefix, seenVaaKey);
     }
   } finally {
     redisPool.release(redis);
@@ -182,12 +195,13 @@ async function scanNextBatchAndUpdateSeenSequences(
   redis: Redis | Cluster,
   filter: FilterIdentifier,
   storagePrefix: string,
+  seenVaaKey: string,
   cursor: string = CURSOR_IDENTIFIER,
   scannedKeys: number = 0,
 ): Promise<number> {
   const { emitterChain, emitterAddress } = filter;
   const prefix = `${storagePrefix}:${emitterChain}/${emitterAddress}`;
-  const seenVaaKey = getSeenVaaKey(storagePrefix, emitterChain, emitterAddress);
+  
 
   const [nextCursor, keysFound] = await redis.scan(cursor, "MATCH", `${prefix}*`);
 
@@ -204,7 +218,7 @@ async function scanNextBatchAndUpdateSeenSequences(
 
   let nextBatchScannedKeys = 0;
   if (nextCursor !== CURSOR_IDENTIFIER) {
-    nextBatchScannedKeys = await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, nextCursor);
+    nextBatchScannedKeys = await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, seenVaaKey, nextCursor, scannedKeys);
   }
 
   return scannedKeys + nextBatchScannedKeys;
@@ -226,25 +240,28 @@ async function checkForMissedVaas(
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
     const sequencesWithLeap = await scanForSequenceLeaps(seenSequences);
-    opts.logger?.debug("Found sequences with leap: " + JSON.stringify(
+
+    opts.logger?.debug(`Found sequences with leap for chain ${filter.emitterChain}: ` + JSON.stringify(
       sequencesWithLeap.map(s => s.toString()),
     ));
-    
-    missingVaasFound.push(...sequencesWithLeap);
-    
+
     const pipeline = redis.pipeline();
     let pipelineTouched = false;
+
     await mapConcurrent(sequencesWithLeap, async (sequence) => {
       const vaaKey = { ...filter, sequence };
-      
       const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
+      if (!success) {
+        opts.logger?.warn(`Failed to reprocess sequence ${sequence} for chain: ${filter.emitterChain}`);
+      }
 
-      if (success) {
+      else {
         const seenVaaKey = getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
         pipelineTouched = true;
         pipeline.zadd(seenVaaKey, 0, sequence.toString());
       }
-    }, 1);
+      missingVaasFound.push(sequence);
+    });
 
     if (pipelineTouched) {
       try {
@@ -266,7 +283,6 @@ async function checkForMissedVaas(
     ? lastSeq > startingSeq ? lastSeq : startingSeq
     : lastSeq || startingSeq;
 
-  console.log("lastSeenSequence", lastSeenSequence)
   if (lastSeenSequence) {
     for (let seq = lastSeenSequence + 1n; true; seq++) {
       const vaaKey = { ...filter, sequence: seq };
@@ -277,8 +293,7 @@ async function checkForMissedVaas(
   }
 
   else {
-    opts.logger?.warn(`No VAAs seen for filter: ${
-      filter.emitterChain}/${filter.emitterAddress} and no starting sequence was configured. Won't check for missed VAAs.`);
+    opts.logger?.warn(`No VAAs seen for chain: ${filter.emitterChain} and no starting sequence was configured. Won't check for missed VAAs.`);
   }
   return missingVaasFound.length;
 }
@@ -304,7 +319,7 @@ async function getAllProcessedSeqsInOrder(
   key: string,
 ): Promise<bigint[]> {
   const results = await redis.zrange(key, "-", "+", "BYLEX");
-  return results.map(r => BigInt(r));
+  return results.map(r => Number(r)).sort((a,b) => a - b).map(BigInt);
 }
 
 async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts: MissedVaaOpts) {
@@ -328,7 +343,7 @@ async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts
       return false;
     }
     opts.logger?.error(`Failed to fetch missing vaa from wormhole rpc. ${vaaReadable}`, error);
-    return false;
+    throw error;
   }
 
   try {
@@ -425,7 +440,7 @@ export function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster
 function vaaKeyReadable(key: VaaKey): string {
   return JSON.stringify({
     emitterAddress: key.emitterAddress,
-    emitterChain: key.emitterChain.toString(),
+    // emitterChain: key.emitterChain.toString(),
     sequence: key.sequence.toString(),
   });
 }
