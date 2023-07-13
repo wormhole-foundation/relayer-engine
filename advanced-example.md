@@ -1,6 +1,8 @@
 # Example Relayer Engine Application
 
-This example details a more complex implementation of a Relayer Application. For a simple example see this [example](../README.md#simple-relayer-code-example)
+This example details a more complex implementation of a Relayer Application. For a simple example see this [example](./README.md#simple-relayer-code-example)
+
+The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/example-app/src/app.ts)
 
 ## Setup
 
@@ -42,8 +44,6 @@ npm run start
 
 ## Code Walkthrough
 
-The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/example-app/src/app.ts)
-
 ### Context
 
 The first meaningful line is a Type declaration for the `Context` we want to provide our Relayer app.
@@ -60,8 +60,6 @@ export type MyRelayerContext = LoggingContext &
 This type, which we later use to parameterize the generic `RelayerApp`, specifies the union of `Context` objects that are available to the `RelayerApp`.
 
 Because the `Context` object is passed to the callback for processors, providing a type parameterized type definition ensures the appropriate fields are available within the callback on the `Context` object.
-
-<!-- TODO: private keys -->
 
 ### App Creation
 
@@ -131,11 +129,12 @@ app.use(
     privateKeys,
     namespace,
     metrics: { enabled: true, registry: store.registry },
-  })
+  }),
 );
 
 // enrich the context with details about the token bridge
 app.use(tokenBridgeContracts());
+// ensure we use redis safely in a concurrent environment
 app.use(stagingArea());
 // make sure we have the source tx hash
 app.use(sourceTx());
@@ -154,7 +153,7 @@ app
   .chain(CHAIN_ID_SOLANA)
   .address(
     "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
-    fundsCtrl.processFundsTransfer
+    fundsCtrl.processFundsTransfer,
   );
 ```
 
@@ -166,11 +165,21 @@ app.multiple(
     [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
     [CHAIN_ID_ETH]: ["0xabc1230000000...","0xdef456000....."]
   },
-  fundsCtrl.processFundsTransfer
+  fundsCtrl.processFundsTransfer,
 );
 ```
 
-<!-- TODO: error handler -->
+### Error Handling
+
+The last `Middleware` we apply is an error handler, which will be called any time an upstream `Middleware` component throws an error.
+
+Note that there are 3 arguments to this function which hints to the `RelayerApp` that it should be used to process errors.
+
+```ts
+app.use(async (err, ctx, next) => {
+  ctx.logger.error("error middleware triggered");
+});
+```
 
 ### Start listening
 
@@ -190,4 +199,4 @@ The included default functionality may be insufficient for your use case.
 
 If you'd like to apply some specific intermediate processing steps, consider implementing some custom `Middleware`. Be sure to include the appropriate `Context` in the `RelayerApp` type parameterization for any fields you wish to have added to the `Context` object passed to downstream `Middleware`.
 
-If you'd prefer a storage layer besides redis, simply implement the (storage)[https://github.com/wormhole-foundation/relayer-engine/blob/main/relayer/storage/storage.ts] interface.
+If you'd prefer a storage layer besides redis, simply implement the [storage](https://github.com/wormhole-foundation/relayer-engine/blob/main/relayer/storage/storage.ts) interface.

@@ -175,4 +175,4 @@ This will run until the process is killed or it encounters an unrecoverable erro
 
 ## Advanced Example
 
-For a more advanced example that details other middleware and more complex configuration and actions including a built in UI, see the [Advanced Tutorial](./example-app/README.md)
+For a more advanced example that details other middleware and more complex configuration and actions including a built in UI, see the [Advanced Tutorial](./advanced-example.md)
