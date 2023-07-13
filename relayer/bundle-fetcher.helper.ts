@@ -34,7 +34,10 @@ export class VaaBundleFetcher {
   private readonly fetchErrors: Record<string, Error> = {};
   private opts: VaaBundlerOpts;
 
-  constructor(private fetchVaa: FetchVaaFn, opts?: VaaBundlerOpts) {
+  constructor(
+    private fetchVaa: FetchVaaFn,
+    opts?: VaaBundlerOpts,
+  ) {
     this.opts = Object.assign({}, defaultOpts, opts);
 
     for (const id of this.opts.vaaIds) {
