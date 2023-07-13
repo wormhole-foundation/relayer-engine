@@ -43,7 +43,7 @@ type ProcessVaaFn = (x: Buffer) => Promise<void>;
 export function missedVaasV3(app: RelayerApp<any>, opts: MissedVaaOpts): void {
   opts.redis.keyPrefix = opts.namespace;
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
-
+  const metrics: any = opts.registry ? initMetrics(opts.registry) : {};
   const redisPool = createRedisPool(opts);
 
   // Start workers after filters have been loaded:
@@ -55,7 +55,7 @@ export function missedVaasV3(app: RelayerApp<any>, opts: MissedVaaOpts): void {
       };
     });
     registerEventListeners(app, redisPool, opts);
-    startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
+    startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts, metrics);
   }, 100);
 }
 
@@ -97,9 +97,8 @@ async function startMissedVaasWorkers(
   redisPool: Pool<Cluster | Redis>,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
+  metrics: MissedVaaMetrics,
 ) {
-  const metrics: any = opts.registry ? initMetrics(opts.registry) : {};
-
   if (opts.storagePrefix) {
     /**
      * "storagePrefix" is the prefix used by the storage (currently redis-storage) to
@@ -117,7 +116,7 @@ async function startMissedVaasWorkers(
     const scannedKeys = await updateSeenSequences(filters, redisPool, opts);
     const elapsedTime = Date.now() - startTime;
     opts.logger?.info(`Scanned ${scannedKeys} keys in ${elapsedTime}ms`);
-    metrics.workersWarmupDuration?.observe(elapsedTime);
+    metrics.workerWarmupDuration?.observe(elapsedTime);
   }
 
   while (true) {
@@ -146,7 +145,7 @@ async function startMissedVaasWorkers(
           );
         } finally {
           const endTime = Date.now();
-          metrics.workersRunDuration?.labels({ emitterChain, emitterAddress }).observe(endTime - startTime);
+          metrics.workerRunDuration?.labels({ emitterChain, emitterAddress }).observe(endTime - startTime);
           redisPool.release(redis);
         }
         opts.logger?.info(
@@ -370,6 +369,14 @@ function getSeenVaaKey(prefix: string, emitterChain: number, emitterAddress: str
   return `${prefix}:missedVaasV3:seenVaas:${emitterChain}:${emitterAddress}`;
 }
 
+type MissedVaaMetrics = {
+  workerFailedRuns: Counter;
+  workerSuccessfulRuns: Counter;
+  recoveredVaas: Counter;
+  workerRunDuration: Histogram;
+  workerWarmupDuration: Histogram;
+};
+
 function initMetrics(registry: Registry) {
   const workerFailedRuns = new Counter({
     name: "missed_vaas_failed_runs",
@@ -392,7 +399,7 @@ function initMetrics(registry: Registry) {
     labelNames: ["emitterChain", "emitterAddress"],
   });
 
-  const workersRunDuration = new Histogram({
+  const workerRunDuration = new Histogram({
     name: "missed_vaas_worker_run_duration",
     help: "The duration of each of the worker runs",
     registers: [registry],
@@ -400,7 +407,7 @@ function initMetrics(registry: Registry) {
     buckets: [1000, 3000, 5000, 8000, 10000, 15000, 25000, 60000],
   });
 
-  const workersWarmupDuration = new Histogram({
+  const workerWarmupDuration = new Histogram({
     name: "missed_vaas_worker_warmup_duration",
     help: "The duration of each of the worker warmup runs",
     registers: [registry],
@@ -411,8 +418,8 @@ function initMetrics(registry: Registry) {
     workerFailedRuns,
     workerSuccessfulRuns,
     recoveredVaas,
-    workersRunDuration,
-    workersWarmupDuration,
+    workerRunDuration,
+    workerWarmupDuration,
   };
 }
 
@@ -440,7 +447,6 @@ export function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster
 function vaaKeyReadable(key: VaaKey): string {
   return JSON.stringify({
     emitterAddress: key.emitterAddress,
-    // emitterChain: key.emitterChain.toString(),
     sequence: key.sequence.toString(),
   });
 }
