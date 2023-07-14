@@ -151,7 +151,7 @@ async function startMissedVaasWorkers(
         
         } catch (error) {
 
-          metrics.workerFailedRuns?.labels({ emitterChain, emitterAddress }).inc();
+          metrics.workerFailedRuns?.labels().inc();
           opts.logger?.error(
             `Error checking for missed vaas for filter: ${JSON.stringify(filter)}}`, error
           );
@@ -412,14 +412,12 @@ function initMetrics(registry: Registry) {
     name: "missed_vaas_failed_runs",
     help: "The number of runs that missed vaa worker didn't finish running due to an error",
     registers: [registry],
-    labelNames: ["emitterChain", "emitterAddress"],
   });
 
   const workerSuccessfulRuns = new Counter({
     name: "missed_vaas_successful_runs",
     help: "The number of runs that missed vaa worker finished without errors",
     registers: [registry],
-    labelNames: ["emitterChain", "emitterAddress"],
   });
 
   const recoveredVaas = new Counter({
