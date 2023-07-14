@@ -64,6 +64,14 @@ export function spawnMissedVaaWorker(app: RelayerApp<any>, opts: MissedVaaOpts):
   const metrics: any = opts.registry ? initMetrics(opts.registry) : {};
   const redisPool = createRedisPool(opts);
 
+  if (!app.filters.length) {
+    opts.logger?.warn("Missed VAA Worker: No filters found, retrying in 100ms...");
+    setTimeout(() => {
+      spawnMissedVaaWorker(app, opts);
+    }, 100);
+    return;
+  }
+
   const filters = app.filters.map(filter => {
     return {
       emitterChain: filter.emitterFilter.chainId,
@@ -137,22 +145,33 @@ async function startMissedVaasWorkers(
         );
         const startTime = Date.now();
         const redis = await redisPool.acquire();
+        let missedVaas: { failed: string[], processed: string[] };
         try {
-          vaasFound = await checkForMissedVaas(filter, redis, processVaa, opts);
-
-          metrics.workerSuccessfulRuns?.labels({ emitterChain, emitterAddress }).inc();
-          if (vaasFound > 0) metrics.recoveredVaas?.labels({ emitterChain, emitterAddress }).inc(vaasFound);
+          missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts);
+        
         } catch (error) {
-          metrics.workerFailedRuns?.labels({ emitterChain, emitterAddress }).inc();
 
+          metrics.workerFailedRuns?.labels({ emitterChain, emitterAddress }).inc();
           opts.logger?.error(
             `Error checking for missed vaas for filter: ${JSON.stringify(filter)}}`, error
           );
-        } finally {
-          const endTime = Date.now();
-          metrics.workerRunDuration?.labels({ emitterChain, emitterAddress }).observe(endTime - startTime);
-          redisPool.release(redis);
-        }
+        }     
+
+        redisPool.release(redis);
+
+        metrics.workerSuccessfulRuns?.labels().inc();
+        metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
+        
+        const vaasProcessed = missedVaas?.processed?.length || 0;
+        // This are VAAs that were found but failed when trying to re-queue them.
+        // For example, the VAA wasn't found on wormscan
+        const vaasFailedToReprocess = missedVaas?.failed?.length || 0;
+
+        vaasFound += vaasProcessed + vaasFailedToReprocess;
+        if (vaasFound > 0) metrics.detectedVaas?.labels({ emitterChain, emitterAddress }).inc(vaasFound);
+        if (vaasProcessed > 0) metrics.recoveredVaas?.labels({ emitterChain, emitterAddress }).inc(vaasProcessed);
+        if (vaasFailedToReprocess > 0) metrics.failedToReprocess?.labels({ emitterChain, emitterAddress }).inc(vaasFailedToReprocess);
+
         opts.logger?.info(
           `Finished missed vaas check for emitterChain: ${emitterChain}. Found: ${vaasFound}`
         );
@@ -226,24 +245,24 @@ async function scanNextBatchAndUpdateSeenSequences(
   return scannedKeys + nextBatchScannedKeys;
 }
 
-
 async function checkForMissedVaas(
   filter: FilterIdentifier,
   redis: Cluster | Redis,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
-): Promise<number> {
+): Promise<{ failed: string[], processed: string[] }> {
   const seenVaasKey = getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
 
   const seenSequences = await getAllProcessedSeqsInOrder(redis, seenVaasKey);
-  const missingVaasFound = [];
+  const failed: string[] = [];
+  const processed: string[] = [];
 
   if (seenSequences.length) {
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
     const sequencesWithLeap = await scanForSequenceLeaps(seenSequences);
 
-    opts.logger?.debug(`Found sequences with leap for chain ${filter.emitterChain}: ` + JSON.stringify(
+    opts.logger?.warn(`Found sequences with leap for chain ${filter.emitterChain}: ` + JSON.stringify(
       sequencesWithLeap.map(s => s.toString()),
     ));
 
@@ -252,17 +271,22 @@ async function checkForMissedVaas(
 
     await mapConcurrent(sequencesWithLeap, async (sequence) => {
       const vaaKey = { ...filter, sequence };
+      const seqString = sequence.toString();
+
       const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
+
       if (!success) {
         opts.logger?.warn(`Failed to reprocess sequence ${sequence} for chain: ${filter.emitterChain}`);
+        failed.push(seqString);
       }
 
       else {
         const seenVaaKey = getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
         pipelineTouched = true;
-        pipeline.zadd(seenVaaKey, 0, sequence.toString());
+        
+        pipeline.zadd(seenVaaKey, 0, seqString);
+        processed.push(seqString);
       }
-      missingVaasFound.push(sequence);
     }, opts.vaasFetchConcurrency);
 
     if (pipelineTouched) {
@@ -290,14 +314,15 @@ async function checkForMissedVaas(
       const vaaKey = { ...filter, sequence: seq };
       const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
       if (!success) break;
-      missingVaasFound.push(seq);
+      processed.push(seq.toString());
     }
   }
 
   else {
     opts.logger?.warn(`No VAAs seen for chain: ${filter.emitterChain} and no starting sequence was configured. Won't check for missed VAAs.`);
   }
-  return missingVaasFound.length;
+
+  return { processed, failed };
 }
 
 async function scanForSequenceLeaps(
@@ -376,6 +401,8 @@ type MissedVaaMetrics = {
   workerFailedRuns: Counter;
   workerSuccessfulRuns: Counter;
   recoveredVaas: Counter;
+  detectedVaas: Counter;
+  failedToReprocess: Counter;
   workerRunDuration: Histogram;
   workerWarmupDuration: Histogram;
 };
@@ -402,25 +429,40 @@ function initMetrics(registry: Registry) {
     labelNames: ["emitterChain", "emitterAddress"],
   });
 
+  const detectedVaas = new Counter({
+    name: "missed_vaas_detected",
+    help: "The number of VAAs detected by the missed-vaas worker",
+    registers: [registry],
+    labelNames: ["emitterChain", "emitterAddress"],
+  });
+
+  const failedToReprocess = new Counter({
+    name: "missed_vaas_failed_to_reprocess",
+    help: "The number of VAAs that were detected but failed to reprocess",
+    registers: [registry],
+    labelNames: ["emitterChain", "emitterAddress"],
+  });
+
   const workerRunDuration = new Histogram({
     name: "missed_vaas_worker_run_duration",
     help: "The duration of each of the worker runs",
     registers: [registry],
-    labelNames: ["emitterChain", "emitterAddress"],
-    buckets: [1000, 3000, 5000, 8000, 10000, 15000, 25000, 60000],
+    buckets: [500, 1000, 60000, 120000],
   });
 
   const workerWarmupDuration = new Histogram({
     name: "missed_vaas_worker_warmup_duration",
     help: "The duration of each of the worker warmup runs",
     registers: [registry],
-    buckets: [50, 150, 1000, 5000, 10000, 20000, 40000],
+    buckets: [500, 1000, 60000, 120000],
   });
 
   return {
     workerFailedRuns,
     workerSuccessfulRuns,
+    detectedVaas,
     recoveredVaas,
+    failedToReprocess,
     workerRunDuration,
     workerWarmupDuration,
   };
