@@ -5,8 +5,6 @@ import {
 } from "@wormhole-foundation/relayer-engine";
 import { CHAIN_ID_SOLANA, TokenBridgePayload } from "@certusone/wormhole-sdk";
 
-
-
 (async function main() {
   // initialize relayer engine app, pass relevant config options
   const app = new StandardRelayerApp<StandardRelayerContext>(

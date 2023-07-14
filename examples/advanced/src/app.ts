@@ -31,7 +31,7 @@ export class TestStorage extends RedisStorage {
     return;
   }
 
-  stopWorker(): Promise<void> {
+  async stopWorker(): Promise<void> {
     return;
   }
   async addVaaToQueue(vaa: SignedVaa): Promise<RelayJob> {
