@@ -18,6 +18,8 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
   concurrency?: number;
   // Interval at which the worker will check for missed VAAs.
   checkInterval?: number;
+  // Times a VAA will be tried to be fetched when it's found missing
+  fetchVaaRetries?: number;
   // Max concurrency used for fetching VAAs from wormscan.
   vaasFetchConcurrency?: number;
   /**
@@ -252,6 +254,14 @@ async function checkForMissedVaas(
   opts: MissedVaaOpts,
 ): Promise<{ failed: string[], processed: string[] }> {
   const seenVaasKey = getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
+  const failedToProcessKey = getFailedToProcessKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
+
+  const failedToProcessSequences = await getDataFromSortedSet(redis, failedToProcessKey);
+
+  if (failedToProcessSequences.length) {
+    opts.logger?.warn(`Found sequences that failed to process for chain ${
+      filter.emitterChain}: ` + JSON.stringify(failedToProcessSequences));
+  }
 
   const seenSequences = await getAllProcessedSeqsInOrder(redis, seenVaasKey);
   const failed: string[] = [];
@@ -270,23 +280,23 @@ async function checkForMissedVaas(
     let pipelineTouched = false;
 
     await mapConcurrent(sequencesWithLeap, async (sequence) => {
+      pipelineTouched = true;
       const vaaKey = { ...filter, sequence };
       const seqString = sequence.toString();
-
-      const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
+      const seenVaaKey = getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
+      const success = await tryFetchAndProcess(vaaKey, processVaa, opts, opts.fetchVaaRetries);
 
       if (!success) {
         opts.logger?.warn(`Failed to reprocess sequence ${sequence} for chain: ${filter.emitterChain}`);
+        pipeline.zadd(getFailedToProcessKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress), 0, seqString);
         failed.push(seqString);
       }
 
       else {
-        const seenVaaKey = getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress);
-        pipelineTouched = true;
-        
-        pipeline.zadd(seenVaaKey, 0, seqString);
         processed.push(seqString);
       }
+
+      pipeline.zadd(seenVaaKey, 0, seqString);
     }, opts.vaasFetchConcurrency);
 
     if (pipelineTouched) {
@@ -312,7 +322,10 @@ async function checkForMissedVaas(
   if (lastSeenSequence) {
     for (let seq = lastSeenSequence + 1n; true; seq++) {
       const vaaKey = { ...filter, sequence: seq };
-      const success = await tryFetchAndProcess(vaaKey, processVaa, opts);
+      // when scanning ahead we only retry once, since we are expecting not to find any VAA.
+      // if we fail by another error it will be picked up by the next run of the 
+      // missed-vaa worker (either by the leap-scan or by the look-ahead)
+      const success = await tryFetchAndProcess(vaaKey, processVaa, opts, 1);
       if (!success) break;
       processed.push(seq.toString());
     }
@@ -341,15 +354,19 @@ async function scanForSequenceLeaps(
   return missing;
 }
 
+function getDataFromSortedSet(redis: Redis | Cluster, key: string) {
+  return redis.zrange(key, "-", "+", "BYLEX");
+}
+
 async function getAllProcessedSeqsInOrder(
   redis: Redis | Cluster,
   key: string,
 ): Promise<bigint[]> {
-  const results = await redis.zrange(key, "-", "+", "BYLEX");
+  const results = await getDataFromSortedSet(redis, key);
   return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
 }
 
-async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts: MissedVaaOpts) {
+async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts: MissedVaaOpts, retries: number = 2) {
   let vaa;
   const stack = new Error().stack;
   try {
@@ -360,7 +377,7 @@ async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts
       vaaKey.sequence.toString(),
       { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
       100,
-      2,
+      retries,
     );
   } catch (error) {
     const vaaReadable = vaaKeyReadable(vaaKey);
@@ -395,6 +412,10 @@ function parseStorageVaaKey(key: string) {
 
 function getSeenVaaKey(prefix: string, emitterChain: number, emitterAddress: string): string {
   return `${prefix}:missedVaasV3:seenVaas:${emitterChain}:${emitterAddress}`;
+}
+
+function getFailedToProcessKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+  return `${prefix}:missedVaasV3:failedToProcess:${emitterChain}:${emitterAddress}`;
 }
 
 type MissedVaaMetrics = {
