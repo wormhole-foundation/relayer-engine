@@ -93,8 +93,6 @@ function buildWalletsConfig(
           secretKey = bs58.decode(key);
         }
 
-        console.log({ solanaSecretKey: secretKey.toString() });
-
         chainWallets.push({
           privateKey: secretKey.toString(),
           tokens: tokens[chainId] ?? [],
