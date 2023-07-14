@@ -2,7 +2,7 @@
 
 This example details a more complex implementation of a Relayer Application. For a simple example see this [example](./README.md#simple-relayer-code-example)
 
-The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/example-app/src/app.ts)
+The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/examples/advanced/src/app.ts)
 
 ## Setup
 
@@ -14,7 +14,7 @@ Clone the repository, `cd` into the directory, and install the requirements.
 
 ```sh
 git clone https://github.com/wormhole-foundation/relayer-engine.git
-cd relayer-engine/example-app
+cd relayer-engine/examples/advanced/
 npm i
 ```
 

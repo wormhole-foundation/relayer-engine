@@ -26,7 +26,7 @@ import {
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
-import { RedisStorage } from "../../relayer/storage/redis-storage";
+import { RedisStorage } from "../../../relayer/storage/redis-storage";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &

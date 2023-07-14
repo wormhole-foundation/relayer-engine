@@ -1,0 +1,33 @@
+{
+  "name": "advanced-relayer-example",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "ts-node src/app.ts",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "redis": "docker run --rm -p 6379:6379 --name redis-docker -d redis",
+    "mainnet-spy": "docker run --platform=linux/amd64 -p 7073:7073 --entrypoint /guardiand ghcr.io/wormhole-foundation/guardiand:latest spy --nodeKey /node.key --spyRPC \"[::]:7073\" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7",
+    "testnet-spy": "docker run --platform=linux/amd64 -p 7073:7073 --entrypoint /guardiand ghcr.io/wormhole-foundation/guardiand:latest spy --nodeKey /node.key --spyRPC \"[::]:7073\" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i"
+  },
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.11",
+    "@mysten/sui.js": "^0.32.1",
+    "@wormhole-foundation/relayer-engine": "file:../../",
+    "koa": "^2.14.1",
+    "koa-router": "^12.0.0",
+    "node-redis": "^0.1.7",
+    "winston": "^3.8.2",
+    "yargs": "^17.7.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/koa-router": "^7.4.4",
+    "@types/winston": "^2.4.4",
+    "@types/yargs": "^17.0.22",
+    "ganache": "^7.8.0",
+    "prettier": "^2.8.4"
+  }
+}
