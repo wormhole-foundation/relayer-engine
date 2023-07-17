@@ -351,8 +351,8 @@ async function checkForMissedVaas(
       } catch (error) {
         // If we succeeded to fetch the VAA The error to reprocess is in our side (eg: redis failed)
         // We won't mark it as failed, so that it's retried on the next run of the missed VAA Worker.
-        // The error is thrown so that the run is considered failed. If this is an internal problem,
-        // following VAAs will likely fail too, so it makes sense to just consider the run failed.
+        // We won't throw the error so that other vaas can be processed, but we'll add it to the list
+        // of "failedToReprocess" so that we can log it and alert on it.
         const vaaReadable = vaaKeyReadable(vaaKey);
         opts.logger?.error(`Failed to reprocess vaa found missing. ${vaaReadable}`, error);
         failedToReprocess.push(seqString);
@@ -379,7 +379,7 @@ async function checkForMissedVaas(
 
   opts.logger?.info(`Looking ahead for missed VAAs for chain: ${filter.emitterChain}. From Sequence: ${
     lastSeenSequence
-  } A "not found" should be logged soon.`);
+  }`);
 
   if (lastSeenSequence) {
     for (let seq = lastSeenSequence + 1n; true; seq++) {
@@ -393,8 +393,14 @@ async function checkForMissedVaas(
       }
 
       if (!vaa) break;
-      lastSeenSequence = seq;
-      processed.push(seq.toString());
+
+      try {
+        await processVaa(Buffer.from(vaa.vaaBytes));
+        lastSeenSequence = seq;
+        processed.push(seq.toString());
+      } catch (error) {
+        opts.logger?.error(`Error processing Look Ahead (found) VAA. Chain: ${filter.emitterChain}. Sequence: ${seq.toString()}`, error);
+      }
     }
   }
 
