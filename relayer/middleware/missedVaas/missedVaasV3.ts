@@ -389,7 +389,7 @@ async function checkForMissedVaas(
       try {
         vaa = await fetchVaa(vaaKey, opts, 3);
       } catch (error) {
-        opts.logger?.error(`Error fetching VAA for sequence ${seq} for chain: ${filter.emitterChain}`, error);
+        opts.logger?.error(`Error fetching Look Ahead VAA for sequence ${seq} for chain: ${filter.emitterChain}`, error);
       }
 
       if (!vaa) break;
@@ -468,52 +468,6 @@ async function fetchVaa(vaaKey: VaaKey, opts: MissedVaaOpts, retries: number = 2
     throw error;
   }
   return vaa as GetSignedVAAResponse;
-}
-
-async function tryProcessVaa(vaaBytes: Buffer, processVaa: ProcessVaaFn, vaaKey: VaaKey, opts: MissedVaaOpts,) {
-  try {
-    await processVaa(vaaBytes);
-  } catch (error) {
-    const vaaReadable = vaaKeyReadable(vaaKey);
-    opts.logger?.error(`Failed to process vaa found missing. ${vaaReadable}`, error);
-    return false;
-  }
-  return true;
-}
-
-async function tryFetchAndProcess(vaaKey: VaaKey, processVaa: ProcessVaaFn, opts: MissedVaaOpts, retries: number = 2) {
-  let vaa;
-  const stack = new Error().stack;
-  try {
-    vaa = await getSignedVAAWithRetry(
-      opts.wormholeRpcs,
-      vaaKey.emitterChain as ChainId,
-      vaaKey.emitterAddress,
-      vaaKey.sequence.toString(),
-      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
-      100,
-      retries,
-    );
-  } catch (error) {
-    const vaaReadable = vaaKeyReadable(vaaKey);
-    error.stack = new Error().stack;
-    if (error.code === 5) {
-      opts.logger?.error(`Vaa ${vaaReadable} not found on wormhole rpc while fetching missed vaa`);
-      return false;
-    }
-    opts.logger?.error(`Failed to fetch missing vaa from wormhole rpc. ${vaaReadable}`, error);
-    throw error;
-  }
-
-  try {
-    await processVaa(Buffer.from(vaa.vaaBytes));
-  } catch (error) {
-    const vaaReadable = vaaKeyReadable(vaaKey);
-    opts.logger?.error(`Failed to process vaa found missing. ${vaaReadable}`, error);
-    return false;
-  }
-
-  return true;
 }
 
 // example keys:
