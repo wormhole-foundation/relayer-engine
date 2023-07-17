@@ -122,16 +122,6 @@ app.use(logging(rootLogger));
 app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
 // we want to apply the chain specific providers to the context passed downstream
 app.use(providers());
-
-// make wallets available within the context
-app.use(
-  wallets(Environment.TESTNET, {
-    privateKeys,
-    namespace,
-    metrics: { enabled: true, registry: store.registry },
-  }),
-);
-
 // enrich the context with details about the token bridge
 app.use(tokenBridgeContracts());
 // ensure we use redis safely in a concurrent environment
