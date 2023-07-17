@@ -185,11 +185,12 @@ async function startMissedVaasWorkers(
 
         if (vaasFailedToRecover > 0) {
           metrics.failedToRecover?.labels(labels).inc(vaasFailedToRecover);
+          opts.logger?.debug(`For chain ${labels.emitterChain}} Failed to recover missed Vaas with seq: ${missedVaas.failedToReprocess.join(', ')}`);
         }
 
         if (vaasFailedToReprocess > 0) {
           metrics.failedToReprocess?.labels(labels).inc(vaasFailedToReprocess);
-          opts.logger?.debug(`For chain ${labels.emitterChain}} Failed to reprocess missed Vaas with seq: ${missedVaas.failed.join(', ')}`);
+          opts.logger?.debug(`For chain ${labels.emitterChain}} Failed to reprocess missed Vaas with seq: ${missedVaas.failedToReprocess.join(', ')}`);
         }
 
         const { lastSeenSequence, firstSeenSequence, foundMissingSequences } = missedVaas;
@@ -390,7 +391,7 @@ async function checkForMissedVaas(
       } catch (error) {
         opts.logger?.error(`Error fetching VAA for sequence ${seq} for chain: ${filter.emitterChain}`, error);
       }
-      
+
       if (!vaa) break;
       lastSeenSequence = seq;
       processed.push(seq.toString());
