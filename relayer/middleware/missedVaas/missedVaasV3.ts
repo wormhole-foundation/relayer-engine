@@ -460,7 +460,6 @@ async function fetchVaa(vaaKey: VaaKey, opts: MissedVaaOpts, retries: number = 2
       retries,
     );
   } catch (error) {
-    const vaaReadable = vaaKeyReadable(vaaKey);
     error.stack = new Error().stack;
     if (error.code === 5) {
       return null;
