@@ -139,7 +139,7 @@ export function startWalletManagement(
     config: wallets,
     options: {
       failOnInvalidChain: false,
-      logger: logger?.child({ module: "wallet-manager" }),
+      // logger: logger?.child({ module: "wallet-manager" }),
       logLevel: "error",
       metrics: metricsOpts,
     },

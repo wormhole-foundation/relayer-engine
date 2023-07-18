@@ -142,9 +142,11 @@ async function startMissedVaasWorkers(
       filters,
       async filter => {
         const { emitterChain, emitterAddress } = filter;
+        const filterLogger = opts.logger?.child({ emitterChain, emitterAddress });
+
         let vaasFound = 0;
 
-        opts.logger?.debug(
+        filterLogger?.debug(
           `Checking for missed vaas for Chain: ${emitterChain}`
         );
         const startTime = Date.now();
@@ -179,18 +181,17 @@ async function startMissedVaasWorkers(
 
         if (vaasProcessed > 0) {
           metrics.recoveredVaas?.labels(labels).inc(vaasProcessed);
-          opts.logger?.debug(`For chain ${labels.emitterChain}} Found missed Vaas with seq: ${missedVaas.processed.join(', ')}`)
         }
 
         if (vaasFailedToRecover > 0) {
           metrics.failedToRecover?.labels(labels).inc(vaasFailedToRecover);
-          opts.logger?.debug(`For chain ${labels.emitterChain}} Failed to recover missed Vaas with seq: ${missedVaas.failedToReprocess.join(', ')}`);
         }
 
         if (vaasFailedToReprocess > 0) {
           metrics.failedToReprocess?.labels(labels).inc(vaasFailedToReprocess);
-          opts.logger?.debug(`For chain ${labels.emitterChain}} Failed to reprocess missed Vaas with seq: ${missedVaas.failedToReprocess.join(', ')}`);
         }
+
+        filterLogger?.debug(`Finished missed vaas check. Results: ${JSON.stringify(missedVaas)}}`);
 
         const { lastSeenSequence, firstSeenSequence, lastSafeSequence, foundMissingSequences } = missedVaas;
 
@@ -199,7 +200,7 @@ async function startMissedVaasWorkers(
         metrics.firstSeenSequence?.labels(labels).set(firstSeenSequence);
         metrics.missingSequences?.labels(labels).set(foundMissingSequences ? 1 : 0);
 
-        opts.logger?.info(
+        filterLogger?.info(
           `Finished missed vaas check for emitterChain: ${emitterChain}. Found: ${vaasFound}`
         );
       },
@@ -287,23 +288,25 @@ async function checkForMissedVaas(
   redis: Cluster | Redis,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
+  logger?: Logger,
 ): Promise<MissedVaaRunStats> {
-  const { storagePrefix, logger } = opts;
+  const { storagePrefix } = opts;
   const { emitterChain, emitterAddress } = filter;
 
   const failedToFetchKey = getFailedToFetchKey(storagePrefix, emitterChain, emitterAddress);
 
-  const failedToProcessSequences = await getDataFromSortedSet(redis, failedToFetchKey);
+  const failedToFetchSequences = await getDataFromSortedSet(redis, failedToFetchKey);
 
-  if (failedToProcessSequences.length) {
+  if (failedToFetchSequences.length) {
     logger?.warn(
       `Found sequences that we failed to get from wormhole-rpc for chain ${emitterChain}: `
-      + JSON.stringify(failedToProcessSequences)
+      + JSON.stringify(failedToFetchSequences)
     );
   }
 
   const lastSafeSequence = await getLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, logger);
-  opts.logger?.warn("will request index: ", await redis.zrank(getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress), lastSafeSequence?.toString()));
+  opts.logger?.warn("temp log: lastSafeSequence: ", lastSafeSequence?.toString());
+  opts.logger?.warn("temp log: will request index: ", await redis.zrank(getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress), lastSafeSequence?.toString()));
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
@@ -324,13 +327,13 @@ async function checkForMissedVaas(
 
     foundMissingSequences = missingSequences.length >= 1;
     if (foundMissingSequences) {
-      logger?.warn(`Found sequences with leap for chain ${emitterChain}: ` + JSON.stringify(
+      logger?.warn(`Found sequences with leap: ` + JSON.stringify(
         missingSequences.map(s => s.toString()),
       ));
     }
 
     else {
-      logger?.debug(`Found no sequences with leap for chain ${emitterChain}`);
+      logger?.debug(`Found no sequences with leap.`);
     }
 
     const pipeline = redis.pipeline();
@@ -358,7 +361,7 @@ async function checkForMissedVaas(
         // by the guardian.
         // Right now the VAAs marked as failed are logged on each iteration of the missed VAA check
         // but it would be nice to have a way to query them
-        logger?.error(`Error fetching VAA for missing sequence ${sequence} for chain: ${emitterChain}`, error);
+        logger?.error(`Error fetching VAA for missing sequence ${sequence}`, error);
         failedToRecover.push(seqString);
         pipeline.zadd(seenVaaKey, seqString, seqString);
         pipeline.zadd(failedToFetchKey, seqString, seqString);
@@ -400,12 +403,14 @@ async function checkForMissedVaas(
     if (!missingSequences.length || missingSequencesSuccesfullyReprocessed) {
       // there are no missing sequences up to `lastSeenSequence`. We can assume it's safe to scan
       // from this point onwards next time
+      const lastSeenSequence = seenSequences[seenSequences.length - 1].toString();
+      logger?.debug(`No missing sequences found up to sequence ${lastSeenSequence}. Setting as last sequence`)
       await setLastSafeSequence(
         redis,
         storagePrefix,
         emitterChain,
         emitterAddress,
-        seenSequences[seenSequences.length - 1].toString());
+        lastSeenSequence);
     }
   }
 
@@ -414,10 +419,10 @@ async function checkForMissedVaas(
   const lastSeq = seenSequences[seenSequences.length - 1];
   const startingSeq = opts.startingSequenceConfig?.[emitterChain as ChainId];
   let lastSeenSequence = lastSeq && startingSeq
-    ? lastSeq > startingSeq ? lastSeq : startingSeq
+    ? lastSeq > startingSeq ? lastSeq : startingSeq // same as Math.max, which doesn't support bigint
     : lastSeq || startingSeq;
 
-  logger?.info(`Looking ahead for missed VAAs for chain: ${emitterChain}. From Sequence: ${
+  logger?.info(`Looking ahead for missed VAAs from sequence: ${
     lastSeenSequence
   }`);
 
@@ -429,7 +434,7 @@ async function checkForMissedVaas(
       try {
         vaa = await tryFetchVaa(vaaKey, opts, 3);
       } catch (error) {
-        logger?.error(`Error fetching Look Ahead VAA for sequence ${seq} for chain: ${emitterChain}`, error);
+        logger?.error(`Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: `, error);
       }
 
       if (!vaa) break;
@@ -439,13 +444,13 @@ async function checkForMissedVaas(
         lastSeenSequence = seq;
         processed.push(seq.toString());
       } catch (error) {
-        logger?.error(`Error processing Look Ahead (found) VAA. Chain: ${emitterChain}. Sequence: ${seq.toString()}`, error);
+        logger?.error(`Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`, error);
       }
     }
   }
 
   else {
-    logger?.warn(`No VAAs seen for chain: ${emitterChain} and no starting sequence was configured. Won't check for missed VAAs.`);
+    logger?.warn(`No VAAs seen and no starting sequence was configured. Won't check for missed VAAs.`);
   }
 
   return {
@@ -453,6 +458,9 @@ async function checkForMissedVaas(
     failedToRecover,
     failedToReprocess,
     foundMissingSequences,
+    // Caveat: this values are used for metrics (prometheus gauges) and are expected to be numbers
+    // this will become a problem once we get to sequences that are bigger than Number.MAX_SAFE_INTEGER
+    // We've got some time though
     lastSeenSequence: Number(lastSeenSequence.toString()),
     firstSeenSequence: Number(firstSeenSequence.toString()),
     lastSafeSequence: Number(lastSafeSequence.toString()),
