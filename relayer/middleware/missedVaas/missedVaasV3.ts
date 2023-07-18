@@ -104,11 +104,11 @@ async function registerEventListeners(
 
     const { emitterChain, emitterAddress, sequence } = vaa;
     const seenVaaKey = getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress.toString('hex'));
-
+    const sequencesString = sequence.toString();
     try {
-      await redis.zadd(seenVaaKey, 0, sequence.toString());
+      await redis.zadd(seenVaaKey, sequencesString, sequencesString);
     } catch (error) {
-      opts.logger?.error("Failed to mark VAA ass seen", error);
+      opts.logger?.error("Failed to mark VAA ass seen. Vaa will probably be reprocessed. Error: ", error);
     } finally {
       await redisPool.release(redis);
     }
@@ -152,7 +152,6 @@ async function startMissedVaasWorkers(
         let missedVaas: MissedVaaRunStats;
         try {
           missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts);
-
         } catch (error) {
           metrics.workerFailedRuns?.labels().inc();
           opts.logger?.error(
@@ -260,7 +259,7 @@ async function scanNextBatchAndUpdateSeenSequences(
     scannedKeys++;
     if (key.endsWith(":logs")) continue;
     const vaaSequence = parseStorageVaaKey(key);
-    pipeline.zadd(seenVaaKey, 0, vaaSequence);
+    pipeline.zadd(seenVaaKey, vaaSequence, vaaSequence);
   }
 
   await pipeline.exec();
@@ -304,7 +303,7 @@ async function checkForMissedVaas(
   }
 
   const lastSafeSequence = await getLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, logger);
-
+  opts.logger?.warn("will request index: ", await redis.zrank(getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress), lastSafeSequence.toString()));
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
@@ -361,8 +360,8 @@ async function checkForMissedVaas(
         // but it would be nice to have a way to query them
         logger?.error(`Error fetching VAA for missing sequence ${sequence} for chain: ${emitterChain}`, error);
         failedToRecover.push(seqString);
-        pipeline.zadd(seenVaaKey, 0, seqString);
-        pipeline.zadd(failedToFetchKey, 0, seqString);
+        pipeline.zadd(seenVaaKey, seqString, seqString);
+        pipeline.zadd(failedToFetchKey, seqString, seqString);
         pipelineTouched = true;
         return;
       }
@@ -370,7 +369,7 @@ async function checkForMissedVaas(
       try {
         await processVaa(Buffer.from(vaaResponse.vaaBytes));
         pipelineTouched = true;
-        pipeline.zadd(seenVaaKey, 0, seqString);
+        pipeline.zadd(seenVaaKey, seqString, seqString);
         processed.push(seqString);
       } catch (error) {
         // If we succeeded to fetch the VAA The error to reprocess is in our side (eg: redis failed)
@@ -476,9 +475,10 @@ async function scanForSequenceLeaps(
   return missing;
 }
 
-function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: string) {
-  const lb = lowerBound || "-";
-  return redis.zrange(key, lb, "+", "BYLEX");
+function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: number) {
+  const lb = lowerBound || 0;
+
+  return redis.zrange(key, lb, "-1");
 }
 
 async function setLastSafeSequence(
@@ -526,10 +526,16 @@ async function getAllProcessedSeqsInOrder(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  lastSeenSequence?: bigint,
+  lastSafeSequence?: bigint,
 ): Promise<bigint[]> {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
-  const results = await getDataFromSortedSet(redis, key, lastSeenSequence?.toString());
+  const sequenceToStartFrom = lastSafeSequence?.toString();
+  let indexToStartFrom: number;
+  if (sequenceToStartFrom) {
+    indexToStartFrom = await redis.zrank(key, sequenceToStartFrom) || undefined;
+  }
+
+  const results = await getDataFromSortedSet(redis, key, indexToStartFrom);
   return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
 }
 
