@@ -469,7 +469,7 @@ async function checkForMissedVaas(
     // We've got some time though
     lastSeenSequence: Number(lastSeenSequence.toString()),
     firstSeenSequence: Number(firstSeenSequence.toString()),
-    lastSafeSequence: Number(lastSafeSequence.toString()),
+    lastSafeSequence: Number(lastSafeSequence?.toString() || "0"),
   };
 }
 
