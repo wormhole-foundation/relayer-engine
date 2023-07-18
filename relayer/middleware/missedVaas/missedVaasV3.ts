@@ -400,10 +400,16 @@ async function checkForMissedVaas(
       && failedToRecover.length === 0
       && failedToReprocess.length === 0;
     
-    if (!missingSequences.length || missingSequencesSuccesfullyReprocessed) {
+    const lastSeenSequence = seenSequences[seenSequences.length - 1].toString();
+
+    if (!missingSequences.length || missingSequencesSuccesfullyReprocessed && lastSeenSequence) {
       // there are no missing sequences up to `lastSeenSequence`. We can assume it's safe to scan
       // from this point onwards next time
-      const lastSeenSequence = seenSequences[seenSequences.length - 1].toString();
+      // We need to add `lastSeenSequence to the condition because redis-storage current implementation
+      // only keeps a certain amount of workflows in the queue, and so if we are getting many more messages
+      // from a chain than from otherone, we might run into the case in which we have no seen sequences
+      // even if we have processed some VAAs before for the chain.
+      // This is possible in the case this is the first time the worker runs or if you used the `forceSeenKeysReindex`
       logger?.debug(`No missing sequences found up to sequence ${lastSeenSequence}. Setting as last sequence`)
       await setLastSafeSequence(
         redis,
