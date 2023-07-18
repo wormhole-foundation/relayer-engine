@@ -9,7 +9,7 @@ import {
   RedisOptions,
 } from "ioredis";
 import { createStorageMetrics, StorageMetrics } from "../storage.metrics";
-import { Counter, Gauge, Histogram, Registry } from "prom-client";
+import { Registry } from "prom-client";
 import { sleep } from "../utils";
 import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
@@ -72,6 +72,7 @@ export interface StorageOptions extends RedisConnectionOpts {
   attempts: number;
   concurrency?: number;
   exponentialBackoff?: ExponentialBackoffOpts;
+  maxCompletedQueueSize?: number;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -81,6 +82,7 @@ const defaultOptions: Partial<StorageOptions> = {
   redis: {},
   queueName: "relays",
   concurrency: 3,
+  maxCompletedQueueSize: 10000,
 };
 
 export class RedisStorage implements Storage {
@@ -114,6 +116,9 @@ export class RedisStorage implements Storage {
 
     // TODO: consider using a queue per chain
     this.vaaQueue = new Queue(this.opts.queueName, {
+      defaultJobOptions: {
+        removeOnComplete: this.opts.maxCompletedQueueSize,
+      },
       prefix: this.prefix,
       connection: this.redis,
     });
@@ -151,8 +156,7 @@ export class RedisStorage implements Storage {
       },
       {
         jobId: id,
-        removeOnComplete: 1000,
-        removeOnFail: 5000,
+        removeOnFail: 50000,
         attempts: this.opts.attempts,
         ...retryStrategy,
       },
