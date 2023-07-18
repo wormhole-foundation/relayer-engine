@@ -303,7 +303,7 @@ async function checkForMissedVaas(
   }
 
   const lastSafeSequence = await getLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, logger);
-  opts.logger?.warn("will request index: ", await redis.zrank(getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress), lastSafeSequence.toString()));
+  opts.logger?.warn("will request index: ", await redis.zrank(getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress), lastSafeSequence?.toString()));
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
