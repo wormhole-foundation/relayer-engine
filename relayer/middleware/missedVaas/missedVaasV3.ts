@@ -292,13 +292,13 @@ async function checkForMissedVaas(
   const { storagePrefix, logger } = opts;
   const { emitterChain, emitterAddress } = filter;
 
-  const failedToProcessKey = getFailedToProcessKey(storagePrefix, emitterChain, emitterAddress);
+  const failedToFetchKey = getFailedToFetchKey(storagePrefix, emitterChain, emitterAddress);
 
-  const failedToProcessSequences = await getDataFromSortedSet(redis, failedToProcessKey);
+  const failedToProcessSequences = await getDataFromSortedSet(redis, failedToFetchKey);
 
   if (failedToProcessSequences.length) {
     logger?.warn(
-      `Found sequences that failed to process for chain ${emitterChain}: `
+      `Found sequences that we failed to get from wormhole-rpc for chain ${emitterChain}: `
       + JSON.stringify(failedToProcessSequences)
     );
   }
@@ -343,7 +343,7 @@ async function checkForMissedVaas(
 
       let vaaResponse;
       try {
-        vaaResponse = await fetchVaa(vaaKey, opts, opts.fetchVaaRetries);
+        vaaResponse = await tryFetchVaa(vaaKey, opts, opts.fetchVaaRetries);
         if (!vaaResponse) {
           // this is a sequence that we found in the middle of two other sequences we processed,
           // so we can consider this VAA not existing an error.
@@ -351,12 +351,19 @@ async function checkForMissedVaas(
         }
       } catch (error) {
         // We have already retried a few times. We'll swallow the error and mark
-        // the VAA as failed.
-        // VAAs marked as failed generate a metric that can be used to trigger an alert.
+        // the VAA as failed and seen.
+        // VAAs marked as failed generate a metric that can be used to trigger an alert
+        // for developers to take a closer look.
+        // At the time of the implementation of this worker, the guardian network in testnet has
+        // only one guardian, and this makes it so that it's possible for some VAAs to be missed
+        // by the guardian.
         // Right now the VAAs marked as failed are logged on each iteration of the missed VAA check
         // but it would be nice to have a way to query them
         logger?.error(`Error fetching VAA for missing sequence ${sequence} for chain: ${emitterChain}`, error);
         failedToRecover.push(seqString);
+        pipeline.zadd(seenVaaKey, 0, seqString);
+        pipeline.zadd(failedToFetchKey, 0, seqString);
+        pipelineTouched = true;
         return;
       }
 
@@ -371,6 +378,8 @@ async function checkForMissedVaas(
         // We won't throw the error so that other vaas can be processed, but we'll add it to the list
         // of "failedToReprocess" so that we can log it and alert on it.
         const vaaReadable = vaaKeyReadable(vaaKey);
+        // If you see this log while troubleshooting, it probably means that there is an issue on the
+        // relayer side since the VAA was successfully fetched but failed to be processed.
         logger?.error(`Failed to reprocess vaa found missing. ${vaaReadable}`, error);
         failedToReprocess.push(seqString);
       }
@@ -419,7 +428,7 @@ async function checkForMissedVaas(
 
       let vaa: GetSignedVAAResponse;
       try {
-        vaa = await fetchVaa(vaaKey, opts, 3);
+        vaa = await tryFetchVaa(vaaKey, opts, 3);
       } catch (error) {
         logger?.error(`Error fetching Look Ahead VAA for sequence ${seq} for chain: ${emitterChain}`, error);
       }
@@ -524,7 +533,7 @@ async function getAllProcessedSeqsInOrder(
   return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
 }
 
-async function fetchVaa(vaaKey: VaaKey, opts: MissedVaaOpts, retries: number = 2): Promise<GetSignedVAAResponse> {
+async function tryFetchVaa(vaaKey: VaaKey, opts: MissedVaaOpts, retries: number = 2): Promise<GetSignedVAAResponse> {
   let vaa;
   const stack = new Error().stack;
   try {
@@ -560,8 +569,8 @@ function getSeenVaaKey(prefix: string, emitterChain: number, emitterAddress: str
   return `${prefix}:missedVaasV3:seenVaas:${emitterChain}:${emitterAddress}`;
 }
 
-function getFailedToProcessKey(prefix: string, emitterChain: number, emitterAddress: string): string {
-  return `${prefix}:missedVaasV3:failedToProcess:${emitterChain}:${emitterAddress}`;
+function getFailedToFetchKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+  return `${prefix}:missedVaasV3:failedToFetch:${emitterChain}:${emitterAddress}`;
 }
 
 function getSafeSequenceKey(prefix: string, emitterChain: number, emitterAddress: string): string {
