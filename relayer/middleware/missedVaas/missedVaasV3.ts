@@ -193,9 +193,10 @@ async function startMissedVaasWorkers(
           opts.logger?.debug(`For chain ${labels.emitterChain}} Failed to reprocess missed Vaas with seq: ${missedVaas.failedToReprocess.join(', ')}`);
         }
 
-        const { lastSeenSequence, firstSeenSequence, foundMissingSequences } = missedVaas;
+        const { lastSeenSequence, firstSeenSequence, lastSafeSequence, foundMissingSequences } = missedVaas;
 
         metrics.lastSeenSequence?.labels(labels).set(lastSeenSequence);
+        metrics.lastSafeSequence?.labels(labels).set(lastSafeSequence);
         metrics.firstSeenSequence?.labels(labels).set(firstSeenSequence);
         metrics.missingSequences?.labels(labels).set(foundMissingSequences ? 1 : 0);
 
@@ -278,6 +279,7 @@ type MissedVaaRunStats = {
   failedToReprocess: string[],
   lastSeenSequence: number,
   firstSeenSequence: number,
+  lastSafeSequence: number,
   foundMissingSequences: boolean,
 };
 
@@ -310,7 +312,7 @@ async function checkForMissedVaas(
     emitterAddress,
     lastSafeSequence
   );
-  
+
   const processed: string[] = [];
   const failedToRecover: string[] = [];
   const failedToReprocess: string[] = [];
@@ -333,7 +335,7 @@ async function checkForMissedVaas(
     }
 
     const pipeline = redis.pipeline();
-    let pipelineTouched = missingSequences.length >= 1;
+    let pipelineTouched = false;
     await mapConcurrent(missingSequences, async (sequence) => {
       const vaaKey = { ...filter, sequence };
       const seqString = sequence.toString();
@@ -355,10 +357,12 @@ async function checkForMissedVaas(
         // but it would be nice to have a way to query them
         logger?.error(`Error fetching VAA for missing sequence ${sequence} for chain: ${emitterChain}`, error);
         failedToRecover.push(seqString);
+        return;
       }
 
       try {
         await processVaa(Buffer.from(vaaResponse.vaaBytes));
+        pipelineTouched = true;
         pipeline.zadd(seenVaaKey, 0, seqString);
         processed.push(seqString);
       } catch (error) {
@@ -443,6 +447,7 @@ async function checkForMissedVaas(
     foundMissingSequences,
     lastSeenSequence: Number(lastSeenSequence.toString()),
     firstSeenSequence: Number(firstSeenSequence.toString()),
+    lastSafeSequence: Number(lastSafeSequence.toString()),
   };
 }
 
@@ -574,10 +579,11 @@ type MissedVaaMetrics = {
   workerWarmupDuration: Histogram;
   lastSeenSequence: Gauge;
   firstSeenSequence: Gauge;
+  lastSafeSequence: Gauge;
   missingSequences: Gauge;
 };
 
-function initMetrics(registry: Registry) {
+function initMetrics(registry: Registry): MissedVaaMetrics {
   const workerFailedRuns = new Counter({
     name: "missed_vaas_failed_runs",
     help: "The number of runs that missed vaa worker didn't finish running due to an error",
@@ -632,6 +638,13 @@ function initMetrics(registry: Registry) {
     labelNames: ["emitterChain", "emitterAddress"],
   });
 
+  const lastSafeSequence = new Gauge({
+    name: "missed_vaas_last_safe_sequence",
+    help: "The max sequence we know that has all VAAs with previous sequences processed",
+    registers: [registry],
+    labelNames: ["emitterChain", "emitterAddress"],
+  });
+
   const missingSequences = new Gauge({
     name: "missed_vaas_missing_sequences",
     help: "The number of sequences missing from the missed-vaas worker",
@@ -664,6 +677,7 @@ function initMetrics(registry: Registry) {
     workerWarmupDuration,
     firstSeenSequence,
     lastSeenSequence,
+    lastSafeSequence,
     missingSequences,
   };
 }
