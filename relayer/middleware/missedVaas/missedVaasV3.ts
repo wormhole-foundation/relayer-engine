@@ -153,7 +153,7 @@ async function startMissedVaasWorkers(
         const redis = await redisPool.acquire();
         let missedVaas: MissedVaaRunStats;
         try {
-          missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts);
+          missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts, filterLogger);
         } catch (error) {
           metrics.workerFailedRuns?.labels().inc();
           opts.logger?.error(
@@ -305,8 +305,7 @@ async function checkForMissedVaas(
   }
 
   const lastSafeSequence = await getLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, logger);
-  opts.logger?.warn("temp log: lastSafeSequence: ", lastSafeSequence?.toString());
-  opts.logger?.warn("temp log: will request index: ", await redis.zrank(getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress), lastSafeSequence?.toString()));
+
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
@@ -398,11 +397,13 @@ async function checkForMissedVaas(
 
     const missingSequencesSuccesfullyReprocessed = pipelineTouched 
       && failedToRecover.length === 0
-      && failedToReprocess.length === 0;
+      && failedToReprocess.length === 0
+      && failedToFetchSequences.length === 0;
     
     const lastSeenSequence = seenSequences[seenSequences.length - 1].toString();
 
-    if (!missingSequences.length || missingSequencesSuccesfullyReprocessed && lastSeenSequence) {
+    if (!missingSequences.length || missingSequencesSuccesfullyReprocessed
+      && lastSeenSequence) {
       // there are no missing sequences up to `lastSeenSequence`. We can assume it's safe to scan
       // from this point onwards next time
       // We need to add `lastSeenSequence to the condition because redis-storage current implementation
@@ -467,8 +468,8 @@ async function checkForMissedVaas(
     // Caveat: this values are used for metrics (prometheus gauges) and are expected to be numbers
     // this will become a problem once we get to sequences that are bigger than Number.MAX_SAFE_INTEGER
     // We've got some time though
-    lastSeenSequence: Number(lastSeenSequence.toString()),
-    firstSeenSequence: Number(firstSeenSequence.toString()),
+    lastSeenSequence: Number(lastSeenSequence?.toString()),
+    firstSeenSequence: Number(firstSeenSequence?.toString()),
     lastSafeSequence: Number(lastSafeSequence?.toString() || "0"),
   };
 }
@@ -492,7 +493,7 @@ async function scanForSequenceLeaps(
 function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: number) {
   const lb = lowerBound || 0;
 
-  return redis.zrange(key, lb, "-1");
+  return redis.zrange(key, lb, -1);
 }
 
 async function setLastSafeSequence(
