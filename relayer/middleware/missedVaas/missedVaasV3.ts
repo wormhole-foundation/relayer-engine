@@ -147,7 +147,7 @@ async function startMissedVaasWorkers(
         let vaasFound = 0;
 
         filterLogger?.debug(
-          `Checking for missed vaas for Chain: ${emitterChain}`
+          `Checking for missed vaas.`
         );
         const startTime = Date.now();
         const redis = await redisPool.acquire();
@@ -320,6 +320,9 @@ async function checkForMissedVaas(
   const firstSeenSequence = seenSequences[0] || 0;
   let foundMissingSequences = false;
   if (seenSequences.length) {
+    const first = seenSequences[0];
+    const last = seenSequences[seenSequences.length - 1];
+    logger?.debug(`Checking for missing sequences between ${first} and ${last}`);
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
     const missingSequences = await scanForSequenceLeaps(seenSequences);
