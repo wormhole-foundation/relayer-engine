@@ -118,6 +118,25 @@ async function registerEventListeners(
   app.addListener(RelayerEvents.Skipped, markVaaSeen);
 }
 
+async function deleteExistingSeenVAAsData(
+  filters: FilterIdentifier[],
+  redisPool: Pool<Cluster | Redis>,
+  opts: MissedVaaOpts,
+) {
+  opts.logger?.info("Deleting existing VAAs and VAAs failed to fetch data. Will recreate index from redis-storage");
+  
+  const redis = await redisPool.acquire();
+
+  const pipeline = redis.pipeline();
+
+  for (const filter of filters) {
+    pipeline.del(getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
+    pipeline.del(getFailedToFetchKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
+  }
+
+  await pipeline.exec();
+}
+
 async function startMissedVaasWorkers(
   filters: FilterIdentifier[],
   redisPool: Pool<Cluster | Redis>,
@@ -125,6 +144,9 @@ async function startMissedVaasWorkers(
   opts: MissedVaaOpts,
   metrics: MissedVaaMetrics,
 ) {
+  if (opts.storagePrefix && opts.forceSeenKeysReindex) {
+    await deleteExistingSeenVAAsData(filters, redisPool, opts);
+  }
   // The prefix used by the storage to store workflows.
   // We'll use it to go into the queue, and build a map of what
   // sequences have already been processed according to the store
@@ -141,6 +163,7 @@ async function startMissedVaasWorkers(
     await mapConcurrent(
       filters,
       async filter => {
+        const { storagePrefix } = opts;
         const { emitterChain, emitterAddress } = filter;
         const filterLogger = opts.logger?.child({ emitterChain, emitterAddress });
 
@@ -151,20 +174,43 @@ async function startMissedVaasWorkers(
         );
         const startTime = Date.now();
         const redis = await redisPool.acquire();
+
+        // Sequences that we failed to fetch in previous iterations.
+        
+        const previousSafeSequence = await tryGetLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, filterLogger);        
+
         let missedVaas: MissedVaaRunStats;
+
         try {
-          missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts, filterLogger);
+          missedVaas = await checkForMissedVaas(filter, redis, processVaa, previousSafeSequence, opts, filterLogger);
         } catch (error) {
-          metrics.workerFailedRuns?.labels().inc();
           opts.logger?.error(
             `Error checking for missed vaas for filter: ${JSON.stringify(filter)}}`, error
           );
-        }
+
+          metrics.workerFailedRuns?.labels().inc();
+          metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
+
+          return;
+        } 
 
         redisPool.release(redis);
 
         metrics.workerSuccessfulRuns?.labels().inc();
         metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
+
+        const failedToFetchSequences = await tryGetAndLogExistingFailedSequences(redis, filter, opts);
+        const { firstSeenSequence, lastSeenSequence, lastSafeSequence } = calculateSequenceStats(missedVaas, failedToFetchSequences, previousSafeSequence);
+
+        if (lastSafeSequence > 0 && failedToFetchSequences !== null) {
+          filterLogger?.debug(`No missing sequences found up to sequence ${lastSeenSequence}. Setting as last sequence`);
+          await trySetLastSafeSequence(
+            redis,
+            storagePrefix,
+            emitterChain,
+            emitterAddress,
+            lastSafeSequence);
+        }
 
         const vaasProcessed = missedVaas.processed?.length || 0;
         // This are VAAs that were found missing between known sequences, but we failed
@@ -174,9 +220,10 @@ async function startMissedVaasWorkers(
         const vaasFailedToReprocess = missedVaas.failedToReprocess?.length || 0;
 
         vaasFound += vaasProcessed + vaasFailedToReprocess;
+
         const labels = { emitterChain: coalesceChainName(emitterChain as ChainId), emitterAddress };
         if (vaasFound > 0) {
-          filterLogger?.info(`Found missing VAAs (${vaasFound}). Sequences: ${JSON.stringify(missedVaas)}`)
+          filterLogger?.info(`Found missing VAAs (${vaasFound}). Enable debug to see a log with precise results.`)
           metrics.detectedVaas?.labels(labels).inc(vaasFound);
         }
 
@@ -192,18 +239,14 @@ async function startMissedVaasWorkers(
           metrics.failedToReprocess?.labels(labels).inc(vaasFailedToReprocess);
         }
 
-        filterLogger?.debug(`Finished missed vaas check. Results: ${JSON.stringify(missedVaas)}}`);
-
-        const { lastSeenSequence, firstSeenSequence, lastSafeSequence, foundMissingSequences } = missedVaas;
-
         metrics.lastSeenSequence?.labels(labels).set(lastSeenSequence);
         metrics.lastSafeSequence?.labels(labels).set(lastSafeSequence);
         metrics.firstSeenSequence?.labels(labels).set(firstSeenSequence);
-        metrics.missingSequences?.labels(labels).set(foundMissingSequences ? 1 : 0);
+        metrics.missingSequences?.labels(labels).set(missedVaas.missingSequences.length ? 1 : 0);
 
-        filterLogger?.info(
-          `Finished missed vaas check for emitterChain: ${emitterChain}. Found: ${vaasFound}`
-        );
+        filterLogger?.debug(`Finished missed vaas check. Results: ${JSON.stringify({
+          missedVaas, lastSafeSequence, lastSeenSequence, firstSeenSequence
+        })}}`);
       },
       opts.concurrency || 1,
     );
@@ -227,11 +270,6 @@ async function updateSeenSequences(
         filter.emitterChain,
         filter.emitterAddress
       );
-
-      if (opts.forceSeenKeysReindex) {
-        opts.logger?.info(`Deleting ${seenVaaKey} key to force reindexing of seen keys`);
-        await redis.del(seenVaaKey);
-      }
 
       scannedKeys += await scanNextBatchAndUpdateSeenSequences(redis, filter, opts.storagePrefix, seenVaaKey);
     }
@@ -274,77 +312,80 @@ async function scanNextBatchAndUpdateSeenSequences(
   return scannedKeys + nextBatchScannedKeys;
 }
 
-type MissedVaaRunStats = {
-  processed: string[],
-  failedToRecover: string[],
-  failedToReprocess: string[],
-  lastSeenSequence: number,
-  firstSeenSequence: number,
-  lastSafeSequence: number,
-  foundMissingSequences: boolean,
-};
+
+async function tryGetAndLogExistingFailedSequences(
+  redis: Cluster | Redis,
+  filter: FilterIdentifier,
+  opts: MissedVaaOpts,
+) {
+  const failedToFetchKey = getFailedToFetchKey(
+    opts.storagePrefix,
+    filter.emitterChain,
+    filter.emitterAddress
+  );
+
+  let failedToFetchSequences
+  
+  try {
+    failedToFetchSequences = await getDataFromSortedSet(redis, failedToFetchKey);
+  } catch (err) {
+    opts.logger?.error(
+      `Failed to get existing failed sequences from redis. Error: ${err.message}`
+    );
+    return null;
+  }
+  
+
+  if (failedToFetchSequences.length) {
+    opts.logger?.warn(
+      `Found sequences that we failed to get from wormhole-rpc. Sequences: `
+      + JSON.stringify(failedToFetchSequences)
+    );
+  }
+
+  return failedToFetchSequences;
+}
 
 async function checkForMissedVaas(
   filter: FilterIdentifier,
   redis: Cluster | Redis,
   processVaa: ProcessVaaFn,
+  previousSafeSequence: bigint,
   opts: MissedVaaOpts,
   logger?: Logger,
 ): Promise<MissedVaaRunStats> {
   const { storagePrefix } = opts;
   const { emitterChain, emitterAddress } = filter;
 
-  const failedToFetchKey = getFailedToFetchKey(storagePrefix, emitterChain, emitterAddress);
-
-  const failedToFetchSequences = await getDataFromSortedSet(redis, failedToFetchKey);
-
-  if (failedToFetchSequences.length) {
-    logger?.warn(
-      `Found sequences that we failed to get from wormhole-rpc for chain ${emitterChain}: `
-      + JSON.stringify(failedToFetchSequences)
-    );
-  }
-
-  const lastSafeSequence = await getLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, logger);
-
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
     emitterChain,
     emitterAddress,
-    lastSafeSequence
+    previousSafeSequence
   );
 
   const processed: string[] = [];
   const failedToRecover: string[] = [];
   const failedToReprocess: string[] = [];
-  const firstSeenSequence = seenSequences[0] || 0;
-  let foundMissingSequences = false;
+  let missingSequences: bigint[] = [];
+
   if (seenSequences.length) {
     const first = seenSequences[0];
     const last = seenSequences[seenSequences.length - 1];
     logger?.debug(`Checking for missing sequences between ${first} and ${last}`);
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
-    const missingSequences = await scanForSequenceLeaps(seenSequences);
-
-    foundMissingSequences = missingSequences.length >= 1;
-    if (foundMissingSequences) {
-      logger?.warn(`Found sequences with leap: ` + JSON.stringify(
-        missingSequences.map(s => s.toString()),
-      ));
-    }
-
-    else {
-      logger?.debug(`Found no sequences with leap.`);
-    }
+    missingSequences = await scanForSequenceLeaps(seenSequences);
 
     const pipeline = redis.pipeline();
     let pipelineTouched = false;
+
     await mapConcurrent(missingSequences, async (sequence) => {
       const vaaKey = { ...filter, sequence };
-      const seqString = sequence.toString();
       const seenVaaKey = getSeenVaaKey(storagePrefix, emitterChain, emitterAddress);
+      const failedToFetchKey = getFailedToFetchKey(storagePrefix, emitterChain, emitterAddress);
+      const seqString = sequence.toString();
 
       let vaaResponse;
       try {
@@ -395,53 +436,26 @@ async function checkForMissedVaas(
       try {
         await pipeline.exec();
       } catch (error) {
-        logger?.warn("Some VAAs were processed but failed to be marked as seen");
-        logger?.error("Error marking VAAs as failed: ", error);
+        logger?.error("Some VAAs were processed but failed to be marked as seen: ", error);
       }
-    }
-
-    const missingSequencesSuccesfullyReprocessed = pipelineTouched 
-      && failedToRecover.length === 0
-      && failedToReprocess.length === 0;
-    
-    const lastSeenSequence = seenSequences[seenSequences.length - 1].toString();
-
-    if (
-      lastSeenSequence &&
-      failedToFetchSequences.length === 0 &&
-      (!missingSequences.length || missingSequencesSuccesfullyReprocessed)
-    ) {
-      // there are no missing sequences up to `lastSeenSequence`. We can assume it's safe to scan
-      // from this point onwards next time
-      // We need to add `lastSeenSequence to the condition because redis-storage current implementation
-      // only keeps a certain amount of workflows in the queue, and so if we are getting many more messages
-      // from a chain than from otherone, we might run into the case in which we have no seen sequences
-      // even if we have processed some VAAs before for the chain.
-      // This is possible in the case this is the first time the worker runs or if you used the `forceSeenKeysReindex`
-      logger?.debug(`No missing sequences found up to sequence ${lastSeenSequence}. Setting as last sequence`)
-      await setLastSafeSequence(
-        redis,
-        storagePrefix,
-        emitterChain,
-        emitterAddress,
-        lastSeenSequence);
     }
   }
 
   // look ahead of greatest seen sequence in case the next vaa was missed
   // continue looking ahead until a vaa can't be fetched
   const lastSeq = seenSequences[seenSequences.length - 1];
-  const startingSeq = opts.startingSequenceConfig?.[emitterChain as ChainId];
-  let lastSeenSequence = lastSeq && startingSeq
-    ? lastSeq > startingSeq ? lastSeq : startingSeq // same as Math.max, which doesn't support bigint
-    : lastSeq || startingSeq;
+  const startingSeqConfig = opts.startingSequenceConfig?.[emitterChain as ChainId];
+  let lookAheadSequence = lastSeq && startingSeqConfig
+    ? lastSeq > startingSeqConfig ? lastSeq : startingSeqConfig // same as Math.max, which doesn't support bigint
+    : lastSeq || startingSeqConfig;
 
   logger?.info(`Looking ahead for missed VAAs from sequence: ${
-    lastSeenSequence
+    lookAheadSequence
   }`);
 
-  if (lastSeenSequence) {
-    for (let seq = lastSeenSequence + 1n; true; seq++) {
+  const lookAheadSequences: string[] = [];
+  if (lookAheadSequence) {
+    for (let seq = lookAheadSequence + 1n; true; seq++) {
       const vaaKey = { ...filter, sequence: seq };
 
       let vaa: GetSignedVAAResponse;
@@ -453,11 +467,13 @@ async function checkForMissedVaas(
 
       if (!vaa) break;
 
+      lookAheadSequences.push(seq.toString());
+
       logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
 
       try {
         await processVaa(Buffer.from(vaa.vaaBytes));
-        lastSeenSequence = seq;
+        lookAheadSequence = seq;
         processed.push(seq.toString());
       } catch (error) {
         logger?.error(`Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`, error);
@@ -473,14 +489,58 @@ async function checkForMissedVaas(
     processed,
     failedToRecover,
     failedToReprocess,
-    foundMissingSequences,
-    // Caveat: this values are used for metrics (prometheus gauges) and are expected to be numbers
-    // this will become a problem once we get to sequences that are bigger than Number.MAX_SAFE_INTEGER
-    // We've got some time though
-    lastSeenSequence: Number(lastSeenSequence?.toString()),
-    firstSeenSequence: Number(firstSeenSequence?.toString()),
-    lastSafeSequence: Number(lastSafeSequence?.toString() || "0"),
+    lookAheadSequences,
+    seenSequences: seenSequences.map(s => s.toString()),
+    missingSequences: missingSequences.map(s => s.toString()),
   };
+}
+
+type MissedVaaRunStats = {
+  processed: string[],
+  seenSequences: string[],
+  failedToRecover: string[],
+  failedToReprocess: string[],
+  lookAheadSequences: string[],
+  missingSequences: string[],
+};
+
+function calculateLastSafeSequence (runStats: MissedVaaRunStats, failedToFetchSequences: string[], previousSafeSequence: string): number {
+  if (failedToFetchSequences.length > 0) {
+    // we have sequences that we have failed to update before. We won't update the last
+    // safe sequence. Return the previous one, or 0 if there is none.
+    return Number(previousSafeSequence) || 0;
+  };
+
+  const { missingSequences, failedToRecover, failedToReprocess } = runStats;
+
+
+  const missingSequencesFailedToReprocess = failedToRecover.length === 0
+    && failedToReprocess.length === 0;
+
+  if (missingSequences.length > 0 && missingSequencesFailedToReprocess) {
+    // we found some missing sequences on this run, but we were able to reprocess them
+    // return the previous safe sequence, or 0 if there is none.
+    return Math.min(...missingSequences.map((seq) => Number(seq))) - 1;
+  }
+
+  // No missing sequences up to seenSequences
+  // if the there was vaas recovered by the lookahead, use that as the
+  // last safe sequence. Otherwise, use the last seen sequence.
+  const lastSafeSequence = runStats.lookAheadSequences.length > 0
+    ? runStats.lookAheadSequences[runStats.lookAheadSequences.length - 1]
+    : runStats.seenSequences[runStats.seenSequences.length - 1];
+
+  return Number(lastSafeSequence) || 0;
+}
+
+function calculateSequenceStats(runStats: MissedVaaRunStats, failedToFetchSequences: string[], previousSafeSequence: string) {
+  const { seenSequences } = runStats;
+
+  const lastSafeSequence = calculateLastSafeSequence(runStats, failedToFetchSequences, previousSafeSequence);
+  const lastSeenSequence = Math.max(Number(seenSequences[seenSequences.length - 1]), lastSafeSequence);
+  const firstSeenSequence = Number(seenSequences[0]) || 0;
+
+  return { lastSafeSequence, lastSeenSequence, firstSeenSequence}
 }
 
 async function scanForSequenceLeaps(
@@ -505,18 +565,18 @@ function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: 
   return redis.zrange(key, lb, -1);
 }
 
-async function setLastSafeSequence(
+async function trySetLastSafeSequence(
   redis: Redis | Cluster,
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  lastSeenSequence: string,
+  lastSeenSequence: number,
   logger?: Logger,
 ) {
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
   // since safe sequence is not critical, we'll swallow the error
   try {
-    await redis.set(key, lastSeenSequence.toString());
+    await redis.set(key, lastSeenSequence);
   } catch (error) {
     logger?.warn(`Error setting last safe sequence for chain: ${emitterChain}`, error);
     return false;
@@ -525,7 +585,7 @@ async function setLastSafeSequence(
   return true;
 }
 
-async function getLastSafeSequence(
+async function tryGetLastSafeSequence(
   redis: Redis | Cluster,
   prefix: string,
   emitterChain: number,
