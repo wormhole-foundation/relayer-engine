@@ -424,10 +424,9 @@ async function checkForMissedVaas(
         // We won't mark it as failed, so that it's retried on the next run of the missed VAA Worker.
         // We won't throw the error so that other vaas can be processed, but we'll add it to the list
         // of "failedToReprocess" so that we can log it and alert on it.
-        const vaaReadable = vaaKeyReadable(vaaKey);
         // If you see this log while troubleshooting, it probably means that there is an issue on the
         // relayer side since the VAA was successfully fetched but failed to be processed.
-        logger?.error(`Failed to reprocess vaa found missing. ${vaaReadable}`, error);
+        logger?.error(`Failed to reprocess vaa found missing. ${seqString}`, error);
         failedToReprocess.push(seqString);
       }
     }, opts.vaasFetchConcurrency);
@@ -802,6 +801,3 @@ export function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster
   return createPool(factory, poolOpts);
 }
 
-function vaaKeyReadable(key: VaaKey): string {
-  return `${coalesceChainName(key.emitterChain as ChainId)}(${key.emitterChain})/${key.sequence}`;
-}
