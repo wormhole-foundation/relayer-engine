@@ -449,6 +449,8 @@ async function checkForMissedVaas(
 
       if (!vaa) break;
 
+      logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
+
       try {
         await processVaa(Buffer.from(vaa.vaaBytes));
         lastSeenSequence = seq;
