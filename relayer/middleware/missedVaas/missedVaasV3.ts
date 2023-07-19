@@ -176,6 +176,7 @@ async function startMissedVaasWorkers(
         vaasFound += vaasProcessed + vaasFailedToReprocess;
         const labels = { emitterChain: coalesceChainName(emitterChain as ChainId), emitterAddress };
         if (vaasFound > 0) {
+          filterLogger?.info(`Found missing VAAs (${vaasFound}). Sequences: ${JSON.stringify(missedVaas)}`)
           metrics.detectedVaas?.labels(labels).inc(vaasFound);
         }
 
@@ -373,6 +374,7 @@ async function checkForMissedVaas(
 
       try {
         await processVaa(Buffer.from(vaaResponse.vaaBytes));
+        logger?.debug(`Recovered missing VAA ${seqString}`);
         pipelineTouched = true;
         pipeline.zadd(seenVaaKey, seqString, seqString);
         processed.push(seqString);
@@ -400,13 +402,15 @@ async function checkForMissedVaas(
 
     const missingSequencesSuccesfullyReprocessed = pipelineTouched 
       && failedToRecover.length === 0
-      && failedToReprocess.length === 0
-      && failedToFetchSequences.length === 0;
+      && failedToReprocess.length === 0;
     
     const lastSeenSequence = seenSequences[seenSequences.length - 1].toString();
 
-    if (!missingSequences.length || missingSequencesSuccesfullyReprocessed
-      && lastSeenSequence) {
+    if (
+      lastSeenSequence &&
+      failedToFetchSequences.length === 0 &&
+      (!missingSequences.length || missingSequencesSuccesfullyReprocessed)
+    ) {
       // there are no missing sequences up to `lastSeenSequence`. We can assume it's safe to scan
       // from this point onwards next time
       // We need to add `lastSeenSequence to the condition because redis-storage current implementation
