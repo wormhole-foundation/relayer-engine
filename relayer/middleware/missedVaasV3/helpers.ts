@@ -72,18 +72,17 @@ export function updateMetrics(
   sequenceStats: SequenceStats,
   ) {
   const { emitterChain, emitterAddress } = filter;
-  const vaasProcessed = missedVaas.processed?.length || 0;
+  const vaasProcessed = missedVaas.processed.length;
   // This are VAAs that were found missing between known sequences, but we failed
   // to fetch them to reprocess them
-  const vaasFailedToRecover = missedVaas.failedToRecover?.length || 0;
+  const vaasFailedToRecover = missedVaas.failedToRecover.length;
   // This are VAAs that were found but failed when trying to re-queue them
-  const vaasFailedToReprocess = missedVaas.failedToReprocess?.length || 0;
-
-  const vaasFound = missedVaas.missingSequences?.length || 0 + missedVaas.lookAheadSequences?.length || 0;
+  const vaasFailedToReprocess = missedVaas.failedToReprocess.length;
+  const vaasFound = missedVaas.missingSequences.length + missedVaas.lookAheadSequences.length;
 
   const labels = { emitterChain: coalesceChainName(emitterChain as ChainId), emitterAddress };
+  
   if (vaasFound > 0) {
-
     metrics.detectedVaas?.labels(labels).inc(vaasFound);
   }
 
