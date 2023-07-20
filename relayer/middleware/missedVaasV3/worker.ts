@@ -195,7 +195,7 @@ async function startMissedVaasWorkers(
             + JSON.stringify(failedToFetchSequencesOrError)
           );
         } else {
-          filterLogger?.info("No previous failed sequences found.");
+          filterLogger?.debug("No previous failed sequences found.");
         }
 
         const failedToFetchSequences = Array.isArray(failedToFetchSequencesOrError)
@@ -228,8 +228,9 @@ async function startMissedVaasWorkers(
           + missedVaas.lookAheadSequences.length;
 
         filterLogger?.info(
-          `Found missing VAAs (${vaasFound}). Enable debug to see a log with precise results.`
+          `Finished missed VAAs check. Found: ${vaasFound}. Enable debug to see a log with precise results.`
         );
+
         filterLogger?.debug(`Finished missed vaas check. Results: ${JSON.stringify({
           missedVaas, lastSafeSequence, lastSeenSequence, firstSeenSequence
         })}}`);
@@ -378,7 +379,7 @@ async function checkForMissedVaas(
   }
 
   else {
-    logger?.warn(`No VAAs seen and no starting sequence was configured. Won't check for missed VAAs.`);
+    logger?.warn(`No VAAs seen and no starting sequence was configured. Won't look ahead for missed VAAs.`);
   }
 
   return {
