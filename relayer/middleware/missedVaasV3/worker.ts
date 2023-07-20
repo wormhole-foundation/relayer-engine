@@ -65,14 +65,14 @@ export interface FilterIdentifier {
 
 type ProcessVaaFn = (x: Buffer) => Promise<void>;
 
-/**
- * 
- * @param app 
- * @param opts 
- */
+let metrics: MissedVaaMetrics;
+
 export function spawnMissedVaaWorker(app: RelayerApp<any>, opts: MissedVaaOpts): void {
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
-  const metrics: any = opts.registry ? initMetrics(opts.registry) : {};
+  if (!metrics) {
+    metrics = opts.registry ? initMetrics(opts.registry) : {};
+  }
+
   const redisPool = createRedisPool(opts);
 
   if (!app.filters.length) {
@@ -90,7 +90,7 @@ export function spawnMissedVaaWorker(app: RelayerApp<any>, opts: MissedVaaOpts):
     };
   });
   registerEventListeners(app, redisPool, opts);
-  startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts, metrics);
+  startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
 }
 
 
@@ -130,7 +130,6 @@ async function startMissedVaasWorkers(
   redisPool: Pool<Cluster | Redis>,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
-  metrics: MissedVaaMetrics,
 ) {
   if (opts.storagePrefix && opts.forceSeenKeysReindex) {
     await deleteExistingSeenVAAsData(filters, redisPool, opts);
