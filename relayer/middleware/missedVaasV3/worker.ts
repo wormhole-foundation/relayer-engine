@@ -48,7 +48,7 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
    * Untill that happens, we assume that if you pass in a storagePrefix property,
    * then you are using redis-storage
    */
-  storagePrefix: string;
+  storagePrefix?: string;
   // The minimal sequence number the VAA worker will assume that should exist, by chain ID.
   startingSequenceConfig?: Partial<Record<ChainId, bigint>>;
   // If true the key will remove the existing sorted set containing seen keys and reindex all keys
@@ -122,7 +122,6 @@ async function registerEventListeners(
   app.addListener(RelayerEvents.Added, markVaaSeen);
   app.addListener(RelayerEvents.Skipped, markVaaSeen);
 }
-
 
 async function startMissedVaasWorkers(
   filters: FilterIdentifier[],
