@@ -50,7 +50,7 @@ function calculateLastSafeSequence (
   if (missingSequences.length > 0 && missingSequencesFailedToReprocess) {
     // we found some missing sequences on this run, but we were able to reprocess them
     // return the previous safe sequence, or 0 if there is none.
-    return Math.min(...missingSequences.map((seq) => Number(seq))) - 1;
+    return Number(missingSequences[0]) - 1;
   }
 
   // No missing sequences up to seenSequences
@@ -60,7 +60,7 @@ function calculateLastSafeSequence (
     ? runStats.lookAheadSequences[runStats.lookAheadSequences.length - 1]
     : runStats.seenSequences[runStats.seenSequences.length - 1];
 
-  return previousSafeSequence ? Number(previousSafeSequence) : 0;
+  return lastSafeSequence ? Number(lastSafeSequence) : 0;
 }
 
 export function updateMetrics(
