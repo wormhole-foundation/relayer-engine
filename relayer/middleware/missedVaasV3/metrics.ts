@@ -1,18 +1,18 @@
 import { Registry, Counter, Histogram, Gauge } from "prom-client";
 
 export type MissedVaaMetrics = {
-  workerFailedRuns: Counter;
-  workerSuccessfulRuns: Counter;
-  recoveredVaas: Counter;
-  detectedVaas: Counter;
-  failedToReprocess: Counter;
-  failedToRecover: Counter;
-  workerRunDuration: Histogram;
-  workerWarmupDuration: Histogram;
-  lastSeenSequence: Gauge;
-  firstSeenSequence: Gauge;
-  lastSafeSequence: Gauge;
-  missingSequences: Gauge;
+  workerFailedRuns?: Counter;
+  workerSuccessfulRuns?: Counter;
+  recoveredVaas?: Counter;
+  detectedVaas?: Counter;
+  failedToReprocess?: Counter;
+  failedToRecover?: Counter;
+  workerRunDuration?: Histogram;
+  workerWarmupDuration?: Histogram;
+  lastSeenSequence?: Gauge;
+  firstSeenSequence?: Gauge;
+  lastSafeSequence?: Gauge;
+  missingSequences?: Gauge;
 };
 
 export function initMetrics(registry: Registry): MissedVaaMetrics {
