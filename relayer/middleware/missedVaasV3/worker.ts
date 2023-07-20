@@ -19,7 +19,7 @@ import {
   updateSeenSequences,
   trySetLastSafeSequence,
   tryGetLastSafeSequence,
-  getExistingFailedSequences,
+  tryGetExistingFailedSequences,
   getAllProcessedSeqsInOrder,
   getSeenVaaKey,
   getFailedToFetchKey,
@@ -161,17 +161,15 @@ async function startMissedVaasWorkers(
         const { emitterChain, emitterAddress } = filter;
         const filterLogger = opts.logger?.child({ emitterChain, emitterAddress });
 
-        let vaasFound = 0;
-
         filterLogger?.debug(
           `Checking for missed vaas.`
         );
         const startTime = Date.now();
         const redis = await redisPool.acquire();
 
-        // Sequences that we failed to fetch in previous iterations.
-        
-        const previousSafeSequence = await tryGetLastSafeSequence(redis, storagePrefix, emitterChain, emitterAddress, filterLogger);        
+        const previousSafeSequence = await tryGetLastSafeSequence(
+          redis, storagePrefix, emitterChain, emitterAddress, filterLogger
+        );
 
         let missedVaas: MissedVaaRunStats;
 
@@ -193,18 +191,24 @@ async function startMissedVaasWorkers(
         metrics.workerSuccessfulRuns?.labels().inc();
         metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
 
-        const failedToFetchSequences = await getExistingFailedSequences(redis, filter, opts);
-        if (!failedToFetchSequences) {
+        // TODO: this is an ugly way to get the error
+        const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(redis, filter, opts);
+        if (!Array.isArray(failedToFetchSequencesOrError)) {
           opts.logger?.error(
             `Failed to get existing failed sequences from redis.`
           );
-        } else if (failedToFetchSequences.length) {
+        } else if (failedToFetchSequencesOrError.length) {
           opts.logger?.warn(
             `Found sequences that we failed to get from wormhole-rpc. Sequences: `
-            + JSON.stringify(failedToFetchSequences)
+            + JSON.stringify(failedToFetchSequencesOrError)
           );
+        } else {
+          opts.logger?.info("No previous failed sequences found.");
         }
 
+        const failedToFetchSequences = Array.isArray(failedToFetchSequencesOrError)
+          ? failedToFetchSequencesOrError
+          : null;
 
         const sequenceStats = calculateSequenceStats(
           missedVaas,
@@ -228,9 +232,12 @@ async function startMissedVaasWorkers(
 
         updateMetrics(metrics, filter, missedVaas, sequenceStats);
 
-        // filterLogger?.info(
-        //   `Found missing VAAs (${vaasFound}). Enable debug to see a log with precise results.`
-        // );
+        const vaasFound = missedVaas.missingSequences.length
+          + missedVaas.lookAheadSequences.length;
+
+        filterLogger?.info(
+          `Found missing VAAs (${vaasFound}). Enable debug to see a log with precise results.`
+        );
         filterLogger?.debug(`Finished missed vaas check. Results: ${JSON.stringify({
           missedVaas, lastSafeSequence, lastSeenSequence, firstSeenSequence
         })}}`);
