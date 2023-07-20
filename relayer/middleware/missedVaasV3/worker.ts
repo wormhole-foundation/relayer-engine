@@ -186,16 +186,16 @@ async function startMissedVaasWorkers(
         // TODO: this is an ugly way to handle the error
         const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(redis, filter, opts);
         if (!Array.isArray(failedToFetchSequencesOrError)) {
-          opts.logger?.error(
+          filterLogger?.error(
             `Failed to get existing failed sequences from redis.`
           );
         } else if (failedToFetchSequencesOrError.length) {
-          opts.logger?.warn(
+          filterLogger?.warn(
             `Found sequences that we failed to get from wormhole-rpc. Sequences: `
             + JSON.stringify(failedToFetchSequencesOrError)
           );
         } else {
-          opts.logger?.info("No previous failed sequences found.");
+          filterLogger?.info("No previous failed sequences found.");
         }
 
         const failedToFetchSequences = Array.isArray(failedToFetchSequencesOrError)
@@ -252,13 +252,14 @@ async function checkForMissedVaas(
 ): Promise<MissedVaaRunStats> {
   const { storagePrefix } = opts;
   const { emitterChain, emitterAddress } = filter;
+  const startingSeqConfig = opts.startingSequenceConfig?.[emitterChain as ChainId];
 
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
     emitterChain,
     emitterAddress,
-    previousSafeSequence
+    startingSeqConfig ? BigInt(startingSeqConfig) : previousSafeSequence
   );
 
   const processed: string[] = [];
@@ -339,7 +340,7 @@ async function checkForMissedVaas(
   // look ahead of greatest seen sequence in case the next vaa was missed
   // continue looking ahead until a vaa can't be fetched
   const lastSeq = seenSequences[seenSequences.length - 1];
-  const startingSeqConfig = opts.startingSequenceConfig?.[emitterChain as ChainId];
+
   let lookAheadSequence = lastSeq && startingSeqConfig
     ? lastSeq > startingSeqConfig ? lastSeq : startingSeqConfig // same as Math.max, which doesn't support bigint
     : lastSeq || startingSeqConfig;
