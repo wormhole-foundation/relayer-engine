@@ -167,7 +167,7 @@ async function startMissedVaasWorkers(
         let missedVaas: MissedVaaRunStats;
 
         try {
-          missedVaas = await checkForMissedVaas(filter, redis, processVaa, previousSafeSequence, opts, filterLogger);
+          missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts, previousSafeSequence, filterLogger);
         } catch (error) {
           opts.logger?.error(
             `Error checking for missed vaas for filter: ${JSON.stringify(filter)}}`, error
@@ -206,7 +206,7 @@ async function startMissedVaasWorkers(
         const sequenceStats = calculateSequenceStats(
           missedVaas,
           failedToFetchSequences,
-          previousSafeSequence.toString()
+          previousSafeSequence?.toString()
         );
 
         const { lastSafeSequence, lastSeenSequence, firstSeenSequence } = sequenceStats;
@@ -247,8 +247,8 @@ async function checkForMissedVaas(
   filter: FilterIdentifier,
   redis: Cluster | Redis,
   processVaa: ProcessVaaFn,
-  previousSafeSequence: bigint,
   opts: MissedVaaOpts,
+  previousSafeSequence?: bigint,
   logger?: Logger,
 ): Promise<MissedVaaRunStats> {
   const { storagePrefix } = opts;
