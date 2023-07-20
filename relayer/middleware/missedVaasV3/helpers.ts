@@ -79,7 +79,7 @@ export function updateMetrics(
   // This are VAAs that were found but failed when trying to re-queue them
   const vaasFailedToReprocess = missedVaas.failedToReprocess?.length || 0;
 
-  const vaasFound = vaasProcessed + vaasFailedToReprocess;
+  const vaasFound = missedVaas.missingSequences?.length || 0 + missedVaas.lookAheadSequences?.length || 0;
 
   const labels = { emitterChain: coalesceChainName(emitterChain as ChainId), emitterAddress };
   if (vaasFound > 0) {
