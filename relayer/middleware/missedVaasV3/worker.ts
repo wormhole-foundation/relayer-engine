@@ -271,7 +271,7 @@ async function checkForMissedVaas(
   if (seenSequences.length) {
     const first = seenSequences[0];
     const last = seenSequences[seenSequences.length - 1];
-    logger?.debug(`Checking for missing sequences between ${first} and ${last}`);
+    logger?.info(`Scanning sequences from ${first} to ${last} for missing sequences`);
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
     missingSequences = await scanForSequenceLeaps(seenSequences);
