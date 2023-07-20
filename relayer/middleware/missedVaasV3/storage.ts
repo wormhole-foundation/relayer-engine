@@ -103,7 +103,7 @@ export async function tryGetLastSafeSequence(
   emitterChain: number,
   emitterAddress: string,
   logger?: Logger,
-): Promise<bigint> {
+): Promise<bigint|null> {
   // since safe sequence is not critical, we'll swallow the error
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
   let lastSafeSequence: string;
