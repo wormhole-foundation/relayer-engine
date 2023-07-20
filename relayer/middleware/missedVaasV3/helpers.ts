@@ -38,8 +38,8 @@ function calculateLastSafeSequence (
 ): number {
   if (failedToFetchSequences && failedToFetchSequences.length > 0) {
     // we have sequences that we have failed to update before. We won't update the last
-    // safe sequence. Return the previous one, or 0 if there is none.
-    return previousSafeSequence ? Number(previousSafeSequence) : 0;
+    // safe sequence. Return the the last sequence before the first one we failed to fetch.
+    return Number(failedToFetchSequences[0]) - 1;
   };
 
   const { missingSequences, failedToRecover, failedToReprocess } = runStats;
@@ -56,11 +56,13 @@ function calculateLastSafeSequence (
   // No missing sequences up to seenSequences
   // if the there was vaas recovered by the lookahead, use that as the
   // last safe sequence. Otherwise, use the last seen sequence.
-  const lastSafeSequence = runStats.lookAheadSequences.length > 0
+  const lastSeenSequence = runStats.lookAheadSequences.length > 0
     ? runStats.lookAheadSequences[runStats.lookAheadSequences.length - 1]
     : runStats.seenSequences[runStats.seenSequences.length - 1];
 
-  return lastSafeSequence ? Number(lastSafeSequence) : 0;
+  return lastSeenSequence
+    ? Number(lastSeenSequence)
+    : previousSafeSequence ? Number(previousSafeSequence) : 0;
 }
 
 export function updateMetrics(
