@@ -259,7 +259,7 @@ async function checkForMissedVaas(
     storagePrefix,
     emitterChain,
     emitterAddress,
-    startingSeqConfig ? BigInt(startingSeqConfig) : previousSafeSequence
+    previousSafeSequence
   );
 
   const processed: string[] = [];
