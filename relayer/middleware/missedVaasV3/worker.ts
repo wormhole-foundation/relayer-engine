@@ -212,7 +212,7 @@ async function startMissedVaasWorkers(
 
         if (lastSafeSequence > 0 && failedToFetchSequences !== null) {
           filterLogger?.debug(
-            `No missing sequences found up to sequence ${lastSeenSequence}. Setting as last sequence`
+            `No missing sequences found up to sequence ${lastSafeSequence}. Setting as last sequence`
           );
           await trySetLastSafeSequence(
             redis,
