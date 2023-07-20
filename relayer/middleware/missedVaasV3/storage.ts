@@ -117,7 +117,7 @@ export async function tryGetLastSafeSequence(
   return lastSafeSequence ? BigInt(lastSafeSequence) : null;
 }
 
-export async function getExistingFailedSequences(
+export async function tryGetExistingFailedSequences(
   redis: Cluster | Redis,
   filter: FilterIdentifier,
   opts: MissedVaaOpts,
@@ -132,8 +132,8 @@ export async function getExistingFailedSequences(
   
   try {
     failedToFetchSequences = await getDataFromSortedSet(redis, failedToFetchKey);
-  } catch (err) {
-    return null;
+  } catch (error) {
+    return error;
   }
 
   return failedToFetchSequences;

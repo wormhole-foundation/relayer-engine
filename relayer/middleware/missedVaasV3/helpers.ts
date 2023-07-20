@@ -31,15 +31,18 @@ export function calculateSequenceStats(
   return { lastSafeSequence, lastSeenSequence, firstSeenSequence}
 }
 
-function calculateLastSafeSequence (runStats: MissedVaaRunStats, failedToFetchSequences: string[], previousSafeSequence: string): number {
-  if (failedToFetchSequences.length > 0) {
+function calculateLastSafeSequence (
+  runStats: MissedVaaRunStats,
+  failedToFetchSequences: string[],
+  previousSafeSequence: string
+): number {
+  if (failedToFetchSequences && failedToFetchSequences.length > 0) {
     // we have sequences that we have failed to update before. We won't update the last
     // safe sequence. Return the previous one, or 0 if there is none.
     return Number(previousSafeSequence) || 0;
   };
 
   const { missingSequences, failedToRecover, failedToReprocess } = runStats;
-
 
   const missingSequencesFailedToReprocess = failedToRecover.length === 0
     && failedToReprocess.length === 0;
