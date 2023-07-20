@@ -93,7 +93,6 @@ export function spawnMissedVaaWorker(app: RelayerApp<any>, opts: MissedVaaOpts):
   startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
 }
 
-
 async function registerEventListeners(
   app: RelayerApp<any>,
   redisPool: Pool<Redis | Cluster>,
