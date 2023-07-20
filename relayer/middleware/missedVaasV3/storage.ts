@@ -39,7 +39,7 @@ export async function deleteExistingSeenVAAsData(
   redisPool: Pool<Cluster | Redis>,
   opts: MissedVaaOpts,
 ) {
-  opts.logger?.info("Deleting existing VAAs and VAAs failed to fetch data. Will recreate index from redis-storage");
+  opts.logger?.info("Deleting existing VAAs and failed VAAs. Will recreate index from redis-storage");
   
   const redis = await redisPool.acquire();
 
@@ -51,6 +51,8 @@ export async function deleteExistingSeenVAAsData(
   }
 
   await pipeline.exec();
+
+  redisPool.release(redis);
 }
 
 export async function updateSeenSequences(
