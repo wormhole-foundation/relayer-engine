@@ -58,12 +58,6 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
   forceSeenKeysReindex?: boolean;
 }
 
-export interface VaaKey {
-  emitterChain: number;
-  emitterAddress: string;
-  sequence: bigint;
-}
-
 export interface FilterIdentifier {
   emitterChain: number;
   emitterAddress: string;
@@ -191,7 +185,7 @@ async function startMissedVaasWorkers(
         metrics.workerSuccessfulRuns?.labels().inc();
         metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
 
-        // TODO: this is an ugly way to get the error
+        // TODO: this is an ugly way to handle the error
         const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(redis, filter, opts);
         if (!Array.isArray(failedToFetchSequencesOrError)) {
           opts.logger?.error(
@@ -286,14 +280,14 @@ async function checkForMissedVaas(
     let pipelineTouched = false;
 
     await mapConcurrent(missingSequences, async (sequence) => {
-      const vaaKey = { ...filter, sequence };
+      const vaa = { ...filter, sequence: sequence.toString() } as SerializableVaaId;
       const seenVaaKey = getSeenVaaKey(storagePrefix, emitterChain, emitterAddress);
       const failedToFetchKey = getFailedToFetchKey(storagePrefix, emitterChain, emitterAddress);
       const seqString = sequence.toString();
 
       let vaaResponse;
       try {
-        vaaResponse = await tryFetchVaa(vaaKey, opts, opts.fetchVaaRetries);
+        vaaResponse = await tryFetchVaa(vaa, opts, opts.fetchVaaRetries);
         if (!vaaResponse) {
           // this is a sequence that we found in the middle of two other sequences we processed,
           // so we can consider this VAA not existing an error.
@@ -359,7 +353,7 @@ async function checkForMissedVaas(
   const lookAheadSequences: string[] = [];
   if (lookAheadSequence) {
     for (let seq = lookAheadSequence + 1n; true; seq++) {
-      const vaaKey = { ...filter, sequence: seq };
+      const vaaKey = { ...filter, sequence: seq.toString() } as SerializableVaaId;
 
       let vaa: GetSignedVAAResponse;
       try {
@@ -414,7 +408,7 @@ async function scanForSequenceLeaps(
   return missing;
 }
 
-async function tryFetchVaa(vaaKey: VaaKey, opts: MissedVaaOpts, retries: number = 2): Promise<GetSignedVAAResponse> {
+async function tryFetchVaa(vaaKey: SerializableVaaId, opts: MissedVaaOpts, retries: number = 2): Promise<GetSignedVAAResponse> {
   let vaa;
   const stack = new Error().stack;
   try {
@@ -422,7 +416,7 @@ async function tryFetchVaa(vaaKey: VaaKey, opts: MissedVaaOpts, retries: number 
       opts.wormholeRpcs,
       vaaKey.emitterChain as ChainId,
       vaaKey.emitterAddress,
-      vaaKey.sequence.toString(),
+      vaaKey.sequence,
       { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
       100,
       retries,
