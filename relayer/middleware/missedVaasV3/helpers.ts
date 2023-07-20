@@ -20,7 +20,7 @@ export type SequenceStats = {
 export function calculateSequenceStats(
   runStats: MissedVaaRunStats,
   failedToFetchSequences: string[],
-  previousSafeSequence: string
+  previousSafeSequence?: string
 ): SequenceStats {
   const { seenSequences } = runStats;
 
@@ -34,12 +34,12 @@ export function calculateSequenceStats(
 function calculateLastSafeSequence (
   runStats: MissedVaaRunStats,
   failedToFetchSequences: string[],
-  previousSafeSequence: string
+  previousSafeSequence?: string
 ): number {
   if (failedToFetchSequences && failedToFetchSequences.length > 0) {
     // we have sequences that we have failed to update before. We won't update the last
     // safe sequence. Return the previous one, or 0 if there is none.
-    return Number(previousSafeSequence) || 0;
+    return previousSafeSequence ? Number(previousSafeSequence) : 0;
   };
 
   const { missingSequences, failedToRecover, failedToReprocess } = runStats;
@@ -60,7 +60,7 @@ function calculateLastSafeSequence (
     ? runStats.lookAheadSequences[runStats.lookAheadSequences.length - 1]
     : runStats.seenSequences[runStats.seenSequences.length - 1];
 
-  return Number(lastSafeSequence) || 0;
+  return previousSafeSequence ? Number(previousSafeSequence) : 0;
 }
 
 export function updateMetrics(
