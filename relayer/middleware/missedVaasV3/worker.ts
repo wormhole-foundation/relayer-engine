@@ -153,9 +153,6 @@ async function startMissedVaasWorkers(
         const { emitterChain, emitterAddress } = filter;
         const filterLogger = opts.logger?.child({ emitterChain, emitterAddress });
 
-        filterLogger?.debug(
-          `Checking for missed vaas.`
-        );
         const startTime = Date.now();
         const redis = await redisPool.acquire();
 
