@@ -48,6 +48,7 @@ export async function deleteExistingSeenVAAsData(
   for (const filter of filters) {
     pipeline.del(getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
     pipeline.del(getFailedToFetchKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
+    pipeline.del(getSafeSequenceKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
   }
 
   await pipeline.exec();
