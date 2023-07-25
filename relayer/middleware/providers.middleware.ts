@@ -177,11 +177,12 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
       );
 
       logger?.debug(`Providers initializing... ${JSON.stringify(supportedChains)}`);
-      providers = await buildProviders(supportedChains);
-      logger?.debug(`Providers Initialized: ${JSON.stringify(providers)}`);
+      providers = await buildProviders(supportedChains, logger);
+      logger?.debug(`Providers Initialized succesfully.`);
     }
+
     ctx.providers = providers;
-    ctx.logger?.debug("Providers attached to context");
+    
     await next();
   };
 }
