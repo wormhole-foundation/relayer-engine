@@ -251,7 +251,11 @@ async function buildProviders(
     } catch (error) {
       error.originalStack = error.stack;
       error.stack = new Error().stack;
+<<<<<<< HEAD
       logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `, error);
+=======
+      logger?.error(`Failed to initialize provider: chainId: ${chainIdStr} - endpoints: ${endpoints}. Error: ${error}`);
+>>>>>>> 61ec52e (add error handling to providers middleware)
       throw error;
     }
   }
