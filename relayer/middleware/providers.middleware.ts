@@ -58,7 +58,6 @@ export type ChainConfigInfo = {
 
 export interface ProvidersOpts {
   chains: Partial<ChainConfigInfo>;
-  supportedChains?: string[];
 }
 
 const defaultSupportedChains = {
@@ -181,7 +180,7 @@ function pick(
  * providers is a middleware that populates `ctx.providers` with provider information
  * @param opts
  */
-export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
+export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Middleware<ProviderContext> {
   let providers: Providers;
 
   return async (ctx: ProviderContext, next) => {
@@ -195,18 +194,18 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
       // If no config is passed, we'll start providers for all default chains
       const environmentDefaultSupportedChains = defaultSupportedChains[ctx.env];
 
-      const defaultChains = opts.supportedChains
-        ? pick(environmentDefaultSupportedChains, opts.supportedChains)
+      const defaultChains = supportedChains
+        ? pick(environmentDefaultSupportedChains, supportedChains)
         : environmentDefaultSupportedChains;
 
-      const supportedChains = Object.assign(
+      const chains = Object.assign(
         {},
         defaultChains,
         opts?.chains,
       );
 
-      logger?.debug(`Providers initializing... ${JSON.stringify(supportedChains)}`);
-      providers = await buildProviders(supportedChains, logger);
+      logger?.debug(`Providers initializing... ${JSON.stringify(chains)}`);
+      providers = await buildProviders(chains, logger);
       logger?.debug(`Providers Initialized succesfully.`);
     }
 
