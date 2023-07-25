@@ -58,6 +58,7 @@ export type ChainConfigInfo = {
 
 export interface ProvidersOpts {
   chains: Partial<ChainConfigInfo>;
+  supportedChains?: string[];
 }
 
 const defaultSupportedChains = {
@@ -131,7 +132,12 @@ const defaultSupportedChains = {
       websockets: [sui.testnetConnection.websocket],
     },
     [CHAIN_ID_SEI]: {
-      endpoints: ["https://sei.kingnodes.com"],
+      endpoints: [
+        // network is sei-devnet-3
+        "https://rpc.sei-devnet-3.seinetwork.io",
+        "https://sei_devnet-testnet-rpc.polkachu.com",
+        "https://sei-devnet-rpc.brocha.in",
+      ],
     },
     [CHAIN_ID_KLAYTN]: {
       endpoints: ["https://public-en-cypress.klaytn.net"],
@@ -159,6 +165,18 @@ const defaultSupportedChains = {
   },
 };
 
+function pick(
+  obj: Record<string, any>,
+  keys: string[],
+): any {
+  return keys.reduce((acc: Record<string, any>, key: string) => {
+    if (obj[key]) {
+      acc[key] = obj[key];
+    }
+    return acc;
+  }, {});
+};
+
 /**
  * providers is a middleware that populates `ctx.providers` with provider information
  * @param opts
@@ -170,9 +188,20 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
     const logger = ctx.logger?.child({ module: "providers" });
 
     if (!providers) {
+      // it makes no sense to start providers for all default
+      // chains, we should only start providers for the chains the relayer
+      // will use.
+      // The config is optional because of backwards compatibility
+      // If no config is passed, we'll start providers for all default chains
+      const environmentDefaultSupportedChains = defaultSupportedChains[ctx.env];
+
+      const defaultChains = opts.supportedChains
+        ? pick(environmentDefaultSupportedChains, opts.supportedChains)
+        : environmentDefaultSupportedChains;
+
       const supportedChains = Object.assign(
         {},
-        defaultSupportedChains[ctx.env],
+        defaultChains,
         opts?.chains,
       );
 
@@ -232,9 +261,10 @@ async function buildProviders(
     } catch (error) {
       error.originalStack = error.stack;
       error.stack = new Error().stack;
-      logger?.error(`Failed to initialize provider: chainId: ${chainIdStr} - endpoints: ${endpoints}. Error: ${error}`);
+      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: ${error}`);
       throw error;
     }
   }
+  
   return providers;
 }
