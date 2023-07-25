@@ -30,6 +30,7 @@ import * as sui from "@mysten/sui.js";
 import { Environment } from "../environment";
 import { getCosmWasmClient } from "@sei-js/core";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { Logger } from "winston";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
@@ -166,10 +167,18 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
   let providers: Providers;
 
   return async (ctx: ProviderContext, next) => {
+    const logger = ctx.logger?.child({ module: "providers" });
+
     if (!providers) {
-      ctx.logger?.debug(`Providers initializing...`);
-      providers = await buildProviders(ctx.env, opts);
-      ctx.logger?.debug(`Providers Initialized`);
+      const supportedChains = Object.assign(
+        {},
+        defaultSupportedChains[ctx.env],
+        opts?.chains,
+      );
+
+      logger?.debug(`Providers initializing... ${JSON.stringify(supportedChains)}`);
+      providers = await buildProviders(supportedChains);
+      logger?.debug(`Providers Initialized: ${JSON.stringify(providers)}`);
     }
     ctx.providers = providers;
     ctx.logger?.debug("Providers attached to context");
@@ -178,8 +187,8 @@ export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
 }
 
 async function buildProviders(
-  env: Environment,
-  opts?: ProvidersOpts,
+  supportedChains: Partial<ChainConfigInfo>,
+  logger?: Logger,
 ): Promise<Providers> {
   const supportedChains = Object.assign(
     {},
@@ -196,26 +205,34 @@ async function buildProviders(
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
     const chainId = Number(chainIdStr) as ChainId;
     const { endpoints, faucets, websockets } = chainCfg;
-    if (isEVMChain(chainId)) {
-      providers.evm[chainId] = endpoints.map(
-        url => new ethers.providers.JsonRpcProvider(url),
-      );
-    } else if (chainId === CHAIN_ID_SOLANA) {
-      providers.solana = endpoints.map(url => new solana.Connection(url));
-    } else if (chainId === CHAIN_ID_SUI) {
-      providers.sui = endpoints.map((url, i) => {
-        let conn = new sui.Connection({
-          fullnode: url,
-          faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
-          websocket: (websockets && websockets[i]) || websockets[0], // same as above
+
+    try {
+      if (isEVMChain(chainId)) {
+        providers.evm[chainId] = endpoints.map(
+          url => new ethers.providers.JsonRpcProvider(url),
+        );
+      } else if (chainId === CHAIN_ID_SOLANA) {
+        providers.solana = endpoints.map(url => new solana.Connection(url));
+      } else if (chainId === CHAIN_ID_SUI) {
+        providers.sui = endpoints.map((url, i) => {
+          let conn = new sui.Connection({
+            fullnode: url,
+            faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
+            websocket: (websockets && websockets[i]) || websockets[0], // same as above
+          });
+          return new sui.JsonRpcProvider(conn);
         });
-        return new sui.JsonRpcProvider(conn);
-      });
-    } else if (chainId === CHAIN_ID_SEI) {
-      const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
-      providers.sei = await Promise.all(seiProviderPromises);
-    } else {
-      providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
+      } else if (chainId === CHAIN_ID_SEI) {
+        const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
+        providers.sei = await Promise.all(seiProviderPromises);
+      } else {
+        providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
+      }
+    } catch (error) {
+      error.originalStack = error.stack;
+      error.stack = new Error().stack;
+      logger?.error(`Failed to initialize provider: chainId: ${chainIdStr} - endpoints: ${endpoints}. Error: ${error}`);
+      throw error;
     }
   }
   return providers;
