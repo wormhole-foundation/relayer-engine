@@ -97,7 +97,7 @@ const defaultSupportedChains = {
     },
   },
   [Environment.TESTNET]: {
-    [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
+    // [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
     [CHAIN_ID_SOLANA]: {
       endpoints: ["https://api.devnet.solana.com"],
     },
