@@ -9,7 +9,7 @@ import {
   RedisOptions,
 } from "ioredis";
 import { createStorageMetrics, StorageMetrics } from "../storage.metrics";
-import { Counter, Gauge, Histogram, Registry } from "prom-client";
+import { Registry } from "prom-client";
 import { sleep } from "../utils";
 import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
@@ -65,6 +65,8 @@ export interface StorageOptions extends RedisConnectionOpts {
   queueName: string;
   attempts: number;
   concurrency?: number;
+  removeOnComplete?: number;
+  removeOnFail?: number;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -74,12 +76,14 @@ const defaultOptions: Partial<StorageOptions> = {
   redis: {},
   queueName: "relays",
   concurrency: 3,
+  removeOnComplete: 10_000,
+  removeOnFail: 10_000,
 };
 
 export class RedisStorage implements Storage {
   logger: Logger;
-  vaaQueue: Queue<JobData, string[], string>;
-  private worker: Worker<JobData, void, string>;
+  vaaQueue: Queue<JobData, string[]>;
+  private worker: Worker<JobData, void>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
   public registry: Registry;
@@ -130,8 +134,8 @@ export class RedisStorage implements Storage {
       },
       {
         jobId: id,
-        removeOnComplete: 1000,
-        removeOnFail: 5000,
+        removeOnComplete: this.opts.removeOnComplete,
+        removeOnFail: this.opts.removeOnFail,
         attempts: this.opts.attempts,
       },
     );

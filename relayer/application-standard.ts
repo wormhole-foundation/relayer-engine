@@ -44,6 +44,8 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   fetchSourceTxhash?: boolean;
+  removeOnComplete?: number;
+  removeOnFail?: number;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -53,6 +55,8 @@ const defaultOpts: Partial<StandardRelayerAppOpts> = {
   },
   fetchSourceTxhash: true,
   logger: defaultLogger,
+  removeOnComplete: 1_000,
+  removeOnFail: 5_000,
 };
 
 export type StandardRelayerContext = LoggingContext &
@@ -93,6 +97,8 @@ export class StandardRelayerApp<
       attempts: opts.workflows.retries ?? 3,
       namespace: name,
       queueName: `${name}-relays`,
+      removeOnComplete: opts.removeOnComplete,
+      removeOnFail: opts.removeOnFail,
     });
 
     this.mergedRegistry = Registry.merge([
