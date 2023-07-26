@@ -214,11 +214,6 @@ async function buildProviders(
   supportedChains: Partial<ChainConfigInfo>,
   logger?: Logger,
 ): Promise<Providers> {
-  const supportedChains = Object.assign(
-    {},
-    defaultSupportedChains[env],
-    opts?.chains,
-  );
   const providers: Providers = {
     evm: {},
     solana: [],
