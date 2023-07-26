@@ -131,12 +131,7 @@ const defaultSupportedChains = {
       websockets: [sui.testnetConnection.websocket],
     },
     [CHAIN_ID_SEI]: {
-      endpoints: [
-        // network is sei-devnet-3
-        "https://rpc.sei-devnet-3.seinetwork.io",
-        "https://sei_devnet-testnet-rpc.polkachu.com",
-        "https://sei-devnet-rpc.brocha.in",
-      ],
+      endpoints: ["https://sei-testnet-2-rpc.brocha.in"],
     },
     [CHAIN_ID_KLAYTN]: {
       endpoints: ["https://public-en-cypress.klaytn.net"],
@@ -206,7 +201,7 @@ export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Mid
 
       logger?.debug(`Providers initializing... ${JSON.stringify(chains)}`);
       providers = await buildProviders(chains, logger);
-      logger?.debug(`Providers Initialized succesfully.`);
+      logger?.debug(`Providers initialized succesfully.`);
     }
 
     ctx.providers = providers;
