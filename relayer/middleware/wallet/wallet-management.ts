@@ -18,6 +18,7 @@ import {
 
 import {
   CHAIN_ID_AVAX,
+  CHAIN_ID_BASE,
   CHAIN_ID_FANTOM,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SEI,
@@ -36,6 +37,7 @@ const networks = {
     [CHAIN_ID_FANTOM]: "mainnet",
     [CHAIN_ID_MOONBEAM]: "moonbeam-mainnet",
     [CHAIN_ID_SUI]: "mainnet",
+    [CHAIN_ID_BASE]: "mainnet",
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ETH]: "goerli",
@@ -47,6 +49,7 @@ const networks = {
     [CHAIN_ID_FANTOM]: "testnet",
     [CHAIN_ID_MOONBEAM]: "moonbase-alpha",
     [CHAIN_ID_SUI]: "testnet",
+    [CHAIN_ID_BASE]: "goerli",
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: "devnet",
