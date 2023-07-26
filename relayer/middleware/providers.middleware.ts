@@ -11,6 +11,7 @@ import {
   CHAIN_ID_SEI,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
+  CHAIN_ID_BASE,
   ChainId,
   EVMChainId,
   isEVMChain,
@@ -90,6 +91,9 @@ const defaultSupportedChains = {
     [CHAIN_ID_OPTIMISM]: {
       endpoints: ["https://optimism.api.onfinality.io/public"],
     },
+    [CHAIN_ID_BASE]: {
+      endpoints: ["https://developer-access-mainnet.base.org"],
+    },
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
@@ -139,6 +143,9 @@ const defaultSupportedChains = {
         "https://arbitrum-goerli.public.blastapi.io",
         "https://arbitrum-goerli.publicnode.com",
       ],
+    },
+    [CHAIN_ID_BASE]: {
+      endpoints: ["https://goerli.base.org"],
     },
   },
   [Environment.DEVNET]: {
