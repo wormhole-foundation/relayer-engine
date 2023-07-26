@@ -92,8 +92,8 @@ const defaultSupportedChains = {
       endpoints: ["https://optimism.api.onfinality.io/public"],
     },
     [CHAIN_ID_BASE]: {
-      endpoints: ["https://developer-access-mainnet.base.org"]
-    }
+      endpoints: ["https://developer-access-mainnet.base.org"],
+    },
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
@@ -145,8 +145,8 @@ const defaultSupportedChains = {
       ],
     },
     [CHAIN_ID_BASE]: {
-      endpoints: ["https://goerli.base.org"]
-    }
+      endpoints: ["https://goerli.base.org"],
+    },
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: {
