@@ -61,11 +61,17 @@ export interface RedisConnectionOpts {
   namespace?: string;
 }
 
+export interface ExponentialBackoffOpts {
+  attemptsThreshold: number; // after this many attempts, the delay will be constant
+  delayMs: number;
+}
+
 export interface StorageOptions extends RedisConnectionOpts {
   queueName: string;
   attempts: number;
   concurrency?: number;
   maxCompletedQueueSize?: number;
+  exponentialBackoff?: ExponentialBackoffOpts;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -133,6 +139,14 @@ export class RedisStorage implements Storage {
       emitterAddress: parsedVaa.emitterAddress.toString("hex"),
       sequence: parsedVaa.sequence.toString(),
     });
+    const retryStrategy = this.opts.exponentialBackoff
+      ? {
+          backOff: {
+            type: "custom",
+          },
+        }
+      : undefined;
+
     const job = await this.vaaQueue.add(
       idWithoutHash,
       {
@@ -143,6 +157,7 @@ export class RedisStorage implements Storage {
         jobId: id,
         removeOnFail: 50000,
         attempts: this.opts.attempts,
+        ...retryStrategy,
       },
     );
 
@@ -203,6 +218,18 @@ export class RedisStorage implements Storage {
         prefix: this.prefix,
         connection: this.redis,
         concurrency: this.opts.concurrency,
+        settings: {
+          backoffStrategy: (attemptsMade: number) => {
+            const attempts =
+              attemptsMade >= this.opts.exponentialBackoff?.attemptsThreshold
+                ? this.opts.exponentialBackoff?.attemptsThreshold
+                : attemptsMade;
+
+            return (
+              Math.pow(2, attempts) * this.opts.exponentialBackoff?.delayMs
+            );
+          },
+        },
       },
     );
     this.workerId = this.worker.id;
