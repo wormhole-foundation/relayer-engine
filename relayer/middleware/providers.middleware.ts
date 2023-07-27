@@ -250,7 +250,7 @@ async function buildProviders(
     } catch (error) {
       error.originalStack = error.stack;
       error.stack = new Error().stack;
-      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: ${error}`);
+      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `, error);
       throw error;
     }
   }
