@@ -30,6 +30,7 @@ import * as sui from "@mysten/sui.js";
 import { Environment } from "../environment";
 import { getCosmWasmClient } from "@sei-js/core";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { Logger } from "winston";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
@@ -130,7 +131,7 @@ const defaultSupportedChains = {
       websockets: [sui.testnetConnection.websocket],
     },
     [CHAIN_ID_SEI]: {
-      endpoints: ["https://sei.kingnodes.com"],
+      endpoints: ["https://sei-testnet-2-rpc.brocha.in"],
     },
     [CHAIN_ID_KLAYTN]: {
       endpoints: ["https://public-en-cypress.klaytn.net"],
@@ -158,34 +159,62 @@ const defaultSupportedChains = {
   },
 };
 
+function pick<T extends Object, Prop extends keyof T>(
+  obj: T,
+  keys: Prop[],
+): Pick<T, Prop> {
+  const res = {} as Pick<T, Prop>;
+  for (const key of keys) {
+    if (key in obj) {
+      res[key] = obj[key];
+    }
+  };
+  return res;
+};
+
 /**
  * providers is a middleware that populates `ctx.providers` with provider information
  * @param opts
  */
-export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
+export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Middleware<ProviderContext> {
   let providers: Providers;
 
   return async (ctx: ProviderContext, next) => {
+    const logger = ctx.logger?.child({ module: "providers" });
+
     if (!providers) {
-      ctx.logger?.debug(`Providers initializing...`);
-      providers = await buildProviders(ctx.env, opts);
-      ctx.logger?.debug(`Providers Initialized`);
+      // it makes no sense to start providers for all default
+      // chains, we should only start providers for the chains the relayer
+      // will use.
+      // The config is optional because of backwards compatibility
+      // If no config is passed, we'll start providers for all default chains
+      const environmentDefaultSupportedChains = defaultSupportedChains[ctx.env];
+
+      const defaultChains = supportedChains
+        ? pick(environmentDefaultSupportedChains, supportedChains)
+        : environmentDefaultSupportedChains;
+
+      const chains = Object.assign(
+        {},
+        defaultChains,
+        opts?.chains,
+      );
+
+      logger?.debug(`Providers initializing... ${JSON.stringify(chains)}`);
+      providers = await buildProviders(chains, logger);
+      logger?.debug(`Providers initialized succesfully.`);
     }
+
     ctx.providers = providers;
-    ctx.logger?.debug("Providers attached to context");
+    
     await next();
   };
 }
 
 async function buildProviders(
-  env: Environment,
-  opts?: ProvidersOpts,
+  supportedChains: Partial<ChainConfigInfo>,
+  logger?: Logger,
 ): Promise<Providers> {
-  const supportedChains = Object.assign(
-    {},
-    defaultSupportedChains[env],
-    opts?.chains,
-  );
   const providers: Providers = {
     evm: {},
     solana: [],
@@ -196,27 +225,36 @@ async function buildProviders(
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
     const chainId = Number(chainIdStr) as ChainId;
     const { endpoints, faucets, websockets } = chainCfg;
-    if (isEVMChain(chainId)) {
-      providers.evm[chainId] = endpoints.map(
-        url => new ethers.providers.JsonRpcProvider(url),
-      );
-    } else if (chainId === CHAIN_ID_SOLANA) {
-      providers.solana = endpoints.map(url => new solana.Connection(url));
-    } else if (chainId === CHAIN_ID_SUI) {
-      providers.sui = endpoints.map((url, i) => {
-        let conn = new sui.Connection({
-          fullnode: url,
-          faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
-          websocket: (websockets && websockets[i]) || websockets[0], // same as above
+
+    try {
+      if (isEVMChain(chainId)) {
+        providers.evm[chainId] = endpoints.map(
+          url => new ethers.providers.JsonRpcProvider(url),
+        );
+      } else if (chainId === CHAIN_ID_SOLANA) {
+        providers.solana = endpoints.map(url => new solana.Connection(url));
+      } else if (chainId === CHAIN_ID_SUI) {
+        providers.sui = endpoints.map((url, i) => {
+          let conn = new sui.Connection({
+            fullnode: url,
+            faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
+            websocket: (websockets && websockets[i]) || websockets[0], // same as above
+          });
+          return new sui.JsonRpcProvider(conn);
         });
-        return new sui.JsonRpcProvider(conn);
-      });
-    } else if (chainId === CHAIN_ID_SEI) {
-      const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
-      providers.sei = await Promise.all(seiProviderPromises);
-    } else {
-      providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
+      } else if (chainId === CHAIN_ID_SEI) {
+        const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
+        providers.sei = await Promise.all(seiProviderPromises);
+      } else {
+        providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
+      }
+    } catch (error) {
+      error.originalStack = error.stack;
+      error.stack = new Error().stack;
+      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `, error);
+      throw error;
     }
   }
+  
   return providers;
 }
