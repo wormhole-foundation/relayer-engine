@@ -159,18 +159,20 @@ const defaultSupportedChains = {
   },
 };
 
-function pick<T extends Object, Prop extends keyof T>(
+function pick<T extends Object, Prop extends string | number | symbol>(
   obj: T,
   keys: Prop[],
-): Pick<T, Prop> {
-  const res = {} as Pick<T, Prop>;
+): Pick<T, Prop & keyof T> {
+  const res = {} as Pick<T, Prop & keyof T>;
   for (const key of keys) {
     if (key in obj) {
-      res[key] = obj[key];
+      // We need to assert that this is a key of T because `key in obj` does not provide this type guard
+      const keyAsserted = key as Prop & keyof T;
+      res[keyAsserted] = obj[keyAsserted];
     }
-  };
+  }
   return res;
-};
+}
 
 /**
  * providers is a middleware that populates `ctx.providers` with provider information
