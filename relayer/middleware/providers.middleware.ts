@@ -178,7 +178,10 @@ function pick<T extends Object, Prop extends string | number | symbol>(
  * providers is a middleware that populates `ctx.providers` with provider information
  * @param opts
  */
-export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Middleware<ProviderContext> {
+export function providers(
+  opts?: ProvidersOpts,
+  supportedChains?: string[],
+): Middleware<ProviderContext> {
   let providers: Providers;
 
   return async (ctx: ProviderContext, next) => {
@@ -196,11 +199,7 @@ export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Mid
         ? pick(environmentDefaultSupportedChains, supportedChains)
         : environmentDefaultSupportedChains;
 
-      const chains = Object.assign(
-        {},
-        defaultChains,
-        opts?.chains,
-      );
+      const chains = Object.assign({}, defaultChains, opts?.chains);
 
       logger?.debug(`Providers initializing... ${JSON.stringify(chains)}`);
       providers = await buildProviders(chains, logger);
@@ -208,7 +207,7 @@ export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Mid
     }
 
     ctx.providers = providers;
-    
+
     await next();
   };
 }
@@ -245,7 +244,9 @@ async function buildProviders(
           return new sui.JsonRpcProvider(conn);
         });
       } else if (chainId === CHAIN_ID_SEI) {
-        const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
+        const seiProviderPromises = endpoints.map(url =>
+          getCosmWasmClient(url),
+        );
         providers.sei = await Promise.all(seiProviderPromises);
       } else {
         providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
@@ -253,10 +254,13 @@ async function buildProviders(
     } catch (error) {
       error.originalStack = error.stack;
       error.stack = new Error().stack;
-      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `, error);
+      logger?.error(
+        `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `,
+        error,
+      );
       throw error;
     }
   }
-  
+
   return providers;
 }
