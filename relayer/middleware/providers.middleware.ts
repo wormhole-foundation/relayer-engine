@@ -191,7 +191,7 @@ export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Mid
       const environmentDefaultSupportedChains = defaultSupportedChains[ctx.env];
 
       const defaultChains = supportedChains
-        ? pick(environmentDefaultSupportedChains, supportedChains)
+        ? pick(environmentDefaultSupportedChains, supportedChains as any)
         : environmentDefaultSupportedChains;
 
       const chains = Object.assign(
