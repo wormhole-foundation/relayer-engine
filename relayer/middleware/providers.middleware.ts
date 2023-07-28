@@ -159,16 +159,17 @@ const defaultSupportedChains = {
   },
 };
 
-function pick(
-  obj: Record<string, any>,
-  keys: string[],
-): any {
-  return keys.reduce((acc: Record<string, any>, key: string) => {
-    if (obj[key]) {
-      acc[key] = obj[key];
+function pick<T extends Object, Prop extends keyof T>(
+  obj: T,
+  keys: Prop[],
+): Pick<T, Prop> {
+  const res = {} as Pick<T, Prop>;
+  for (const key of keys) {
+    if (key in obj) {
+      res[key] = obj[key];
     }
-    return acc;
-  }, {});
+  };
+  return res;
 };
 
 /**
