@@ -259,10 +259,14 @@ async function buildProviders(
     } catch (error) {
       error.originalStack = error.stack;
       error.stack = new Error().stack;
+<<<<<<< HEAD
       logger?.error(
         `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `,
         error,
       );
+=======
+      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `, error);
+>>>>>>> 487d538 (solve conflict marker)
       throw error;
     }
   }
