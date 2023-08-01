@@ -2,7 +2,7 @@ import { RelayerApp, RelayerAppOpts } from "./application";
 import {
   logging,
   LoggingContext,
-  missedVaas,
+  spawnMissedVaaWorker,
   providers,
   ProvidersOpts,
   sourceTx,
@@ -28,6 +28,16 @@ import { Environment } from "./environment";
 import { TokensByChain } from "./middleware/wallet/wallet-management";
 import { Registry } from "prom-client";
 
+export interface StandardMissedVaaOpts {
+  concurrency?: number;
+  checkInterval?: number;
+  fetchVaaRetries?: number;
+  vaasFetchConcurrency?: number;
+  storagePrefix?: string;
+  startingSequenceConfig?: Partial<Record<ChainId, bigint>>;
+  forceSeenKeysReindex?: boolean;
+}
+
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
   spyEndpoint?: string;
@@ -44,6 +54,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   fetchSourceTxhash?: boolean;
+  missedVaaOptions?: StandardMissedVaaOpts;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -104,16 +115,6 @@ export class StandardRelayerApp<
     this.useStorage(this.store);
     this.logger(logger);
     this.use(logging(logger)); // <-- logging middleware
-    this.use(
-      missedVaas(this, {
-        namespace: name,
-        logger,
-        redis,
-        redisCluster,
-        redisClusterEndpoints,
-        wormholeRpcs,
-      }),
-    );
     this.use(providers(opts.providers));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
       this.use(
@@ -138,6 +139,23 @@ export class StandardRelayerApp<
     if (opts.fetchSourceTxhash) {
       this.use(sourceTx());
     }
+
+    spawnMissedVaaWorker(this, {
+      namespace: name,
+      registry: this.mergedRegistry,
+      logger,
+      redis,
+      redisCluster,
+      redisClusterEndpoints,
+      wormholeRpcs,
+      concurrency: opts.missedVaaOptions?.concurrency,
+      checkInterval: opts.missedVaaOptions?.checkInterval,
+      fetchVaaRetries: opts.missedVaaOptions?.fetchVaaRetries,
+      vaasFetchConcurrency: opts.missedVaaOptions?.vaasFetchConcurrency,
+      storagePrefix: opts.missedVaaOptions?.storagePrefix,
+      startingSequenceConfig: opts.missedVaaOptions?.startingSequenceConfig,
+      forceSeenKeysReindex: opts.missedVaaOptions?.forceSeenKeysReindex,
+    });
   }
 
   /**
