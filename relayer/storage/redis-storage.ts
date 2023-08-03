@@ -183,6 +183,23 @@ export class RedisStorage implements Storage {
     this.logger?.debug(
       `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
+
+    const workerSettings = this.opts.exponentialBackoff
+      ? {
+          settings: {
+            backoffStrategy: (attemptsMade: number) => {
+              const exponentialDelay =
+                Math.pow(2, attemptsMade) *
+                this.opts.exponentialBackoff?.baseDelayMs;
+              return Math.min(
+                exponentialDelay,
+                this.opts.exponentialBackoff?.maxDelayMs,
+              );
+            },
+          },
+        }
+      : undefined;
+
     this.worker = new Worker(
       this.opts.queueName,
       async job => {
@@ -218,17 +235,7 @@ export class RedisStorage implements Storage {
         prefix: this.prefix,
         connection: this.redis,
         concurrency: this.opts.concurrency,
-        settings: {
-          backoffStrategy: (attemptsMade: number) => {
-            const exponentialDelay =
-              Math.pow(2, attemptsMade) *
-              this.opts.exponentialBackoff?.baseDelayMs;
-            return Math.min(
-              exponentialDelay,
-              this.opts.exponentialBackoff?.maxDelayMs,
-            );
-          },
-        },
+        ...workerSettings,
       },
     );
     this.workerId = this.worker.id;
