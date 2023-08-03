@@ -190,10 +190,10 @@ export class RedisStorage implements Storage {
             backoffStrategy: (attemptsMade: number) => {
               const exponentialDelay =
                 Math.pow(2, attemptsMade) *
-                this.opts.exponentialBackoff?.baseDelayMs;
+                (this.opts.exponentialBackoff?.baseDelayMs || 1000);
               return Math.min(
                 exponentialDelay,
-                this.opts.exponentialBackoff?.maxDelayMs,
+                this.opts.exponentialBackoff?.maxDelayMs || 3_600_000, // 1 hour as default
               );
             },
           },
