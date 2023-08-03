@@ -62,8 +62,8 @@ export interface RedisConnectionOpts {
 }
 
 export interface ExponentialBackoffOpts {
-  attemptsThreshold: number; // after this many attempts, the delay will be constant
-  delayMs: number;
+  baseDelayMs: number; // amount of time to apply each exp. backoff round
+  maxDelayMs: number; // max amount of time to wait between retries
 }
 
 export interface StorageOptions extends RedisConnectionOpts {
@@ -220,13 +220,12 @@ export class RedisStorage implements Storage {
         concurrency: this.opts.concurrency,
         settings: {
           backoffStrategy: (attemptsMade: number) => {
-            const attempts =
-              attemptsMade >= this.opts.exponentialBackoff?.attemptsThreshold
-                ? this.opts.exponentialBackoff?.attemptsThreshold
-                : attemptsMade;
-
-            return (
-              Math.pow(2, attempts) * this.opts.exponentialBackoff?.delayMs
+            const exponentialDelay =
+              Math.pow(2, attemptsMade) *
+              this.opts.exponentialBackoff?.baseDelayMs;
+            return Math.min(
+              exponentialDelay,
+              this.opts.exponentialBackoff?.maxDelayMs,
             );
           },
         },
