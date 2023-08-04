@@ -66,6 +66,7 @@ export interface StorageOptions extends RedisConnectionOpts {
   attempts: number;
   concurrency?: number;
   maxCompletedQueueSize?: number;
+  logger?: Logger;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -120,6 +121,7 @@ export class RedisStorage implements Storage {
     const { metrics, registry } = createStorageMetrics();
     this.metrics = metrics;
     this.registry = registry;
+    this.logger = this.opts.logger;
   }
 
   getPrefix() {
