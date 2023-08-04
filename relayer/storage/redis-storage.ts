@@ -1,4 +1,4 @@
-import { Job, Queue, Worker } from "bullmq";
+import { Job, Queue, QueueEvents, Worker } from "bullmq";
 import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import {
@@ -81,6 +81,7 @@ const defaultOptions: Partial<StorageOptions> = {
 export class RedisStorage implements Storage {
   logger: Logger;
   vaaQueue: Queue<JobData, string[], string>;
+  queueEvents: QueueEvents;
   private worker: Worker<JobData, void, string>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
@@ -115,6 +116,7 @@ export class RedisStorage implements Storage {
       prefix: this.prefix,
       connection: this.redis,
     });
+    this.queueEvents = new QueueEvents(this.opts.queueName);
     const { metrics, registry } = createStorageMetrics();
     this.metrics = metrics;
     this.registry = registry;
@@ -209,6 +211,7 @@ export class RedisStorage implements Storage {
 
     this.worker.on("completed", this.onCompleted.bind(this));
     this.worker.on("failed", this.onFailed.bind(this));
+    this.queueEvents.on("waiting", this.onWaiting.bind(this));
     this.spawnGaugeUpdateWorker();
   }
 
@@ -257,6 +260,14 @@ export class RedisStorage implements Storage {
       this.metrics.failedWithMaxRetriesCounter
         .labels({ queue: this.vaaQueue.name })
         .inc();
+    }
+  }
+
+  private async onWaiting(job: Job) {
+    this.logger?.debug(`Checking job: ${job.id}`);
+    const existingJob = await this.vaaQueue.getJob(job.id);
+    if (existingJob) {
+      console.log(`Duplicated job detected: ${job.id}`);
     }
   }
 
