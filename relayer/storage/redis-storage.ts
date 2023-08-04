@@ -267,7 +267,7 @@ export class RedisStorage implements Storage {
     this.logger?.debug(`Checking job: ${job.id}`);
     const existingJob = await this.vaaQueue.getJob(job.id);
     if (existingJob) {
-      console.log(`Duplicated job detected: ${job.id}`);
+      this.logger?.debug(`Duplicated job detected: ${job.id}`);
     }
   }
 
