@@ -117,7 +117,10 @@ export class RedisStorage implements Storage {
       prefix: this.prefix,
       connection: this.redis,
     });
-    this.queueEvents = new QueueEvents(this.opts.queueName);
+    this.queueEvents = new QueueEvents(this.opts.queueName, {
+      prefix: this.prefix,
+      connection: this.redis,
+    });
     const { metrics, registry } = createStorageMetrics();
     this.metrics = metrics;
     this.registry = registry;
