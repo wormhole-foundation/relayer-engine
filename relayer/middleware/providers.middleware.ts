@@ -4,6 +4,7 @@ import {
   CHAIN_ID_ACALA,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
+  CHAIN_ID_BASE,
   CHAIN_ID_BSC,
   CHAIN_ID_CELO,
   CHAIN_ID_ETH,
@@ -11,10 +12,10 @@ import {
   CHAIN_ID_SEI,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
-  CHAIN_ID_BASE,
   ChainId,
+  CHAINS,
   EVMChainId,
-  isEVMChain,
+  EVMChainNames,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
@@ -211,6 +212,10 @@ export function providers(
     await next();
   };
 }
+
+const evmChainIds = EVMChainNames.map(n => CHAINS[n]);
+const isEvmChainId = Object.fromEntries(evmChainIds.map(id => [id, true]));
+const isEVMChain = (chainId: ChainId) => isEvmChainId[chainId] ?? false;
 
 async function buildProviders(
   supportedChains: Partial<ChainConfigInfo>,
