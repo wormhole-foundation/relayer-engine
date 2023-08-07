@@ -159,24 +159,29 @@ const defaultSupportedChains = {
   },
 };
 
-function pick<T extends Object, Prop extends keyof T>(
+function pick<T extends Object, Prop extends string | number | symbol>(
   obj: T,
   keys: Prop[],
-): Pick<T, Prop> {
-  const res = {} as Pick<T, Prop>;
+): Pick<T, Prop & keyof T> {
+  const res = {} as Pick<T, Prop & keyof T>;
   for (const key of keys) {
     if (key in obj) {
-      res[key] = obj[key];
+      // We need to assert that this is a key of T because `key in obj` does not provide this type guard
+      const keyAsserted = key as Prop & keyof T;
+      res[keyAsserted] = obj[keyAsserted];
     }
-  };
+  }
   return res;
-};
+}
 
 /**
  * providers is a middleware that populates `ctx.providers` with provider information
  * @param opts
  */
-export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Middleware<ProviderContext> {
+export function providers(
+  opts?: ProvidersOpts,
+  supportedChains?: string[],
+): Middleware<ProviderContext> {
   let providers: Providers;
 
   return async (ctx: ProviderContext, next) => {
@@ -194,11 +199,7 @@ export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Mid
         ? pick(environmentDefaultSupportedChains, supportedChains as any)
         : environmentDefaultSupportedChains;
 
-      const chains = Object.assign(
-        {},
-        defaultChains,
-        opts?.chains,
-      );
+      const chains = Object.assign({}, defaultChains, opts?.chains);
 
       logger?.debug(`Providers initializing... ${JSON.stringify(chains)}`);
       providers = await buildProviders(chains, logger);
@@ -206,7 +207,7 @@ export function providers(opts?: ProvidersOpts, supportedChains?: string[]): Mid
     }
 
     ctx.providers = providers;
-    
+
     await next();
   };
 }
@@ -243,7 +244,9 @@ async function buildProviders(
           return new sui.JsonRpcProvider(conn);
         });
       } else if (chainId === CHAIN_ID_SEI) {
-        const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
+        const seiProviderPromises = endpoints.map(url =>
+          getCosmWasmClient(url),
+        );
         providers.sei = await Promise.all(seiProviderPromises);
       } else {
         providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
@@ -251,10 +254,13 @@ async function buildProviders(
     } catch (error) {
       error.originalStack = error.stack;
       error.stack = new Error().stack;
-      logger?.error(`Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `, error);
+      logger?.error(
+        `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `,
+        error,
+      );
       throw error;
     }
   }
-  
+
   return providers;
 }
