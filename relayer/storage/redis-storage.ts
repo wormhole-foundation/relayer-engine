@@ -61,10 +61,17 @@ export interface RedisConnectionOpts {
   namespace?: string;
 }
 
+export interface ExponentialBackoffOpts {
+  baseDelayMs: number; // amount of time to apply each exp. backoff round
+  maxDelayMs: number; // max amount of time to wait between retries
+  backOffFn?: (attemptsMade: number) => number; // custom backoff function
+}
+
 export interface StorageOptions extends RedisConnectionOpts {
   queueName: string;
   attempts: number;
   concurrency?: number;
+  exponentialBackoff?: ExponentialBackoffOpts;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -122,6 +129,14 @@ export class RedisStorage implements Storage {
       emitterAddress: parsedVaa.emitterAddress.toString("hex"),
       sequence: parsedVaa.sequence.toString(),
     });
+    const retryStrategy = this.opts.exponentialBackoff
+      ? {
+          backOff: {
+            type: "custom",
+          },
+        }
+      : undefined;
+
     const job = await this.vaaQueue.add(
       idWithoutHash,
       {
@@ -133,6 +148,7 @@ export class RedisStorage implements Storage {
         removeOnComplete: 1000,
         removeOnFail: 5000,
         attempts: this.opts.attempts,
+        ...retryStrategy,
       },
     );
 
@@ -158,6 +174,31 @@ export class RedisStorage implements Storage {
     this.logger?.debug(
       `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
+
+    // Use user provided backoff function if available, otherwise use xlabs default
+    let backOffFunction = undefined;
+    if (this.opts.exponentialBackoff?.backOffFn) {
+      backOffFunction = this.opts.exponentialBackoff.backOffFn;
+    } else {
+      backOffFunction = (attemptsMade: number) => {
+        const exponentialDelay =
+          Math.pow(2, attemptsMade) *
+          (this.opts.exponentialBackoff?.baseDelayMs || 1000);
+        return Math.min(
+          exponentialDelay,
+          this.opts.exponentialBackoff?.maxDelayMs || 3_600_000, // 1 hour as default
+        );
+      };
+    }
+
+    const workerSettings = this.opts.exponentialBackoff
+      ? {
+          settings: {
+            backoffStrategy: backOffFunction,
+          },
+        }
+      : undefined;
+
     this.worker = new Worker(
       this.opts.queueName,
       async job => {
@@ -193,6 +234,7 @@ export class RedisStorage implements Storage {
         prefix: this.prefix,
         connection: this.redis,
         concurrency: this.opts.concurrency,
+        ...workerSettings,
       },
     );
     this.workerId = this.worker.id;
