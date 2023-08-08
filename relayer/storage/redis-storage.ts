@@ -71,7 +71,6 @@ export interface StorageOptions extends RedisConnectionOpts {
   queueName: string;
   attempts: number;
   concurrency?: number;
-  maxCompletedQueueSize?: number;
   exponentialBackoff?: ExponentialBackoffOpts;
 }
 
