@@ -16,7 +16,7 @@ import {
 } from "./middleware";
 import { Logger } from "winston";
 import { StorageContext } from "./storage/storage";
-import { RedisStorage } from "./storage/redis-storage";
+import { ExponentialBackoffOpts, RedisStorage } from "./storage/redis-storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
@@ -55,6 +55,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redis?: RedisOptions;
   fetchSourceTxhash?: boolean;
   missedVaaOptions?: StandardMissedVaaOpts;
+  exponentialBackoffStorageOptions?: ExponentialBackoffOpts;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -94,6 +95,7 @@ export class StandardRelayerApp<
       redisCluster,
       redisClusterEndpoints,
       wormholeRpcs,
+      exponentialBackoffStorageOptions,
     } = opts;
     super(env, opts);
 
@@ -104,6 +106,7 @@ export class StandardRelayerApp<
       attempts: opts.workflows.retries ?? 3,
       namespace: name,
       queueName: `${name}-relays`,
+      exponentialBackoff: exponentialBackoffStorageOptions,
     });
 
     this.mergedRegistry = Registry.merge([
