@@ -44,7 +44,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   fetchSourceTxhash?: boolean;
-  exponentialBackoffStorageOptions?: ExponentialBackoffOpts;
+  retryBackoffOptions?: ExponentialBackoffOpts;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -84,7 +84,7 @@ export class StandardRelayerApp<
       redisCluster,
       redisClusterEndpoints,
       wormholeRpcs,
-      exponentialBackoffStorageOptions,
+      retryBackoffOptions,
     } = opts;
     super(env, opts);
 
@@ -95,7 +95,7 @@ export class StandardRelayerApp<
       attempts: opts.workflows.retries ?? 3,
       namespace: name,
       queueName: `${name}-relays`,
-      exponentialBackoff: exponentialBackoffStorageOptions,
+      exponentialBackoff: retryBackoffOptions,
     });
 
     this.mergedRegistry = Registry.merge([
