@@ -64,6 +64,7 @@ export interface RedisConnectionOpts {
 export interface ExponentialBackoffOpts {
   baseDelayMs: number; // amount of time to apply each exp. backoff round
   maxDelayMs: number; // max amount of time to wait between retries
+  backOffFn?: (attemptsMade: number) => number; // custom backoff function
 }
 
 export interface StorageOptions extends RedisConnectionOpts {
@@ -184,18 +185,26 @@ export class RedisStorage implements Storage {
       `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
 
+    // Use user provided backoff function if available, otherwise use xlabs default
+    let backOffFunction = undefined;
+    if (this.opts.exponentialBackoff?.backOffFn) {
+      backOffFunction = this.opts.exponentialBackoff.backOffFn;
+    } else {
+      backOffFunction = (attemptsMade: number) => {
+        const exponentialDelay =
+          Math.pow(2, attemptsMade) *
+          (this.opts.exponentialBackoff?.baseDelayMs || 1000);
+        return Math.min(
+          exponentialDelay,
+          this.opts.exponentialBackoff?.maxDelayMs || 3_600_000, // 1 hour as default
+        );
+      };
+    }
+
     const workerSettings = this.opts.exponentialBackoff
       ? {
           settings: {
-            backoffStrategy: (attemptsMade: number) => {
-              const exponentialDelay =
-                Math.pow(2, attemptsMade) *
-                (this.opts.exponentialBackoff?.baseDelayMs || 1000);
-              return Math.min(
-                exponentialDelay,
-                this.opts.exponentialBackoff?.maxDelayMs || 3_600_000, // 1 hour as default
-              );
-            },
+            backoffStrategy: backOffFunction,
           },
         }
       : undefined;
