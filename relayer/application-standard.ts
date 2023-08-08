@@ -115,7 +115,7 @@ export class StandardRelayerApp<
     this.useStorage(this.store);
     this.logger(logger);
     this.use(logging(logger)); // <-- logging middleware
-    this.use(providers(opts.providers));
+    this.use(providers(opts.providers, Object.keys(opts.privateKeys ?? {})));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
       this.use(
         wallets(env, {
