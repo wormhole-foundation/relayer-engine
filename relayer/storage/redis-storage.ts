@@ -8,8 +8,12 @@ import {
   Redis,
   RedisOptions,
 } from "ioredis";
-import { createStorageMetrics, StorageMetrics } from "../storage.metrics";
-import { Counter, Gauge, Histogram, Registry } from "prom-client";
+import {
+  createStorageMetrics,
+  StorageMetrics,
+  StorageMetricsOpts,
+} from "./storage.metrics";
+import { Registry } from "prom-client";
 import { sleep } from "../utils";
 import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
@@ -72,6 +76,7 @@ export interface StorageOptions extends RedisConnectionOpts {
   attempts: number;
   concurrency?: number;
   exponentialBackoff?: ExponentialBackoffOpts;
+  metrics?: StorageMetricsOpts;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -115,9 +120,13 @@ export class RedisStorage implements Storage {
       prefix: this.prefix,
       connection: this.redis,
     });
-    const { metrics, registry } = createStorageMetrics();
+    const { metrics, registry } = opts.metrics ?? createStorageMetrics();
     this.metrics = metrics;
     this.registry = registry;
+  }
+
+  async close(): Promise<void> {
+    await this.redis.quit();
   }
 
   async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
@@ -269,26 +278,45 @@ export class RedisStorage implements Storage {
     this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
   }
 
-  private async onCompleted(job: Job) {
+  private async getLabels(data: JobData): Promise<Record<string, any>> {
+    const defaultLabels = { queue: this.vaaQueue.name };
+    try {
+      const labels: Record<string, string | number> = await (
+        this.opts.metrics?.labelOpts.customizer(data.parsedVaa) ??
+        Promise.resolve({})
+      );
+  
+      const allowedKeys = this.opts.metrics?.labelOpts.labelNames ?? [];
+      const validatedLabels: typeof labels = {};
+      allowedKeys.forEach(key => { 
+        if (labels[key]) {
+          validatedLabels[key] = labels[key];
+        }
+      });
+  
+      return { ...validatedLabels, ...defaultLabels };
+    } catch (error) {
+      this.logger?.error("Failed to customize metric labels, please review", error);
+      return defaultLabels;
+    }
+  }
+
+  private async onCompleted(job: Job<JobData, void, string>) {
+    const labels = await this.getLabels(job.data);
     const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
     const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
-    this.metrics.completedCounter.labels({ queue: this.vaaQueue.name }).inc();
-    this.metrics.completedDuration
-      .labels({ queue: this.vaaQueue.name })
-      .observe(completedDuration);
-    this.metrics.processedDuration
-      .labels({ queue: this.vaaQueue.name })
-      .observe(processedDuration);
+    this.metrics.completedCounter.labels(labels).inc();
+    this.metrics.completedDuration.labels(labels).observe(completedDuration);
+    this.metrics.processedDuration.labels(labels).observe(processedDuration);
   }
 
   private async onFailed(job: Job) {
+    const labels = await this.getLabels(job.data);
     // TODO: Add a failed duration metric for processing time for failed jobs
-    this.metrics.failedRunsCounter.labels({ queue: this.vaaQueue.name }).inc();
+    this.metrics.failedRunsCounter.labels(labels).inc();
 
     if (job.attemptsMade === this.opts.attempts) {
-      this.metrics.failedWithMaxRetriesCounter
-        .labels({ queue: this.vaaQueue.name })
-        .inc();
+      this.metrics.failedWithMaxRetriesCounter.labels(labels).inc();
     }
   }
 

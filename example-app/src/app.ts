@@ -17,6 +17,7 @@ import {
   tokenBridgeContracts,
   WalletContext,
   wallets,
+  RedisStorage,
 } from "@wormhole-foundation/relayer-engine";
 import {
   CHAIN_ID_SOLANA,
@@ -26,7 +27,6 @@ import {
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
-import { RedisStorage } from "../../relayer/storage/redis-storage";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &

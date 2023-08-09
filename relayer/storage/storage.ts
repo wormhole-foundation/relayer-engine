@@ -1,4 +1,3 @@
-import { Registry } from "prom-client";
 import { Context } from "../context";
 import { ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 
@@ -27,4 +26,8 @@ export interface Storage {
   addVaaToQueue(vaa: SignedVaa): Promise<RelayJob>;
   startWorker(cb: onJobHandler): void;
   stopWorker(): Promise<void>;
+  close(): Promise<void>;
 }
+
+export * from "./storage.metrics";
+export { RedisStorage } from "./redis-storage";
