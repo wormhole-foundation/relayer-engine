@@ -58,23 +58,19 @@ export async function deleteExistingSeenVAAsData(
 
 export async function updateSeenSequences(
   filters: FilterIdentifier[],
-  redisPool: Pool<Cluster | Redis>,
-  opts: MissedVaaOpts,
+  redis: Redis | Cluster,
+  storagePrefix: string,
 ) {
-  const redis = await redisPool.acquire();
   let scannedKeys = 0;
-  try {
-    for (const filter of filters) {
-      const seenVaaKey = getSeenVaaKey(
-        opts.storagePrefix,
-        filter.emitterChain,
-        filter.emitterAddress
-      );
 
-      scannedKeys += await scanNextBatchAndUpdateSeenSequences(redis, filter, opts.storagePrefix, seenVaaKey);
-    }
-  } finally {
-    redisPool.release(redis);
+  for (const filter of filters) {
+    const seenVaaKey = getSeenVaaKey(
+      storagePrefix,
+      filter.emitterChain,
+      filter.emitterAddress
+    );
+
+    scannedKeys += await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, seenVaaKey);
   }
 
   return scannedKeys;
@@ -123,10 +119,10 @@ export async function tryGetLastSafeSequence(
 export async function tryGetExistingFailedSequences(
   redis: Cluster | Redis,
   filter: FilterIdentifier,
-  opts: MissedVaaOpts,
+  prefix: string,
 ) {
   const failedToFetchKey = getFailedToFetchKey(
-    opts.storagePrefix,
+    prefix,
     filter.emitterChain,
     filter.emitterAddress
   );
@@ -141,6 +137,7 @@ export async function tryGetExistingFailedSequences(
 
   return failedToFetchSequences;
 }
+
 export async function calculateStartingIndex(
   redis: Redis | Cluster,
   prefix: string,
@@ -177,7 +174,7 @@ export async function getAllProcessedSeqsInOrder(
 ): Promise<bigint[]> {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
-  const results = await getDataFromSortedSet(redis, key, indexToStartFrom);
+  const results = await getDataFromSortedSet(redis, key, indexToStartFrom?.toString());
   return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
 }
 
@@ -215,14 +212,13 @@ async function scanNextBatchAndUpdateSeenSequences(
   storagePrefix: string,
   seenVaaKey: string,
   cursor: string = CURSOR_IDENTIFIER,
-  scannedKeys: number = 0,
 ): Promise<number> {
   const { emitterChain, emitterAddress } = filter;
   const prefix = `${storagePrefix}:${emitterChain}/${emitterAddress}`;
   const [nextCursor, keysFound] = await redis.scan(cursor, "MATCH", `${prefix}*`);
 
   const pipeline = redis.pipeline();
-
+  let scannedKeys = 0;
   for (const key of keysFound) {
     scannedKeys++;
     if (key.endsWith(":logs")) continue;
@@ -234,14 +230,14 @@ async function scanNextBatchAndUpdateSeenSequences(
 
   let nextBatchScannedKeys = 0;
   if (nextCursor !== CURSOR_IDENTIFIER) {
-    nextBatchScannedKeys = await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, seenVaaKey, nextCursor, scannedKeys);
+    nextBatchScannedKeys = await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, seenVaaKey, nextCursor);
   }
 
   return scannedKeys + nextBatchScannedKeys;
 }
 
-function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: number) {
-  const lb = lowerBound || 0;
+function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: string) {
+  const lb = lowerBound || '0';
 
   return redis.zrange(key, lb, -1);
 }

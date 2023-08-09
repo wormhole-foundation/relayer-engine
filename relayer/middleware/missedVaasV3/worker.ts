@@ -138,10 +138,15 @@ async function startMissedVaasWorkers(
   // sequences have already been processed according to the store
   if (opts.storagePrefix) {
     const startTime = Date.now();
-    const scannedKeys = await updateSeenSequences(filters, redisPool, opts);
-    const elapsedTime = Date.now() - startTime;
-    opts.logger?.info(`Scanned ${scannedKeys} keys in ${elapsedTime}ms`);
-    metrics.workerWarmupDuration?.observe(elapsedTime);
+    const redis = await redisPool.acquire();
+    try {
+      const scannedKeys = await updateSeenSequences(filters, redis, opts.storagePrefix);
+      const elapsedTime = Date.now() - startTime;
+      metrics.workerWarmupDuration?.observe(elapsedTime);
+      opts.logger?.info(`Scanned ${scannedKeys} keys in ${elapsedTime}ms`);
+    } finally {
+      await redisPool.release(redis);
+    }
   }
 
   while (true) {
@@ -181,7 +186,7 @@ async function startMissedVaasWorkers(
         metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
 
         // TODO: this is an ugly way to handle the error
-        const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(redis, filter, opts);
+        const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(redis, filter, opts.storagePrefix);
         if (!Array.isArray(failedToFetchSequencesOrError)) {
           filterLogger?.error(
             `Failed to get existing failed sequences from redis.`
