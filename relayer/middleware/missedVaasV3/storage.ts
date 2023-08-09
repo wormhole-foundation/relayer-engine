@@ -141,20 +141,41 @@ export async function tryGetExistingFailedSequences(
 
   return failedToFetchSequences;
 }
+export async function calculateStartingIndex(
+  redis: Redis | Cluster,
+  prefix: string,
+  emitterChain: number,
+  emitterAddress: string,
+  lastSafeSequence?: bigint,
+  startingSequence?: bigint,
+  logger?: Logger,
+) {
+  const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
+
+  let indexToStartFrom: number;
+
+  if (!lastSafeSequence && startingSequence) {
+    indexToStartFrom = await redis.zrank(key, startingSequence.toString());
+    if (!indexToStartFrom) {
+      logger.warn("Starting Sequence Config not found in redis. No starting sequence will be used.");
+    }
+  }
+  
+  else if (lastSafeSequence) {
+    indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
+  }
+  
+  return indexToStartFrom;
+}
 
 export async function getAllProcessedSeqsInOrder(
   redis: Redis | Cluster,
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  lastSafeSequence?: bigint,
+  indexToStartFrom?: number,
 ): Promise<bigint[]> {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
-  const sequenceToStartFrom = lastSafeSequence?.toString();
-  let indexToStartFrom: number;
-  if (sequenceToStartFrom) {
-    indexToStartFrom = await redis.zrank(key, sequenceToStartFrom) || undefined;
-  }
 
   const results = await getDataFromSortedSet(redis, key, indexToStartFrom);
   return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);

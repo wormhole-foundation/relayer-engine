@@ -23,6 +23,7 @@ import {
   getAllProcessedSeqsInOrder,
   getSeenVaaKey,
   getFailedToFetchKey,
+  calculateStartingIndex,
 } from './storage';
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
@@ -251,12 +252,22 @@ async function checkForMissedVaas(
   const { emitterChain, emitterAddress } = filter;
   const startingSeqConfig = opts.startingSequenceConfig?.[emitterChain as ChainId];
 
+  const startingIndex = await calculateStartingIndex(
+    redis,
+    storagePrefix,
+    emitterChain,
+    emitterAddress,
+    previousSafeSequence,
+    startingSeqConfig,
+    logger,
+  );
+
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
     storagePrefix,
     emitterChain,
     emitterAddress,
-    previousSafeSequence
+    startingIndex,
   );
 
   const processed: string[] = [];
