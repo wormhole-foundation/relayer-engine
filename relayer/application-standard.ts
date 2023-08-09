@@ -109,6 +109,27 @@ export class StandardRelayerApp<
       exponentialBackoff: retryBackoffOptions,
     });
 
+    // this is always true for standard relayer app, but I'm adding this if
+    // to make the dependency explicit
+    if (this.store) {
+      spawnMissedVaaWorker(this, {
+        namespace: name,
+        registry: this.mergedRegistry,
+        logger,
+        redis,
+        redisCluster,
+        redisClusterEndpoints,
+        wormholeRpcs,
+        concurrency: opts.missedVaaOptions?.concurrency,
+        checkInterval: opts.missedVaaOptions?.checkInterval,
+        fetchVaaRetries: opts.missedVaaOptions?.fetchVaaRetries,
+        vaasFetchConcurrency: opts.missedVaaOptions?.vaasFetchConcurrency,
+        storagePrefix: this.store.getPrefix(),
+        startingSequenceConfig: opts.missedVaaOptions?.startingSequenceConfig,
+        forceSeenKeysReindex: opts.missedVaaOptions?.forceSeenKeysReindex,
+      });
+    }
+
     this.mergedRegistry = Registry.merge([
       this.store.registry,
       super.metricsRegistry,
@@ -142,23 +163,6 @@ export class StandardRelayerApp<
     if (opts.fetchSourceTxhash) {
       this.use(sourceTx());
     }
-
-    spawnMissedVaaWorker(this, {
-      namespace: name,
-      registry: this.mergedRegistry,
-      logger,
-      redis,
-      redisCluster,
-      redisClusterEndpoints,
-      wormholeRpcs,
-      concurrency: opts.missedVaaOptions?.concurrency,
-      checkInterval: opts.missedVaaOptions?.checkInterval,
-      fetchVaaRetries: opts.missedVaaOptions?.fetchVaaRetries,
-      vaasFetchConcurrency: opts.missedVaaOptions?.vaasFetchConcurrency,
-      storagePrefix: opts.missedVaaOptions?.storagePrefix,
-      startingSequenceConfig: opts.missedVaaOptions?.startingSequenceConfig,
-      forceSeenKeysReindex: opts.missedVaaOptions?.forceSeenKeysReindex,
-    });
   }
 
   /**
