@@ -1,4 +1,8 @@
-import { coalesceChainName, ChainId } from "@certusone/wormhole-sdk";
+import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
+import { coalesceChainName, ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
+import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
+
+import { SerializableVaaId } from "../../application";
 import { FilterIdentifier } from "./worker";
 import { MissedVaaMetrics } from "./metrics";
 
@@ -104,4 +108,28 @@ export function updateMetrics(
   metrics.lastSafeSequence?.labels(labels).set(lastSafeSequence);
   metrics.firstSeenSequence?.labels(labels).set(firstSeenSequence);
   metrics.missingSequences?.labels(labels).set(missedVaas.missingSequences.length ? 1 : 0);
+}
+
+
+export async function tryFetchVaa(vaaKey: SerializableVaaId, wormholeRpcs: string[], retries: number = 2): Promise<GetSignedVAAResponse> {
+  let vaa;
+  const stack = new Error().stack;
+  try {
+    vaa = await getSignedVAAWithRetry(
+      wormholeRpcs,
+      vaaKey.emitterChain as ChainId,
+      vaaKey.emitterAddress,
+      vaaKey.sequence,
+      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
+      100,
+      retries,
+    );
+  } catch (error) {
+    error.stack = new Error().stack;
+    if (error.code === 5) {
+      return null;
+    }
+    throw error;
+  }
+  return vaa as GetSignedVAAResponse;
 }

@@ -1,7 +1,6 @@
-import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import Redis, { Cluster } from "ioredis";
 import { Registry } from "prom-client";
-import { ChainId, getSignedVAAWithRetry } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { Pool } from "generic-pool";
 import { Logger } from "winston";
 import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
@@ -9,9 +8,8 @@ import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/pu
 import { defaultWormholeRpcs, ParsedVaaWithBytes, RelayerApp, RelayerEvents, SerializableVaaId } from "../../application";
 import { mapConcurrent, sleep } from "../../utils";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
-
 import { initMetrics, MissedVaaMetrics } from "./metrics";
-import { MissedVaaRunStats, calculateSequenceStats, updateMetrics } from "./helpers";
+import { MissedVaaRunStats, calculateSequenceStats, updateMetrics, tryFetchVaa } from "./helpers";
 import {
   createRedisPool,
   markVaaAsSeen,
@@ -290,7 +288,7 @@ async function checkForMissedVaas(
 
       let vaaResponse;
       try {
-        vaaResponse = await tryFetchVaa(vaa, opts, opts.fetchVaaRetries);
+        vaaResponse = await tryFetchVaa(vaa, opts.wormholeRpcs, opts.fetchVaaRetries);
         if (!vaaResponse) {
           // this is a sequence that we found in the middle of two other sequences we processed,
           // so we can consider this VAA not existing an error.
@@ -360,7 +358,7 @@ async function checkForMissedVaas(
 
       let vaa: GetSignedVAAResponse;
       try {
-        vaa = await tryFetchVaa(vaaKey, opts, 3);
+        vaa = await tryFetchVaa(vaaKey, opts.wormholeRpcs, 3);
       } catch (error) {
         logger?.error(`Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: `, error);
       }
@@ -412,28 +410,4 @@ async function scanForSequenceLeaps(
   }
   return missing;
 }
-
-async function tryFetchVaa(vaaKey: SerializableVaaId, opts: MissedVaaOpts, retries: number = 2): Promise<GetSignedVAAResponse> {
-  let vaa;
-  const stack = new Error().stack;
-  try {
-    vaa = await getSignedVAAWithRetry(
-      opts.wormholeRpcs,
-      vaaKey.emitterChain as ChainId,
-      vaaKey.emitterAddress,
-      vaaKey.sequence,
-      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
-      100,
-      retries,
-    );
-  } catch (error) {
-    error.stack = new Error().stack;
-    if (error.code === 5) {
-      return null;
-    }
-    throw error;
-  }
-  return vaa as GetSignedVAAResponse;
-}
-
 
