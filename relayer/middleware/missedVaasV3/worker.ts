@@ -134,7 +134,6 @@ async function startMissedVaasWorkers(
     // sequences have already been processed according to the store
     if (opts.storagePrefix) {
       const startTime = Date.now();
-      const redis = await redisPool.acquire();
       const scannedKeys = await updateSeenSequences(filters, redis, opts.storagePrefix);
       const elapsedTime = Date.now() - startTime;
       metrics.workerWarmupDuration?.observe(elapsedTime);
