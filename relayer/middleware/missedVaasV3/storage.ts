@@ -34,6 +34,36 @@ export async function markVaaAsSeen(redis: Cluster | Redis, vaaKey: Serializable
   await redis.zadd(seenVaaKey, sequencesString, sequencesString);
 }
 
+export function batchMarkAsSeen(
+  redis: Cluster | Redis,
+  prefix: string,
+  emitterChain: number,
+  emitterAddress: string,
+  sequences: string[]
+) {
+  return batchAddToSet(redis, getSeenVaaKey(prefix, emitterChain, emitterAddress), sequences);
+}
+
+export function batchMarkAsFailedToRecover(
+  redis: Cluster | Redis,
+  prefix: string,
+  emitterChain: number,
+  emitterAddress: string,
+  sequences: string[]
+) {
+  return batchAddToSet(redis, getFailedToFetchKey(prefix, emitterChain, emitterAddress), sequences);
+}
+
+export async function batchAddToSet(redis: Cluster | Redis, key: string, sequences: string[]) {
+  const pipeline = redis.pipeline();
+
+  for (const sequence of sequences) {
+    pipeline.zadd(key, sequence, sequence);
+  }
+
+  await pipeline.exec();
+}
+
 export async function deleteExistingSeenVAAsData(
   filters: FilterIdentifier[],
   redisPool: Pool<Cluster | Redis>,
@@ -178,23 +208,23 @@ export async function getAllProcessedSeqsInOrder(
   return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
 }
 
-export function getSeenVaaKey(prefix: string, emitterChain: number, emitterAddress: string): string {
-  return `${prefix}:missedVaasV3:seenVaas:${emitterChain}:${emitterAddress}`;
-}
-
-export function getFailedToFetchKey(prefix: string, emitterChain: number, emitterAddress: string): string {
-  return `${prefix}:missedVaasV3:failedToFetch:${emitterChain}:${emitterAddress}`;
-}
-
-export function getSafeSequenceKey(prefix: string, emitterChain: number, emitterAddress: string): string {
-  return `${prefix}:missedVaasV3:safeSequence:${emitterChain}:${emitterAddress}`;
-}
-
 /**
  * 
  * Private Functions:
  * 
  */
+
+function getSeenVaaKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+  return `${prefix}:missedVaasV3:seenVaas:${emitterChain}:${emitterAddress}`;
+}
+
+function getFailedToFetchKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+  return `${prefix}:missedVaasV3:failedToFetch:${emitterChain}:${emitterAddress}`;
+}
+
+function getSafeSequenceKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+  return `${prefix}:missedVaasV3:safeSequence:${emitterChain}:${emitterAddress}`;
+}
 
 // example keys:
 // {GenericRelayer}:GenericRelayer-relays:14/000000000000000000000000306b68267deb7c5dfcda3619e22e9ca39c374f84/55/O8xvv:logs

@@ -2,9 +2,6 @@ import {
   jest,
   describe,
   test,
-  beforeAll,
-  afterAll,
-  beforeEach,
 } from "@jest/globals";
 import { Redis } from "ioredis";
 
@@ -40,8 +37,8 @@ describe('MissedVaaV3.storage', () => {
 
     function prepareTest() {
       const prefix = 'foo';
+      const emitterAddress = 'bar';
       const emitterChain = 1;
-      const emitterAddress = 'baz';
 
 
       function createSampleStorageKey(sequence: number| string) {
@@ -153,7 +150,8 @@ describe('MissedVaaV3.storage', () => {
       } = prepareTest();
 
       const sequencesFound = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-      redis.scan.mockResolvedValueOnce(createScanResult("0", sequencesFound, true));
+      const createLogRecords = true;
+      redis.scan.mockResolvedValueOnce(createScanResult("0", sequencesFound, createLogRecords));
 
       await updateSeenSequences(
         filters,
@@ -168,8 +166,6 @@ describe('MissedVaaV3.storage', () => {
       const {
         prefix,
         filters,
-        emitterChain,
-        emitterAddress,
         createScanResult
       } = prepareTest();
 

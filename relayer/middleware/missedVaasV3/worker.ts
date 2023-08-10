@@ -21,9 +21,9 @@ import {
   tryGetLastSafeSequence,
   tryGetExistingFailedSequences,
   getAllProcessedSeqsInOrder,
-  getSeenVaaKey,
-  getFailedToFetchKey,
   calculateStartingIndex,
+  batchMarkAsFailedToRecover,
+  batchMarkAsSeen,
 } from './storage';
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
@@ -288,13 +288,8 @@ async function checkForMissedVaas(
     // and try reprocessing them if any:
     missingSequences = await scanForSequenceLeaps(seenSequences);
 
-    const pipeline = redis.pipeline();
-    let pipelineTouched = false;
-
     await mapConcurrent(missingSequences, async (sequence) => {
       const vaa = { ...filter, sequence: sequence.toString() } as SerializableVaaId;
-      const seenVaaKey = getSeenVaaKey(storagePrefix, emitterChain, emitterAddress);
-      const failedToFetchKey = getFailedToFetchKey(storagePrefix, emitterChain, emitterAddress);
       const seqString = sequence.toString();
 
       let vaaResponse;
@@ -317,17 +312,13 @@ async function checkForMissedVaas(
         // but it would be nice to have a way to query them
         logger?.error(`Error fetching VAA for missing sequence ${sequence}`, error);
         failedToRecover.push(seqString);
-        pipeline.zadd(seenVaaKey, seqString, seqString);
-        pipeline.zadd(failedToFetchKey, seqString, seqString);
-        pipelineTouched = true;
         return;
       }
 
       try {
         await processVaa(Buffer.from(vaaResponse.vaaBytes));
         logger?.debug(`Recovered missing VAA ${seqString}`);
-        pipelineTouched = true;
-        pipeline.zadd(seenVaaKey, seqString, seqString);
+
         processed.push(seqString);
       } catch (error) {
         // If we succeeded to fetch the VAA The error to reprocess is in our side (eg: redis failed)
@@ -341,13 +332,17 @@ async function checkForMissedVaas(
       }
     }, opts.vaasFetchConcurrency);
 
-    if (pipelineTouched) {
-      try {
-        await pipeline.exec();
-      } catch (error) {
-        logger?.error("Some VAAs were processed but failed to be marked as seen: ", error);
-      }
-    }
+    
+    if (failedToRecover.length)
+      await batchMarkAsFailedToRecover(
+        redis, storagePrefix, emitterChain, emitterAddress, failedToRecover
+      );
+  
+    const allSeenVaas = processed.concat(failedToRecover);
+    if (allSeenVaas.length)
+      await batchMarkAsSeen(
+        redis, storagePrefix, emitterChain, emitterAddress, allSeenVaas
+      );
   }
 
   // look ahead of greatest seen sequence in case the next vaa was missed
