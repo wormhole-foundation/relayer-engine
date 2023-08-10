@@ -136,7 +136,7 @@ async function startMissedVaasWorkers(
       const startTime = Date.now();
       const scannedKeys = await updateSeenSequences(filters, redis, opts.storagePrefix);
       const elapsedTime = Date.now() - startTime;
-      metrics.workerWarmupDuration?.observe(elapsedTime);
+      
       opts.logger?.info(`Scanned ${scannedKeys} keys in ${elapsedTime}ms`);
     }
   });

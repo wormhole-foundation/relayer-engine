@@ -8,7 +8,6 @@ export type MissedVaaMetrics = {
   failedToReprocess?: Counter;
   failedToRecover?: Counter;
   workerRunDuration?: Histogram;
-  workerWarmupDuration?: Histogram;
   lastSeenSequence?: Gauge;
   firstSeenSequence?: Gauge;
   lastSafeSequence?: Gauge;
@@ -91,13 +90,6 @@ export function initMetrics(registry: Registry): MissedVaaMetrics {
     buckets: [500, 1000, 60000, 120000],
   });
 
-  const workerWarmupDuration = new Histogram({
-    name: "missed_vaas_worker_warmup_duration",
-    help: "The duration of each of the worker warmup runs",
-    registers: [registry],
-    buckets: [500, 1000, 60000, 120000],
-  });
-
   return {
     workerFailedRuns,
     workerSuccessfulRuns,
@@ -106,7 +98,6 @@ export function initMetrics(registry: Registry): MissedVaaMetrics {
     failedToRecover,
     failedToReprocess,
     workerRunDuration,
-    workerWarmupDuration,
     firstSeenSequence,
     lastSeenSequence,
     lastSafeSequence,
