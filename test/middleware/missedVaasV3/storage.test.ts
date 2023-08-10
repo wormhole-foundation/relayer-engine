@@ -20,6 +20,58 @@ describe('MissedVaaV3.storage', () => {
     jest.clearAllMocks();
   });
 
+
+  describe('deleteExistingSeenVAAsData', () => {
+    const pipeline = {
+      del: jest.fn(),
+      exec: jest.fn(),
+    };
+
+    const redis: any = {
+      pipeline: jest.fn().mockImplementation(() => {
+        return pipeline;
+      }),
+    };
+
+    function prepareTest(overrides: any = {}) {
+      const prefix = 'foo';
+      const emitterChain = 'bar';
+      const emitterAddress = 'baz';
+
+      return {
+        prefix,
+        emitterChain,
+        emitterAddress,
+        filter: { emitterAddress, emitterChain },
+        ...overrides,
+      };
+    }
+
+    test("It removes all existing data on a single command roundtrip using pipeline", async () => {
+      const safeSequenceMock = 123;
+      const {
+        prefix,
+        emitterChain,
+        emitterAddress,
+      } = prepareTest();
+
+      const res = await trySetLastSafeSequence(
+        redis as unknown as Redis,
+        prefix,
+        emitterChain,
+        emitterAddress,
+        safeSequenceMock,
+      );
+
+      expect(redis.set).toHaveBeenCalledTimes(1);
+      expect(res).toEqual(true);
+
+      const args = redis.set.mock.calls[0];
+
+      expect(args[1]).toEqual(safeSequenceMock);
+    });
+  });
+
   describe('scanNextBatchAndUpdateSeenSequences', () => {
     const pipeline = {
       zadd: jest.fn(),

@@ -54,36 +54,23 @@ export function batchMarkAsFailedToRecover(
   return batchAddToSet(redis, getFailedToFetchKey(prefix, emitterChain, emitterAddress), sequences);
 }
 
-export async function batchAddToSet(redis: Cluster | Redis, key: string, sequences: string[]) {
-  const pipeline = redis.pipeline();
-
-  for (const sequence of sequences) {
-    pipeline.zadd(key, sequence, sequence);
-  }
-
-  await pipeline.exec();
-}
-
 export async function deleteExistingSeenVAAsData(
   filters: FilterIdentifier[],
-  redisPool: Pool<Cluster | Redis>,
-  opts: MissedVaaOpts,
+  redis: Cluster | Redis,
+  storagePrefix: string,
+  logger?: Logger,
 ) {
-  opts.logger?.info("Deleting existing VAAs and failed VAAs. Will recreate index from redis-storage");
+  logger?.info("Deleting existing VAAs and failed VAAs. Will recreate index from redis-storage");
   
-  const redis = await redisPool.acquire();
-
   const pipeline = redis.pipeline();
 
   for (const filter of filters) {
-    pipeline.del(getSeenVaaKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
-    pipeline.del(getFailedToFetchKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
-    pipeline.del(getSafeSequenceKey(opts.storagePrefix, filter.emitterChain, filter.emitterAddress));
+    pipeline.del(getSeenVaaKey(storagePrefix, filter.emitterChain, filter.emitterAddress));
+    pipeline.del(getFailedToFetchKey(storagePrefix, filter.emitterChain, filter.emitterAddress));
+    pipeline.del(getSafeSequenceKey(storagePrefix, filter.emitterChain, filter.emitterAddress));
   }
 
   await pipeline.exec();
-
-  redisPool.release(redis);
 }
 
 export async function updateSeenSequences(
@@ -270,4 +257,14 @@ function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: 
   const lb = lowerBound || '0';
 
   return redis.zrange(key, lb, -1);
+}
+
+async function batchAddToSet(redis: Cluster | Redis, key: string, sequences: string[]) {
+  const pipeline = redis.pipeline();
+
+  for (const sequence of sequences) {
+    pipeline.zadd(key, sequence, sequence);
+  }
+
+  await pipeline.exec();
 }

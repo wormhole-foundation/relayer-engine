@@ -130,36 +130,36 @@ async function startMissedVaasWorkers(
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
 ) {
-  if (opts.storagePrefix && opts.forceSeenKeysReindex) {
-    await deleteExistingSeenVAAsData(filters, redisPool, opts);
-  }
-  // The prefix used by the storage to store workflows.
-  // We'll use it to go into the queue, and build a map of what
-  // sequences have already been processed according to the store
-  if (opts.storagePrefix) {
-    const startTime = Date.now();
-    const redis = await redisPool.acquire();
-    try {
+  await redisPool.use(async (redis) => {
+    if (opts.storagePrefix && opts.forceSeenKeysReindex) {
+      await deleteExistingSeenVAAsData(
+        filters, redis, opts.storagePrefix, opts.logger
+      );
+    }
+
+    // The prefix used by the storage to store workflows.
+    // We'll use it to go into the queue, and build a map of what
+    // sequences have already been processed according to the store
+    if (opts.storagePrefix) {
+      const startTime = Date.now();
+      const redis = await redisPool.acquire();
       const scannedKeys = await updateSeenSequences(filters, redis, opts.storagePrefix);
       const elapsedTime = Date.now() - startTime;
       metrics.workerWarmupDuration?.observe(elapsedTime);
       opts.logger?.info(`Scanned ${scannedKeys} keys in ${elapsedTime}ms`);
-    } finally {
-      await redisPool.release(redis);
     }
-  }
+  });
 
   while (true) {
     opts.logger.info(`Missed VAA middleware run starting...`);
     await mapConcurrent(
       filters,
-      async filter => {
+      filter => redisPool.use(async redis => {
         const { storagePrefix } = opts;
         const { emitterChain, emitterAddress } = filter;
         const filterLogger = opts.logger?.child({ emitterChain, emitterAddress });
 
         const startTime = Date.now();
-        const redis = await redisPool.acquire();
 
         const previousSafeSequence = await tryGetLastSafeSequence(
           redis, storagePrefix, emitterChain, emitterAddress, filterLogger
@@ -169,6 +169,9 @@ async function startMissedVaasWorkers(
 
         try {
           missedVaas = await checkForMissedVaas(filter, redis, processVaa, opts, previousSafeSequence, filterLogger);
+
+          metrics.workerSuccessfulRuns?.labels().inc();
+          metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
         } catch (error) {
           opts.logger?.error(
             `Error checking for missed vaas for filter: ${JSON.stringify(filter)}}`, error
@@ -176,20 +179,13 @@ async function startMissedVaasWorkers(
 
           metrics.workerFailedRuns?.labels().inc();
           metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
-
-          return;
-        } 
-
-        redisPool.release(redis);
-
-        metrics.workerSuccessfulRuns?.labels().inc();
-        metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
+        }
 
         // TODO: this is an ugly way to handle the error
         const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(redis, filter, opts.storagePrefix);
         if (!Array.isArray(failedToFetchSequencesOrError)) {
           filterLogger?.error(
-            `Failed to get existing failed sequences from redis.`
+            `Failed to get existing failed sequences from redis. Error: `, failedToFetchSequencesOrError
           );
         } else if (failedToFetchSequencesOrError.length) {
           filterLogger?.warn(
@@ -236,7 +232,7 @@ async function startMissedVaasWorkers(
         filterLogger?.debug(`Finished missed vaas check. Results: ${JSON.stringify({
           missedVaas, lastSafeSequence, lastSeenSequence, firstSeenSequence
         })}}`);
-      },
+      }),
       opts.concurrency || 1,
     );
 
@@ -376,6 +372,8 @@ async function checkForMissedVaas(
       logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
 
       try {
+        // since we add this VAA to the queue, there's no need to mark it as seen
+        // (it will be automatically marked as seen when the "added" event is fired)
         await processVaa(Buffer.from(vaa.vaaBytes));
         lookAheadSequence = seq;
         processed.push(seq.toString());
