@@ -1,9 +1,4 @@
-import {
-  jest,
-  describe,
-  test,
-} from "@jest/globals";
-
+import { jest, describe, test } from "@jest/globals";
 
 describe("MissedVaaV3.worker", () => {
   afterEach(() => {
@@ -13,7 +8,4 @@ describe("MissedVaaV3.worker", () => {
   describe("Relayer Engine Events", () => {
     test.skip("should handle newVaa event", async () => {});
   });
-
-
-  
-})
+});

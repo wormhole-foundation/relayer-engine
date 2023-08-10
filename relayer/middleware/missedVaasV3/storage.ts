@@ -1,12 +1,14 @@
-import { Cluster, Redis } from 'ioredis'
+import { Cluster, Redis } from "ioredis";
 import { createPool, Pool } from "generic-pool";
-import { Logger } from 'winston';
+import { Logger } from "winston";
 
 import { SerializableVaaId } from "../../application";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
-import { MissedVaaOpts, FilterIdentifier } from './worker'
+import { MissedVaaOpts, FilterIdentifier } from "./worker";
 
-export function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster> {
+export function createRedisPool(
+  opts: RedisConnectionOpts,
+): Pool<Redis | Cluster> {
   const factory = {
     create: async function () {
       const redis = opts.redisCluster
@@ -27,9 +29,17 @@ export function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster
   return createPool(factory, poolOpts);
 }
 
-export async function markVaaAsSeen(redis: Cluster | Redis, vaaKey: SerializableVaaId, opts: MissedVaaOpts) {
+export async function markVaaAsSeen(
+  redis: Cluster | Redis,
+  vaaKey: SerializableVaaId,
+  opts: MissedVaaOpts,
+) {
   const { emitterChain, emitterAddress, sequence } = vaaKey;
-  const seenVaaKey = getSeenVaaKey(opts.storagePrefix, emitterChain, emitterAddress);
+  const seenVaaKey = getSeenVaaKey(
+    opts.storagePrefix,
+    emitterChain,
+    emitterAddress,
+  );
   const sequencesString = sequence.toString();
   await redis.zadd(seenVaaKey, sequencesString, sequencesString);
 }
@@ -39,9 +49,13 @@ export function batchMarkAsSeen(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  sequences: string[]
+  sequences: string[],
 ) {
-  return batchAddToSet(redis, getSeenVaaKey(prefix, emitterChain, emitterAddress), sequences);
+  return batchAddToSet(
+    redis,
+    getSeenVaaKey(prefix, emitterChain, emitterAddress),
+    sequences,
+  );
 }
 
 export function batchMarkAsFailedToRecover(
@@ -49,9 +63,13 @@ export function batchMarkAsFailedToRecover(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  sequences: string[]
+  sequences: string[],
 ) {
-  return batchAddToSet(redis, getFailedToFetchKey(prefix, emitterChain, emitterAddress), sequences);
+  return batchAddToSet(
+    redis,
+    getFailedToFetchKey(prefix, emitterChain, emitterAddress),
+    sequences,
+  );
 }
 
 export async function deleteExistingSeenVAAsData(
@@ -60,14 +78,30 @@ export async function deleteExistingSeenVAAsData(
   storagePrefix: string,
   logger?: Logger,
 ) {
-  logger?.info("Deleting existing VAAs and failed VAAs. Will recreate index from redis-storage");
-  
+  logger?.info(
+    "Deleting existing VAAs and failed VAAs. Will recreate index from redis-storage",
+  );
+
   const pipeline = redis.pipeline();
 
   for (const filter of filters) {
-    pipeline.del(getSeenVaaKey(storagePrefix, filter.emitterChain, filter.emitterAddress));
-    pipeline.del(getFailedToFetchKey(storagePrefix, filter.emitterChain, filter.emitterAddress));
-    pipeline.del(getSafeSequenceKey(storagePrefix, filter.emitterChain, filter.emitterAddress));
+    pipeline.del(
+      getSeenVaaKey(storagePrefix, filter.emitterChain, filter.emitterAddress),
+    );
+    pipeline.del(
+      getFailedToFetchKey(
+        storagePrefix,
+        filter.emitterChain,
+        filter.emitterAddress,
+      ),
+    );
+    pipeline.del(
+      getSafeSequenceKey(
+        storagePrefix,
+        filter.emitterChain,
+        filter.emitterAddress,
+      ),
+    );
   }
 
   await pipeline.exec();
@@ -84,10 +118,15 @@ export async function updateSeenSequences(
     const seenVaaKey = getSeenVaaKey(
       storagePrefix,
       filter.emitterChain,
-      filter.emitterAddress
+      filter.emitterAddress,
     );
 
-    scannedKeys += await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, seenVaaKey);
+    scannedKeys += await scanNextBatchAndUpdateSeenSequences(
+      redis,
+      filter,
+      storagePrefix,
+      seenVaaKey,
+    );
   }
 
   return scannedKeys;
@@ -106,7 +145,10 @@ export async function trySetLastSafeSequence(
   try {
     await redis.set(key, lastSeenSequence);
   } catch (error) {
-    logger?.warn(`Error setting last safe sequence for chain: ${emitterChain}`, error);
+    logger?.warn(
+      `Error setting last safe sequence for chain: ${emitterChain}`,
+      error,
+    );
     return false;
   }
 
@@ -119,14 +161,17 @@ export async function tryGetLastSafeSequence(
   emitterChain: number,
   emitterAddress: string,
   logger?: Logger,
-): Promise<bigint|null> {
+): Promise<bigint | null> {
   // since safe sequence is not critical, we'll swallow the error
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
   let lastSafeSequence: string;
   try {
     lastSafeSequence = await redis.get(key);
   } catch (error) {
-    logger?.warn(`Error getting last safe sequence for chain: ${emitterChain}`, error);
+    logger?.warn(
+      `Error getting last safe sequence for chain: ${emitterChain}`,
+      error,
+    );
     return null;
   }
 
@@ -141,13 +186,16 @@ export async function tryGetExistingFailedSequences(
   const failedToFetchKey = getFailedToFetchKey(
     prefix,
     filter.emitterChain,
-    filter.emitterAddress
+    filter.emitterAddress,
   );
 
-  let failedToFetchSequences
-  
+  let failedToFetchSequences;
+
   try {
-    failedToFetchSequences = await getDataFromSortedSet(redis, failedToFetchKey);
+    failedToFetchSequences = await getDataFromSortedSet(
+      redis,
+      failedToFetchKey,
+    );
   } catch (error) {
     return error;
   }
@@ -171,14 +219,14 @@ export async function calculateStartingIndex(
   if (!lastSafeSequence && startingSequence) {
     indexToStartFrom = await redis.zrank(key, startingSequence.toString());
     if (!indexToStartFrom) {
-      logger.warn("Starting Sequence Config not found in redis. No starting sequence will be used.");
+      logger.warn(
+        "Starting Sequence Config not found in redis. No starting sequence will be used.",
+      );
     }
-  }
-  
-  else if (lastSafeSequence) {
+  } else if (lastSafeSequence) {
     indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
   }
-  
+
   return indexToStartFrom;
 }
 
@@ -191,25 +239,44 @@ export async function getAllProcessedSeqsInOrder(
 ): Promise<bigint[]> {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
-  const results = await getDataFromSortedSet(redis, key, indexToStartFrom?.toString());
-  return results.map(r => Number(r)).sort((a, b) => a - b).map(BigInt);
+  const results = await getDataFromSortedSet(
+    redis,
+    key,
+    indexToStartFrom?.toString(),
+  );
+  return results
+    .map(r => Number(r))
+    .sort((a, b) => a - b)
+    .map(BigInt);
 }
 
 /**
- * 
+ *
  * Private Functions:
- * 
+ *
  */
 
-function getSeenVaaKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+function getSeenVaaKey(
+  prefix: string,
+  emitterChain: number,
+  emitterAddress: string,
+): string {
   return `${prefix}:missedVaasV3:seenVaas:${emitterChain}:${emitterAddress}`;
 }
 
-function getFailedToFetchKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+function getFailedToFetchKey(
+  prefix: string,
+  emitterChain: number,
+  emitterAddress: string,
+): string {
   return `${prefix}:missedVaasV3:failedToFetch:${emitterChain}:${emitterAddress}`;
 }
 
-function getSafeSequenceKey(prefix: string, emitterChain: number, emitterAddress: string): string {
+function getSafeSequenceKey(
+  prefix: string,
+  emitterChain: number,
+  emitterAddress: string,
+): string {
   return `${prefix}:missedVaasV3:safeSequence:${emitterChain}:${emitterAddress}`;
 }
 
@@ -232,7 +299,11 @@ async function scanNextBatchAndUpdateSeenSequences(
 ): Promise<number> {
   const { emitterChain, emitterAddress } = filter;
   const prefix = `${storagePrefix}:${emitterChain}/${emitterAddress}`;
-  const [nextCursor, keysFound] = await redis.scan(cursor, "MATCH", `${prefix}*`);
+  const [nextCursor, keysFound] = await redis.scan(
+    cursor,
+    "MATCH",
+    `${prefix}*`,
+  );
 
   const pipeline = redis.pipeline();
   let scannedKeys = 0;
@@ -247,19 +318,33 @@ async function scanNextBatchAndUpdateSeenSequences(
 
   let nextBatchScannedKeys = 0;
   if (nextCursor !== CURSOR_IDENTIFIER) {
-    nextBatchScannedKeys = await scanNextBatchAndUpdateSeenSequences(redis, filter, storagePrefix, seenVaaKey, nextCursor);
+    nextBatchScannedKeys = await scanNextBatchAndUpdateSeenSequences(
+      redis,
+      filter,
+      storagePrefix,
+      seenVaaKey,
+      nextCursor,
+    );
   }
 
   return scannedKeys + nextBatchScannedKeys;
 }
 
-function getDataFromSortedSet(redis: Redis | Cluster, key: string, lowerBound?: string) {
-  const lb = lowerBound || '0';
+function getDataFromSortedSet(
+  redis: Redis | Cluster,
+  key: string,
+  lowerBound?: string,
+) {
+  const lb = lowerBound || "0";
 
   return redis.zrange(key, lb, -1);
 }
 
-async function batchAddToSet(redis: Cluster | Redis, key: string, sequences: string[]) {
+async function batchAddToSet(
+  redis: Cluster | Redis,
+  key: string,
+  sequences: string[],
+) {
   const pipeline = redis.pipeline();
 
   for (const sequence of sequences) {

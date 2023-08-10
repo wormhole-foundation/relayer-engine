@@ -1,10 +1,9 @@
-import {
-  jest,
-  describe,
-  test,
-} from "@jest/globals";
+import { jest, describe, test } from "@jest/globals";
 
-import { ProcessVaaFn, checkForMissedVaas } from "../../../relayer/middleware/missedVaasV3/check";
+import {
+  ProcessVaaFn,
+  checkForMissedVaas,
+} from "../../../relayer/middleware/missedVaasV3/check";
 import {
   batchMarkAsSeen,
   batchMarkAsFailedToRecover,
@@ -14,12 +13,20 @@ import {
 import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers";
 import { Redis } from "ioredis";
 
-jest.mock('../../../relayer/middleware/missedVaasV3/storage');
-jest.mock('../../../relayer/middleware/missedVaasV3/helpers');
+jest.mock("../../../relayer/middleware/missedVaasV3/storage");
+jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
 
-const batchMarkAsSeenMock = batchMarkAsSeen as jest.MockedFunction<typeof batchMarkAsSeen>;
-const batchMarkAsFailedToRecoverMock = batchMarkAsFailedToRecover as jest.MockedFunction<typeof batchMarkAsFailedToRecover>;
-const getAllProcessedSeqsInOrderMock = getAllProcessedSeqsInOrder as jest.MockedFunction<typeof getAllProcessedSeqsInOrder>;
+const batchMarkAsSeenMock = batchMarkAsSeen as jest.MockedFunction<
+  typeof batchMarkAsSeen
+>;
+const batchMarkAsFailedToRecoverMock =
+  batchMarkAsFailedToRecover as jest.MockedFunction<
+    typeof batchMarkAsFailedToRecover
+  >;
+const getAllProcessedSeqsInOrderMock =
+  getAllProcessedSeqsInOrder as jest.MockedFunction<
+    typeof getAllProcessedSeqsInOrder
+  >;
 
 const tryFetchVaaMock = tryFetchVaa as jest.MockedFunction<typeof tryFetchVaa>;
 
@@ -36,15 +43,14 @@ describe("MissedVaaV3.check", () => {
       const emitterChain = 1;
       const emitterAddress = "foo";
       const opts = {
-        storagePrefix: 'bar',
+        storagePrefix: "bar",
         startingSequenceConfig: {},
-      }
+      };
 
-      
       return {
         opts,
         filter: { emitterChain, emitterAddress },
-      }
+      };
     }
 
     /**
@@ -92,7 +98,7 @@ describe("MissedVaaV3.check", () => {
 
       const missingSequencesMock = [3n, 4n, 6n, 7n, 9n, 10n, 11n, 12n];
 
-      missingSequencesMock.forEach((seq) => {
+      missingSequencesMock.forEach(seq => {
         tryFetchVaaMock.mockResolvedValueOnce({
           vaaBytes: Buffer.from(seq.toString()),
         });
@@ -110,7 +116,9 @@ describe("MissedVaaV3.check", () => {
 
       expect(processVaaMock).toHaveBeenCalledTimes(missingSequencesMock.length);
       // + 1 because of the look-ahead call
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(missingSequencesMock.length + 1);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(
+        missingSequencesMock.length + 1,
+      );
       expect(batchMarkAsSeenMock).toHaveBeenCalledTimes(1);
       expect(batchMarkAsFailedToRecoverMock).toHaveBeenCalledTimes(0);
 
@@ -119,7 +127,7 @@ describe("MissedVaaV3.check", () => {
       expect(processed.length).toEqual(missingSequencesMock.length);
       expect(markedSeen.length).toEqual(missingSequencesMock.length);
 
-      missingSequencesMock.forEach((seq) => {
+      missingSequencesMock.forEach(seq => {
         const seqStr = seq.toString();
         expect(markedSeen).toContain(seqStr);
         expect(processed).toContain(seqStr);
@@ -135,11 +143,11 @@ describe("MissedVaaV3.check", () => {
 
       // cal for seq = 2
       tryFetchVaaMock.mockImplementationOnce((...args: any[]) => {
-        throw new Error('foo');
+        throw new Error("foo");
       });
 
       tryFetchVaaMock.mockResolvedValueOnce({
-        vaaBytes: Buffer.from('seq-4'),
+        vaaBytes: Buffer.from("seq-4"),
       });
 
       const { processed, failedToRecover } = await checkForMissedVaas(
@@ -154,17 +162,16 @@ describe("MissedVaaV3.check", () => {
 
       // only vaa 4 got to be processed
       expect(processVaaMock).toHaveBeenCalledTimes(1);
-      
-      
+
       // seq 2 failed to recover:
       expect(failedToRecover.length).toEqual(1);
       expect(batchMarkAsFailedToRecoverMock).toHaveBeenCalledTimes(1);
 
-      const markedFailedToRecover = batchMarkAsFailedToRecoverMock.mock.calls[0][4];
-      expect(markedFailedToRecover).toContain('2');
+      const markedFailedToRecover =
+        batchMarkAsFailedToRecoverMock.mock.calls[0][4];
+      expect(markedFailedToRecover).toContain("2");
       expect(markedFailedToRecover.length).toEqual(1);
-      
-      
+
       // seq 4 was processed:
       expect(processed.length).toEqual(1);
       expect(batchMarkAsSeenMock).toHaveBeenCalledTimes(1);
@@ -182,13 +189,13 @@ describe("MissedVaaV3.check", () => {
       // to have been processed anyway
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 3n, 5n]);
 
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('seq-2') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('seq-4' )});
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("seq-2") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("seq-4") });
       tryFetchVaaMock.mockResolvedValueOnce(null); // look-ahead call.
 
       // first call will fail (Sequence 2)
       processVaaMock.mockImplementationOnce(async (...args: any[]) => {
-        throw new Error('foo');
+        throw new Error("foo");
       });
 
       const { processed, failedToReprocess } = await checkForMissedVaas(
@@ -203,22 +210,21 @@ describe("MissedVaaV3.check", () => {
 
       // both missing vaas were tried to process
       expect(processVaaMock).toHaveBeenCalledTimes(2);
-      
+
       // seq 2 failed to recover:
       expect(failedToReprocess.length).toEqual(1);
 
       // failed to recover shouldn't be marked because we wan't to retry
       // them on the next run
       expect(batchMarkAsFailedToRecoverMock).toHaveBeenCalledTimes(0);
-      
+
       // seq 4 was processed:
       expect(processed.length).toEqual(1);
       expect(batchMarkAsSeenMock).toHaveBeenCalledTimes(1);
 
-
       // only seq 4 should be marked as seen
       const markedSeen = batchMarkAsSeenMock.mock.calls[0][4];
-      expect(markedSeen).toContain('4');
+      expect(markedSeen).toContain("4");
 
       // VAAs marked as failed to recover are marked as seen
       expect(markedSeen.length).toEqual(1);
@@ -255,7 +261,12 @@ describe("MissedVaaV3.check", () => {
         filter,
         redis as unknown as Redis,
         processVaaMock,
-        { ...opts, startingSequenceConfig: { [filter.emitterChain]: mockStartingSequence }},
+        {
+          ...opts,
+          startingSequenceConfig: {
+            [filter.emitterChain]: mockStartingSequence,
+          },
+        },
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -278,7 +289,12 @@ describe("MissedVaaV3.check", () => {
         filter,
         redis as unknown as Redis,
         processVaaMock,
-        { ...opts, startingSequenceConfig: { [filter.emitterChain]: mockStartingSequence }},
+        {
+          ...opts,
+          startingSequenceConfig: {
+            [filter.emitterChain]: mockStartingSequence,
+          },
+        },
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -301,7 +317,12 @@ describe("MissedVaaV3.check", () => {
         filter,
         redis as unknown as Redis,
         processVaaMock,
-        { ...opts, startingSequenceConfig: { [filter.emitterChain]: mockStartingSequence }},
+        {
+          ...opts,
+          startingSequenceConfig: {
+            [filter.emitterChain]: mockStartingSequence,
+          },
+        },
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -317,13 +338,13 @@ describe("MissedVaaV3.check", () => {
 
     test("Look-Ahead will continue fetching VAAs until it gets a not found", async () => {
       const { opts, filter } = prepareTest();
-      
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('foo') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('bar') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('baz') });
+
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("baz") });
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
-      
+
       await checkForMissedVaas(
         filter,
         redis as unknown as Redis,
@@ -337,13 +358,13 @@ describe("MissedVaaV3.check", () => {
 
     test("It will add all found VAAs to the loadAheadSequences and processed stat", async () => {
       const { opts, filter } = prepareTest();
-      
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('foo') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('bar') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('baz') });
+
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("baz") });
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
-      
+
       const { lookAheadSequences, processed } = await checkForMissedVaas(
         filter,
         redis as unknown as Redis,
@@ -357,17 +378,17 @@ describe("MissedVaaV3.check", () => {
 
     test("If processVaa throws is won't be added to processed list", async () => {
       const { opts, filter } = prepareTest();
-      
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('foo') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('bar') });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from('baz') });
+
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
+      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("baz") });
 
       processVaaMock.mockResolvedValueOnce();
       processVaaMock.mockResolvedValueOnce();
-      processVaaMock.mockRejectedValueOnce('foo');
+      processVaaMock.mockRejectedValueOnce("foo");
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
-      
+
       const { lookAheadSequences, processed } = await checkForMissedVaas(
         filter,
         redis as unknown as Redis,
@@ -381,13 +402,13 @@ describe("MissedVaaV3.check", () => {
 
     test("It doesn't throw if fetchVaa throws", async () => {
       const { opts, filter } = prepareTest();
-      
+
       tryFetchVaaMock.mockImplementation((...args: any[]) => {
-        throw new Error('foo');
+        throw new Error("foo");
       });
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
-      
+
       await checkForMissedVaas(
         filter,
         redis as unknown as Redis,

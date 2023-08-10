@@ -1,8 +1,4 @@
-import {
-  jest,
-  describe,
-  test,
-} from "@jest/globals";
+import { jest, describe, test } from "@jest/globals";
 import { Redis } from "ioredis";
 
 import {
@@ -16,12 +12,12 @@ import {
 } from "../../../relayer/middleware/missedVaasV3/storage";
 import { Logger } from "winston";
 
-describe('MissedVaaV3.storage', () => {
+describe("MissedVaaV3.storage", () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('deleteExistingSeenVAAsData', () => {
+  describe("deleteExistingSeenVAAsData", () => {
     const pipeline = {
       del: jest.fn(),
       exec: jest.fn(),
@@ -34,9 +30,9 @@ describe('MissedVaaV3.storage', () => {
     };
 
     function prepareTest(overrides: any = {}) {
-      const prefix = 'foo';
-      const emitterChain = 'bar';
-      const emitterAddress = 'baz';
+      const prefix = "foo";
+      const emitterChain = "bar";
+      const emitterAddress = "baz";
 
       return {
         prefix,
@@ -60,16 +56,18 @@ describe('MissedVaaV3.storage', () => {
     test("It throws if redis throws on exec", async () => {
       const { filters, prefix } = prepareTest();
 
-      const errorMock = new Error('foo');
+      const errorMock = new Error("foo");
       pipeline.exec.mockImplementation(() => {
         throw errorMock;
       });
 
-      await expect(deleteExistingSeenVAAsData(filters, redis, prefix)).rejects.toThrow('foo');
+      await expect(
+        deleteExistingSeenVAAsData(filters, redis, prefix),
+      ).rejects.toThrow("foo");
     });
   });
 
-  describe('scanNextBatchAndUpdateSeenSequences', () => {
+  describe("scanNextBatchAndUpdateSeenSequences", () => {
     const pipeline = {
       zadd: jest.fn(),
       exec: jest.fn(),
@@ -85,17 +83,16 @@ describe('MissedVaaV3.storage', () => {
     type ScanResult = [string, string[]];
 
     function prepareTest() {
-      const prefix = 'foo';
-      const emitterAddress = 'bar';
+      const prefix = "foo";
+      const emitterAddress = "bar";
       const emitterChain = 1;
 
-
-      function createSampleStorageKey(sequence: number| string) {
-        return `${prefix}:${prefix}:${emitterChain}:${emitterAddress}:${sequence}/foo`
+      function createSampleStorageKey(sequence: number | string) {
+        return `${prefix}:${prefix}:${emitterChain}:${emitterAddress}:${sequence}/foo`;
       }
 
-      function createLogsSampleKey(sequence: number|string) {
-        return `${createSampleStorageKey(sequence)}:logs`
+      function createLogsSampleKey(sequence: number | string) {
+        return `${createSampleStorageKey(sequence)}:logs`;
       }
 
       function createScanResult(
@@ -103,16 +100,12 @@ describe('MissedVaaV3.storage', () => {
         sequences: number[],
         includeLogs: boolean = false,
       ): ScanResult {
-        const data = sequences.map(
-          (seq) => createSampleStorageKey(seq)
-        );
+        const data = sequences.map(seq => createSampleStorageKey(seq));
 
         if (includeLogs) {
-          data.push(
-            ...sequences.map(seq => createLogsSampleKey(seq))
-          )
+          data.push(...sequences.map(seq => createLogsSampleKey(seq)));
         }
-        return [ cursor, data ];
+        return [cursor, data];
       }
 
       return {
@@ -132,17 +125,13 @@ describe('MissedVaaV3.storage', () => {
         filters,
         emitterChain,
         emitterAddress,
-        createScanResult
+        createScanResult,
       } = prepareTest();
 
       const scanFirstResult = createScanResult("0", []);
       redis.scan.mockResolvedValueOnce(scanFirstResult);
 
-      await updateSeenSequences(
-        filters,
-        redis as unknown as Redis,
-        prefix,
-      );
+      await updateSeenSequences(filters, redis as unknown as Redis, prefix);
 
       expect(redis.scan).toHaveBeenCalledTimes(1);
 
@@ -154,73 +143,47 @@ describe('MissedVaaV3.storage', () => {
     });
 
     test("It adds all found keys to the seen vaas sorted-set using zadd", async () => {
-      const {
-        prefix,
-        filters,
-        createScanResult
-      } = prepareTest();
+      const { prefix, filters, createScanResult } = prepareTest();
 
-      const sequencesFound = [1,2,3,4,5,6,7,8,9];
+      const sequencesFound = [1, 2, 3, 4, 5, 6, 7, 8, 9];
       redis.scan.mockResolvedValueOnce(createScanResult("0", sequencesFound));
 
-      await updateSeenSequences(
-        filters,
-        redis as unknown as Redis,
-        prefix,
-      );
-        
+      await updateSeenSequences(filters, redis as unknown as Redis, prefix);
+
       expect(pipeline.zadd).toHaveBeenCalledTimes(sequencesFound.length);
     });
 
     test("If it finds keys, it calls exec method on the pipeline", async () => {
-      const {
-        prefix,
-        filters,
-        createScanResult
-      } = prepareTest();
+      const { prefix, filters, createScanResult } = prepareTest();
 
-      const sequencesFound = [1,2,3,4,5,6,7,8,9];
+      const sequencesFound = [1, 2, 3, 4, 5, 6, 7, 8, 9];
       redis.scan.mockResolvedValueOnce(createScanResult("0", sequencesFound));
 
-      await updateSeenSequences(
-        filters,
-        redis as unknown as Redis,
-        prefix,
-      );
-        
+      await updateSeenSequences(filters, redis as unknown as Redis, prefix);
+
       expect(pipeline.exec).toHaveBeenCalledTimes(1);
     });
 
     test("it ignores results containing workflow logs", async () => {
-      const {
-        prefix,
-        filters,
-        createScanResult
-      } = prepareTest();
+      const { prefix, filters, createScanResult } = prepareTest();
 
       const sequencesFound = [1, 2, 3, 4, 5, 6, 7, 8, 9];
       const createLogRecords = true;
-      redis.scan.mockResolvedValueOnce(createScanResult("0", sequencesFound, createLogRecords));
-
-      await updateSeenSequences(
-        filters,
-        redis as unknown as Redis,
-        prefix,
+      redis.scan.mockResolvedValueOnce(
+        createScanResult("0", sequencesFound, createLogRecords),
       );
-        
+
+      await updateSeenSequences(filters, redis as unknown as Redis, prefix);
+
       expect(pipeline.zadd).toHaveBeenCalledTimes(sequencesFound.length);
     });
 
     test("It counts the scanned results and returns the count", async () => {
-      const {
-        prefix,
-        filters,
-        createScanResult
-      } = prepareTest();
+      const { prefix, filters, createScanResult } = prepareTest();
 
-      redis.scan.mockResolvedValueOnce(createScanResult("6", [1,2,3]));
-      redis.scan.mockResolvedValueOnce(createScanResult("3", [4,5,6]));
-      redis.scan.mockResolvedValueOnce(createScanResult("0", [7,8,9]));
+      redis.scan.mockResolvedValueOnce(createScanResult("6", [1, 2, 3]));
+      redis.scan.mockResolvedValueOnce(createScanResult("3", [4, 5, 6]));
+      redis.scan.mockResolvedValueOnce(createScanResult("0", [7, 8, 9]));
 
       const expectedResult = 9;
 
@@ -235,14 +198,14 @@ describe('MissedVaaV3.storage', () => {
     });
   });
 
-  describe('trySetLastSafeSequence', () => {
+  describe("trySetLastSafeSequence", () => {
     const redis = { set: jest.fn() };
     const logger = { warn: jest.fn() };
 
     function prepareTest(overrides: any = {}) {
-      const prefix = 'foo';
-      const emitterChain = 'bar';
-      const emitterAddress = 'baz';
+      const prefix = "foo";
+      const emitterChain = "bar";
+      const emitterAddress = "baz";
 
       return {
         prefix,
@@ -254,11 +217,7 @@ describe('MissedVaaV3.storage', () => {
 
     test("It sets safe sequence to redis", async () => {
       const safeSequenceMock = 123;
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-      } = prepareTest();
+      const { prefix, emitterChain, emitterAddress } = prepareTest();
 
       const res = await trySetLastSafeSequence(
         redis as unknown as Redis,
@@ -277,11 +236,7 @@ describe('MissedVaaV3.storage', () => {
     });
 
     test("It returns false if redis throws", async () => {
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-      } = prepareTest();
+      const { prefix, emitterChain, emitterAddress } = prepareTest();
 
       const errorMock = new Error("foo");
 
@@ -305,15 +260,15 @@ describe('MissedVaaV3.storage', () => {
     });
   });
 
-  describe('tryGetLastSafeSequence', () => {
+  describe("tryGetLastSafeSequence", () => {
     const redis = { get: jest.fn() };
 
     function prepareTest(getResult?: string, overrides: any = {}) {
       redis.get.mockImplementation(async () => getResult || undefined);
 
-      const prefix = 'foo';
-      const emitterChain = 'bar';
-      const emitterAddress = 'baz';
+      const prefix = "foo";
+      const emitterChain = "bar";
+      const emitterAddress = "baz";
 
       return {
         prefix,
@@ -324,13 +279,10 @@ describe('MissedVaaV3.storage', () => {
     }
 
     test("It gets safe sequence from redis", async () => {
-      const safeSequenceMock = '100';
+      const safeSequenceMock = "100";
 
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-      } = prepareTest(safeSequenceMock);
+      const { prefix, emitterChain, emitterAddress } =
+        prepareTest(safeSequenceMock);
 
       const safeSequence = await tryGetLastSafeSequence(
         redis as unknown as Redis,
@@ -346,11 +298,8 @@ describe('MissedVaaV3.storage', () => {
     test("It returns null if there is no safe sequence on redis", async () => {
       const safeSequenceMock: undefined = undefined;
 
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-      } = prepareTest(safeSequenceMock);
+      const { prefix, emitterChain, emitterAddress } =
+        prepareTest(safeSequenceMock);
 
       const safeSequence = await tryGetLastSafeSequence(
         redis as unknown as Redis,
@@ -364,15 +313,11 @@ describe('MissedVaaV3.storage', () => {
     });
 
     test("It returns null if redis throws", async () => {
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-      } = prepareTest();
-      const errorMock = new Error('foo');
+      const { prefix, emitterChain, emitterAddress } = prepareTest();
+      const errorMock = new Error("foo");
 
       redis.get.mockImplementation(() => {
-        throw errorMock
+        throw errorMock;
       });
 
       const safeSequence = await tryGetLastSafeSequence(
@@ -385,18 +330,17 @@ describe('MissedVaaV3.storage', () => {
       expect(redis.get).toHaveBeenCalledTimes(1);
       expect(safeSequence).toEqual(null);
     });
-
   });
 
-  describe('tryGetExistingFailedSequences', () => {
+  describe("tryGetExistingFailedSequences", () => {
     const redis = { zrange: jest.fn() };
 
     function prepareTest(zrangeResult?: string[], overrides: any = {}) {
       redis.zrange.mockImplementation(async () => zrangeResult || []);
 
-      const prefix = 'foo';
-      const emitterChain = 'bar';
-      const emitterAddress = 'baz';
+      const prefix = "foo";
+      const emitterChain = "bar";
+      const emitterAddress = "baz";
       const filter = { emitterChain, emitterAddress };
 
       return {
@@ -407,12 +351,9 @@ describe('MissedVaaV3.storage', () => {
     }
 
     test("It gets the all data on the failed sorted set", async () => {
-      const mockSeenVaas = ['1', '2', '3'];
+      const mockSeenVaas = ["1", "2", "3"];
 
-      const {
-        prefix,
-        filter
-      } = prepareTest(mockSeenVaas);
+      const { prefix, filter } = prepareTest(mockSeenVaas);
 
       const seenVaas = await tryGetExistingFailedSequences(
         redis as unknown as Redis,
@@ -428,12 +369,9 @@ describe('MissedVaaV3.storage', () => {
     });
 
     test("If redis throws, the error is returned instead of thrown", async () => {
-      const {
-        prefix,
-        filter
-      } = prepareTest();
+      const { prefix, filter } = prepareTest();
 
-      const errorMock = new Error('foo');
+      const errorMock = new Error("foo");
 
       redis.zrange.mockImplementation(() => {
         throw errorMock;
@@ -450,15 +388,15 @@ describe('MissedVaaV3.storage', () => {
     });
   });
 
-  describe('getAllProcessedSeqsInOrder', () => {
+  describe("getAllProcessedSeqsInOrder", () => {
     const redis = { zrange: jest.fn() };
 
     function prepareTest(zrangeResult?: string[], overrides: any = {}) {
       redis.zrange.mockImplementation(async () => zrangeResult || []);
 
-      const prefix = 'foo';
-      const emitterChain = 'bar';
-      const emitterAddress = 'baz';
+      const prefix = "foo";
+      const emitterChain = "bar";
+      const emitterAddress = "baz";
       const indexToStartFrom: undefined = undefined;
 
       return {
@@ -471,14 +409,10 @@ describe('MissedVaaV3.storage', () => {
     }
 
     test("It gets the seen vaas data from the redis sorted set, as bigint", async () => {
-      const mockSeenVaas = ['1', '2', '3'];
+      const mockSeenVaas = ["1", "2", "3"];
 
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-        indexToStartFrom,
-      } = prepareTest(mockSeenVaas);
+      const { prefix, emitterChain, emitterAddress, indexToStartFrom } =
+        prepareTest(mockSeenVaas);
 
       const seenVaas = await getAllProcessedSeqsInOrder(
         redis as unknown as Redis,
@@ -493,14 +427,10 @@ describe('MissedVaaV3.storage', () => {
     });
 
     test("It orders the seen vaas it returns", async () => {
-      const mockSeenVaas = ['1', '3', '2'];
+      const mockSeenVaas = ["1", "3", "2"];
 
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-        indexToStartFrom,
-      } = prepareTest(mockSeenVaas);
+      const { prefix, emitterChain, emitterAddress, indexToStartFrom } =
+        prepareTest(mockSeenVaas);
 
       const seenVaas = await getAllProcessedSeqsInOrder(
         redis as unknown as Redis,
@@ -520,12 +450,8 @@ describe('MissedVaaV3.storage', () => {
     test("It returns all seen vaas if not starting index is passed", async () => {
       // what we want to test is that it uses "0" as a lower bound to zrange
       // to command redis to return all VAAs.
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-        indexToStartFrom,
-      } = prepareTest();
+      const { prefix, emitterChain, emitterAddress, indexToStartFrom } =
+        prepareTest();
 
       const seenVaas = await getAllProcessedSeqsInOrder(
         redis as unknown as Redis,
@@ -544,14 +470,10 @@ describe('MissedVaaV3.storage', () => {
     test("It returns vaas from a certain index is starting index is passed", async () => {
       const mockStartingIndex = 10n;
 
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-        indexToStartFrom,
-      } = prepareTest(undefined, {
-        indexToStartFrom: mockStartingIndex
-      });
+      const { prefix, emitterChain, emitterAddress, indexToStartFrom } =
+        prepareTest(undefined, {
+          indexToStartFrom: mockStartingIndex,
+        });
 
       const seenVaas = await getAllProcessedSeqsInOrder(
         redis as unknown as Redis,
@@ -568,14 +490,14 @@ describe('MissedVaaV3.storage', () => {
     });
   });
 
-  describe('calculateStartingIndex', () => {
+  describe("calculateStartingIndex", () => {
     const redis = { zrank: jest.fn() };
     function prepareTest(redisSetIndex?: bigint, overrides: any = {}) {
       redis.zrank.mockImplementation(async () => redisSetIndex || undefined);
 
-      const prefix = 'foo';
-      const emitterChain = 'bar';
-      const emitterAddress = 'baz';
+      const prefix = "foo";
+      const emitterChain = "bar";
+      const emitterAddress = "baz";
       const lastSafeSequence: undefined = undefined;
       const startingSequence: undefined = undefined;
 
