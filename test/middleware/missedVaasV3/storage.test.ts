@@ -6,6 +6,7 @@ import {
 import { Redis } from "ioredis";
 
 import {
+  deleteExistingSeenVAAsData,
   updateSeenSequences,
   trySetLastSafeSequence,
   tryGetLastSafeSequence,
@@ -19,7 +20,6 @@ describe('MissedVaaV3.storage', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
-
 
   describe('deleteExistingSeenVAAsData', () => {
     const pipeline = {
@@ -42,33 +42,30 @@ describe('MissedVaaV3.storage', () => {
         prefix,
         emitterChain,
         emitterAddress,
-        filter: { emitterAddress, emitterChain },
+        filters: [{ emitterAddress, emitterChain }],
         ...overrides,
       };
     }
 
     test("It removes all existing data on a single command roundtrip using pipeline", async () => {
-      const safeSequenceMock = 123;
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-      } = prepareTest();
+      const { filters, prefix, emitterChain, emitterAddress } = prepareTest();
 
-      const res = await trySetLastSafeSequence(
-        redis as unknown as Redis,
-        prefix,
-        emitterChain,
-        emitterAddress,
-        safeSequenceMock,
-      );
+      await deleteExistingSeenVAAsData(filters, redis, prefix);
 
-      expect(redis.set).toHaveBeenCalledTimes(1);
-      expect(res).toEqual(true);
+      expect(redis.pipeline).toHaveBeenCalledTimes(1);
+      expect(pipeline.exec).toHaveBeenCalledTimes(1);
+      expect(pipeline.del).toHaveBeenCalledTimes(3);
+    });
 
-      const args = redis.set.mock.calls[0];
+    test("It throws if redis throws on exec", async () => {
+      const { filters, prefix } = prepareTest();
 
-      expect(args[1]).toEqual(safeSequenceMock);
+      const errorMock = new Error('foo');
+      pipeline.exec.mockImplementation(() => {
+        throw errorMock;
+      });
+
+      await expect(deleteExistingSeenVAAsData(filters, redis, prefix)).rejects.toThrow('foo');
     });
   });
 
