@@ -111,7 +111,9 @@ export function updateMetrics(
 }
 
 
-export async function tryFetchVaa(vaaKey: SerializableVaaId, wormholeRpcs: string[], retries: number = 2): Promise<GetSignedVAAResponse> {
+export async function tryFetchVaa(
+  vaaKey: SerializableVaaId, wormholeRpcs: string[], retries: number = 2
+): Promise<GetSignedVAAResponse|null> {
   let vaa;
   const stack = new Error().stack;
   try {
