@@ -1,33 +1,8 @@
 import { Cluster, Redis } from "ioredis";
-import { createPool, Pool } from "generic-pool";
 import { Logger } from "winston";
 
 import { SerializableVaaId } from "../../application";
-import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { MissedVaaOpts, FilterIdentifier } from "./worker";
-
-export function createRedisPool(
-  opts: RedisConnectionOpts,
-): Pool<Redis | Cluster> {
-  const factory = {
-    create: async function () {
-      const redis = opts.redisCluster
-        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
-        : new Redis(opts.redis);
-      // TODO: metrics.missed_vaa_redis_open_connections.inc();
-      return redis;
-    },
-    destroy: async function (redis: Redis | Cluster) {
-      // TODO: metrics.missed_vaa_redis_open_connections.dec();
-    },
-  };
-  const poolOpts = {
-    min: 5,
-    max: 15,
-    autostart: true,
-  };
-  return createPool(factory, poolOpts);
-}
 
 export async function markVaaAsSeen(
   redis: Cluster | Redis,

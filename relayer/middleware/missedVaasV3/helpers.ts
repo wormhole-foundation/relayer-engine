@@ -86,10 +86,22 @@ function calculateLastSafeSequence(
 export function updateMetrics(
   metrics: MissedVaaMetrics,
   filter: FilterIdentifier,
-  missedVaas: MissedVaaRunStats,
-  sequenceStats: SequenceStats,
+  startTime: number, // timestamp in ms
+  failure: boolean,
+  missedVaas?: MissedVaaRunStats,
+  sequenceStats?: SequenceStats,
 ) {
   const { emitterChain, emitterAddress } = filter;
+
+  if (failure) {
+    metrics.workerFailedRuns?.labels().inc();
+    metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
+    return;
+  }
+
+  metrics.workerSuccessfulRuns?.labels().inc();
+  metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
+
   const vaasProcessed = missedVaas.processed.length;
   // This are VAAs that were found missing between known sequences, but we failed
   // to fetch them to reprocess them

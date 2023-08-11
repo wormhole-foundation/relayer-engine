@@ -1,33 +1,19 @@
 import Redis, { Cluster } from "ioredis";
 import { Registry } from "prom-client";
 import { ChainId } from "@certusone/wormhole-sdk";
-import { Pool } from "generic-pool";
+import { createPool, Pool } from "generic-pool";
 import { Logger } from "winston";
 
-import {
-  defaultWormholeRpcs,
-  ParsedVaaWithBytes,
-  RelayerApp,
-  RelayerEvents,
-} from "../../application";
+import { defaultWormholeRpcs, RelayerApp } from "../../application";
 import { mapConcurrent, sleep } from "../../utils";
 import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { initMetrics, MissedVaaMetrics } from "./metrics";
+import { updateMetrics } from "./helpers";
 import {
-  MissedVaaRunStats,
-  calculateSequenceStats,
-  updateMetrics,
-} from "./helpers";
-import { ProcessVaaFn, checkForMissedVaas } from "./check";
-import {
-  createRedisPool,
-  markVaaAsSeen,
-  deleteExistingSeenVAAsData,
-  updateSeenSequences,
-  trySetLastSafeSequence,
-  tryGetLastSafeSequence,
-  tryGetExistingFailedSequences,
-} from "./storage";
+  runMissedVaaCheck,
+  refreshSeenSequences,
+  registerEventListeners,
+} from "./check";
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
@@ -69,10 +55,10 @@ export interface FilterIdentifier {
 
 let metrics: MissedVaaMetrics;
 
-export function spawnMissedVaaWorker(
+export async function spawnMissedVaaWorker(
   app: RelayerApp<any>,
   opts: MissedVaaOpts,
-): void {
+): Promise<void> {
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
   if (!metrics) {
     metrics = opts.registry ? initMetrics(opts.registry) : {};
@@ -96,197 +82,68 @@ export function spawnMissedVaaWorker(
       emitterAddress: filter.emitterFilter.emitterAddress,
     };
   });
-  registerEventListeners(app, redisPool, opts);
-  startMissedVaasWorkers(filters, redisPool, app.processVaa.bind(app), opts);
-}
 
-async function registerEventListeners(
-  app: RelayerApp<any>,
-  redisPool: Pool<Redis | Cluster>,
-  opts: MissedVaaOpts,
-) {
-  async function markVaaSeen(vaa: ParsedVaaWithBytes) {
-    let redis: Redis | Cluster;
-    try {
-      redis = await redisPool.acquire();
-    } catch (error) {
-      opts.logger?.error(
-        `Failed to acquire redis client while trying to mark vaa seen.`,
-        error,
-      );
-      await redisPool.release(redis);
-      return;
-    }
-
-    try {
-      await markVaaAsSeen(redis, vaa.id, opts);
-    } catch (error) {
-      opts.logger?.error(
-        `Failed to mark VAA ass seen ${vaa.id.sequence}. Vaa will probably be reprocessed. Error: `,
-        error,
-      );
-    } finally {
-      await redisPool.release(redis);
-    }
+  if (opts.storagePrefix) {
+    await refreshSeenSequences(redisPool, filters, opts);
   }
 
-  app.addListener(RelayerEvents.Added, markVaaSeen);
-  app.addListener(RelayerEvents.Skipped, markVaaSeen);
-}
-
-async function startMissedVaasWorkers(
-  filters: FilterIdentifier[],
-  redisPool: Pool<Cluster | Redis>,
-  processVaa: ProcessVaaFn,
-  opts: MissedVaaOpts,
-) {
-  await redisPool.use(async redis => {
-    if (opts.storagePrefix && opts.forceSeenKeysReindex) {
-      await deleteExistingSeenVAAsData(
-        filters,
-        redis,
-        opts.storagePrefix,
-        opts.logger,
-      );
-    }
-
-    // The prefix used by the storage to store workflows.
-    // We'll use it to go into the queue, and build a map of what
-    // sequences have already been processed according to the store
-    if (opts.storagePrefix) {
-      const startTime = Date.now();
-      const scannedKeys = await updateSeenSequences(
-        filters,
-        redis,
-        opts.storagePrefix,
-      );
-      const elapsedTime = Date.now() - startTime;
-
-      opts.logger?.info(`Scanned ${scannedKeys} keys in ${elapsedTime}ms`);
-    }
-  });
+  registerEventListeners(app, redisPool, opts);
 
   while (true) {
     opts.logger.info(`Missed VAA middleware run starting...`);
-    await mapConcurrent(
-      filters,
-      filter =>
-        redisPool.use(async redis => {
-          const { storagePrefix } = opts;
-          const { emitterChain, emitterAddress } = filter;
-          const filterLogger = opts.logger?.child({
-            emitterChain,
-            emitterAddress,
-          });
+    await mapConcurrent(filters, filter =>
+      redisPool.use(async redis => {
+        const startTime = Date.now();
 
-          const startTime = Date.now();
-
-          const previousSafeSequence = await tryGetLastSafeSequence(
+        try {
+          const results = await runMissedVaaCheck(
+            filter,
             redis,
-            storagePrefix,
-            emitterChain,
-            emitterAddress,
-            filterLogger,
+            app.processVaa.bind(app),
+            opts,
           );
-
-          let missedVaas: MissedVaaRunStats;
-
-          try {
-            missedVaas = await checkForMissedVaas(
+          updateMetrics(
+            metrics,
+            filter,
+            startTime,
+            false,
+            results.missedVaas,
+            results.sequenceStats,
+          );
+        } catch (error) {
+          opts.logger?.error(
+            `Error checking for missed vaas for filter: ${JSON.stringify(
               filter,
-              redis,
-              processVaa,
-              opts,
-              previousSafeSequence,
-              filterLogger,
-            );
-
-            metrics.workerSuccessfulRuns?.labels().inc();
-            metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
-          } catch (error) {
-            opts.logger?.error(
-              `Error checking for missed vaas for filter: ${JSON.stringify(
-                filter,
-              )}}`,
-              error,
-            );
-
-            metrics.workerFailedRuns?.labels().inc();
-            metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
-          }
-
-          // TODO: this is an ugly way to handle the error
-          const failedToFetchSequencesOrError =
-            await tryGetExistingFailedSequences(
-              redis,
-              filter,
-              opts.storagePrefix,
-            );
-          if (!Array.isArray(failedToFetchSequencesOrError)) {
-            filterLogger?.error(
-              `Failed to get existing failed sequences from redis. Error: `,
-              failedToFetchSequencesOrError,
-            );
-          } else if (failedToFetchSequencesOrError.length) {
-            filterLogger?.warn(
-              `Found sequences that we failed to get from wormhole-rpc. Sequences: ` +
-                JSON.stringify(failedToFetchSequencesOrError),
-            );
-          } else {
-            filterLogger?.debug("No previous failed sequences found.");
-          }
-
-          const failedToFetchSequences = Array.isArray(
-            failedToFetchSequencesOrError,
-          )
-            ? failedToFetchSequencesOrError
-            : null;
-
-          const sequenceStats = calculateSequenceStats(
-            missedVaas,
-            failedToFetchSequences,
-            previousSafeSequence?.toString(),
+            )}}`,
+            error,
           );
 
-          const { lastSafeSequence, lastSeenSequence, firstSeenSequence } =
-            sequenceStats;
-
-          if (!previousSafeSequence || previousSafeSequence?.toString() !== String(lastSafeSequence)) {
-            filterLogger?.debug(
-              `No missing sequences found up to sequence ${lastSafeSequence}. Setting as last sequence`,
-            );
-            await trySetLastSafeSequence(
-              redis,
-              storagePrefix,
-              emitterChain,
-              emitterAddress,
-              lastSafeSequence,
-            );
-          }
-
-          updateMetrics(metrics, filter, missedVaas, sequenceStats);
-
-          const vaasFound =
-            missedVaas.missingSequences.length +
-            missedVaas.lookAheadSequences.length;
-
-          filterLogger?.info(
-            `Finished missed VAAs check. Found: ${vaasFound}. Enable debug to see a log with precise results.`,
-          );
-
-          filterLogger?.debug(
-            `Finished missed vaas check. Results: ${JSON.stringify({
-              missedVaas,
-              lastSafeSequence,
-              lastSeenSequence,
-              firstSeenSequence,
-            })}}`,
-          );
-        }),
-      opts.concurrency || 1,
+          updateMetrics(metrics, filter, startTime, true);
+        }
+      }),
     );
 
-    // TODO: if possible handle this in a more event driven way (intervals + locks on a per chain basis)
     await sleep(opts.checkInterval || 30_000);
   }
+}
+
+function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster> {
+  const factory = {
+    create: async function () {
+      const redis = opts.redisCluster
+        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
+        : new Redis(opts.redis);
+      // TODO: metrics.missed_vaa_redis_open_connections.inc();
+      return redis;
+    },
+    destroy: async function (redis: Redis | Cluster) {
+      // TODO: metrics.missed_vaa_redis_open_connections.dec();
+    },
+  };
+  const poolOpts = {
+    min: 5,
+    max: 15,
+    autostart: true,
+  };
+  return createPool(factory, poolOpts);
 }
