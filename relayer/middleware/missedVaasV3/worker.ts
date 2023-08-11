@@ -251,7 +251,7 @@ async function startMissedVaasWorkers(
           const { lastSafeSequence, lastSeenSequence, firstSeenSequence } =
             sequenceStats;
 
-          if (lastSafeSequence > 0 && failedToFetchSequences !== null) {
+          if (!previousSafeSequence || previousSafeSequence?.toString() !== String(lastSafeSequence)) {
             filterLogger?.debug(
               `No missing sequences found up to sequence ${lastSafeSequence}. Setting as last sequence`,
             );

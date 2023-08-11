@@ -60,7 +60,7 @@ function calculateLastSafeSequence(
   const { missingSequences, failedToRecover, failedToReprocess } = runStats;
 
   const missingSequencesFailedToReprocess =
-    failedToRecover.length === 0 && failedToReprocess.length === 0;
+    failedToRecover.length > 0 || failedToReprocess.length > 0;
 
   if (missingSequences.length > 0 && missingSequencesFailedToReprocess) {
     // we found some missing sequences on this run, but we were able to reprocess them
