@@ -4,7 +4,7 @@ import {
     test
 } from "@jest/globals";
 import { RedisStorage } from "../../relayer/storage/redis-storage";
-import { StorageMetricLabelOpts, StorageMetricsOpts, createStorageMetrics } from "../../relayer/storage/storage.metrics";
+import { DefaultLabels, StorageMetricLabelOpts, StorageMetricsOpts, createStorageMetrics } from "../../relayer/storage/storage.metrics";
 import { setTimeout } from "timers";
 import { Registry } from "prom-client";
 
@@ -86,10 +86,10 @@ const waitForExecution = (expectation: () => Promise<void>, period: number, maxT
 
 const thenExecutionIsFinished = async (redisStorage: RedisStorage, metricsConfig: StorageMetricsOpts) => {
     const expectation = async () => {
-        const completedTotalValues = (await redisStorage.registry.getSingleMetric("completed_workflows_total")!.get()).values;
-        expect(completedTotalValues.length).toBeGreaterThan(0);
-        expect(completedTotalValues[0].value).toBeGreaterThan(0);
-        metricsConfig.labelOpts.labelNames!.forEach(labelName => expect(completedTotalValues[0].labels[labelName]).toBeDefined());
+        const completedTotalValue = (await redisStorage.registry.getSingleMetric("completed_workflows_total")!.get()).values[0];
+        expect(completedTotalValue.value).toBeGreaterThan(0);
+        Object.values(DefaultLabels).forEach(labelName => expect(completedTotalValue.labels[labelName]).toBeDefined());
+        metricsConfig.labelOpts.labelNames!.forEach(labelName => expect(completedTotalValue.labels[labelName]).toBeDefined());
     };
 
     return waitForExecution(expectation, 100, 10);

@@ -278,8 +278,8 @@ export class RedisStorage implements Storage {
     this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
   }
 
-  private async getLabels(data: JobData): Promise<Record<string, any>> {
-    const defaultLabels = { queue: this.vaaQueue.name };
+  private async getLabels(data: JobData,  failed: boolean): Promise<Record<string, any>> {
+    const defaultLabels = { queue: this.vaaQueue.name, status: failed ? "failed" : "succeeded" };
     try {
       const labels: Record<string, string | number> = await (
         this.opts.metrics?.labelOpts.customizer(data.parsedVaa) ??
@@ -302,17 +302,21 @@ export class RedisStorage implements Storage {
   }
 
   private async onCompleted(job: Job<JobData, void, string>) {
-    const labels = await this.getLabels(job.data);
+    const labels = await this.getLabels(job.data, false);
+    await this.observeDuration(job, labels);
+    this.metrics.completedCounter.labels(labels).inc();
+  }
+
+  private async observeDuration(job: Job<JobData, void, string>, labels: Record<string, string | number>) {
     const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
     const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
-    this.metrics.completedCounter.labels(labels).inc();
     this.metrics.completedDuration.labels(labels).observe(completedDuration);
     this.metrics.processedDuration.labels(labels).observe(processedDuration);
   }
 
   private async onFailed(job: Job) {
-    const labels = await this.getLabels(job.data);
-    // TODO: Add a failed duration metric for processing time for failed jobs
+    const labels = await this.getLabels(job.data, true);
+    await this.observeDuration(job, labels);
     this.metrics.failedRunsCounter.labels(labels).inc();
 
     if (job.attemptsMade === this.opts.attempts) {

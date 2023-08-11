@@ -1,5 +1,10 @@
 import { Counter, Gauge, Histogram, Registry } from "prom-client";
 
+export enum DefaultLabels {
+  Queue = "queue",
+  Status = "status"
+}
+
 export class StorageMetricLabelOpts {
   labelNames: string[];
   customizer: (parsedVaa: any) => Promise<Record<string, string | number>>;
@@ -42,7 +47,7 @@ export function createStorageMetrics(
   metrics?: StorageMetricsOverrides,
   labelOpts?: StorageMetricLabelOpts
 ): StorageMetricsOpts {
-  const labelNames = (labelOpts?.labelNames ?? []).concat("queue");
+  const labelNames = (labelOpts?.labelNames ?? []).concat(Object.values(DefaultLabels));
   return {
     registry: storageRegistry,
     metrics: {
@@ -79,7 +84,7 @@ export function createStorageMetrics(
       failedRunsCounter: new Counter({
         name: `failed_workflow_runs_total`,
         help: "Total number of failed job runs",
-        labelNames: ["queue"],
+        labelNames,
         registers: [storageRegistry],
       }),
       failedWithMaxRetriesCounter: new Counter({
