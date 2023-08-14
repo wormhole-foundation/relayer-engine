@@ -1,4 +1,3 @@
-import { Registry } from "prom-client";
 import { Context } from "../context";
 import { ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 
