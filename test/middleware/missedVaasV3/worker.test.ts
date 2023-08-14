@@ -11,8 +11,6 @@ import {
 
 } from "../../../relayer/middleware/missedVaasV3/storage";
 import {
-  SequenceStats,
-  MissedVaaRunStats,
   calculateSequenceStats,
 } from '../../../relayer/middleware/missedVaasV3/helpers';
 import { runMissedVaaCheck } from "../../../relayer/middleware/missedVaasV3/worker";

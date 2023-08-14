@@ -38,7 +38,7 @@ export function calculateSequenceStats(
     previousSafeSequence,
   );
   const lastSeenSequence = Math.max(
-    Number(seenSequences[seenSequences.length - 1]),
+    seenSequences.length ? Number(seenSequences[seenSequences.length - 1]) : 0,
     lastSafeSequence,
   );
   const firstSeenSequence = Number(seenSequences[0]) || 0;

@@ -153,8 +153,6 @@ export async function runMissedVaaCheck(
   opts: MissedVaaOpts,
   logger?: Logger,
 ) {
-
-
   const { storagePrefix } = opts;
   const { emitterChain, emitterAddress } = filter;
 
