@@ -2,13 +2,14 @@ import { jest, describe, test } from "@jest/globals";
 
 import {
   ProcessVaaFn,
+  runMissedVaaCheck,
   checkForMissedVaas,
 } from "../../../relayer/middleware/missedVaasV3/check";
 import {
   batchMarkAsSeen,
   batchMarkAsFailedToRecover,
-  updateSeenSequences,
   getAllProcessedSeqsInOrder,
+  tryGetLastSafeSequence
 } from "../../../relayer/middleware/missedVaasV3/storage";
 import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers";
 import { Redis } from "ioredis";
@@ -28,6 +29,10 @@ const getAllProcessedSeqsInOrderMock =
     typeof getAllProcessedSeqsInOrder
   >;
 
+const tryGetLastSafeSequenceMock = tryGetLastSafeSequence as jest.MockedFunction<
+  typeof tryGetLastSafeSequence
+>;
+
 const tryFetchVaaMock = tryFetchVaa as jest.MockedFunction<typeof tryFetchVaa>;
 
 describe("MissedVaaV3.check", () => {
@@ -38,7 +43,7 @@ describe("MissedVaaV3.check", () => {
   const redis = {};
   const processVaaMock = jest.fn() as jest.MockedFunction<ProcessVaaFn>;
 
-  describe("checkForMissedVaas. Look-Ahead", () => {
+  describe("checkForMissedVaas", () => {
     function prepareTest() {
       const emitterChain = 1;
       const emitterAddress = "foo";
@@ -59,7 +64,6 @@ describe("MissedVaaV3.check", () => {
 
     test("If there are no seen sequences, no VAAs are tried to reprocess", async () => {
       const { opts, filter } = prepareTest();
-
       getAllProcessedSeqsInOrderMock.mockResolvedValue([]);
 
       await checkForMissedVaas(
@@ -134,7 +138,7 @@ describe("MissedVaaV3.check", () => {
       });
     });
 
-    test.only("If a sequence fails to be recovered it will be marked accordingly and won't interrupt the processing of other seqs", async () => {
+    test("If a sequence fails to be recovered it will be marked accordingly and won't interrupt the processing of other seqs", async () => {
       const { opts, filter } = prepareTest();
 
       // missing sequences are 2 and 4. Will force an error on seq 2 and expect seq 4

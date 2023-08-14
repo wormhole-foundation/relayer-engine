@@ -10,10 +10,22 @@ import { RedisConnectionOpts } from "../../storage/redis-storage";
 import { initMetrics, MissedVaaMetrics } from "./metrics";
 import { updateMetrics } from "./helpers";
 import {
-  runMissedVaaCheck,
+  ProcessVaaFn,
   refreshSeenSequences,
   registerEventListeners,
+  checkForMissedVaas,
 } from "./check";
+
+import {
+  tryGetLastSafeSequence,
+  trySetLastSafeSequence,
+  tryGetExistingFailedSequences,
+} from "./storage";
+
+import {
+  MissedVaaRunStats,
+  calculateSequenceStats,
+} from "./helpers"
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
@@ -95,12 +107,18 @@ export async function spawnMissedVaaWorker(
       redisPool.use(async redis => {
         const startTime = Date.now();
 
+        const filterLogger = opts.logger?.child({
+          emitterChain: filter.emitterChain,
+          emitterAddress: filter.emitterAddress,
+        });
+
         try {
           const results = await runMissedVaaCheck(
             filter,
             redis,
             app.processVaa.bind(app),
             opts,
+            filterLogger
           );
           updateMetrics(
             metrics,
@@ -111,7 +129,7 @@ export async function spawnMissedVaaWorker(
             results.sequenceStats,
           );
         } catch (error) {
-          opts.logger?.error(
+          filterLogger?.error(
             `Error checking for missed vaas for filter: ${JSON.stringify(
               filter,
             )}}`,
@@ -125,6 +143,105 @@ export async function spawnMissedVaaWorker(
 
     await sleep(opts.checkInterval || 30_000);
   }
+}
+
+
+export async function runMissedVaaCheck(
+  filter: FilterIdentifier,
+  redis: Redis | Cluster,
+  processVaa: ProcessVaaFn,
+  opts: MissedVaaOpts,
+  logger?: Logger,
+) {
+
+
+  const { storagePrefix } = opts;
+  const { emitterChain, emitterAddress } = filter;
+
+  const previousSafeSequence = await tryGetLastSafeSequence(
+    redis,
+    storagePrefix,
+    emitterChain,
+    emitterAddress,
+    logger,
+  );
+
+  const missedVaas: MissedVaaRunStats = await checkForMissedVaas(
+    filter,
+    redis,
+    processVaa,
+    opts,
+    previousSafeSequence,
+    logger,
+  );
+
+  // TODO: this is an ugly way to handle the error
+  const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(
+    redis,
+    filter,
+    opts.storagePrefix,
+  );
+
+  if (!Array.isArray(failedToFetchSequencesOrError)) {
+    logger?.error(
+      `Failed to get existing failed sequences from redis. Error: `,
+      failedToFetchSequencesOrError,
+    );
+  } else if (failedToFetchSequencesOrError.length) {
+    logger?.warn(
+      `Found sequences that we failed to get from wormhole-rpc. Sequences: ` +
+        JSON.stringify(failedToFetchSequencesOrError),
+    );
+  } else {
+    logger?.debug("No previous failed sequences found.");
+  }
+
+  const failedToFetchSequences = Array.isArray(failedToFetchSequencesOrError)
+    ? failedToFetchSequencesOrError
+    : null;
+
+  const sequenceStats = calculateSequenceStats(
+    missedVaas,
+    failedToFetchSequences,
+    previousSafeSequence?.toString(),
+  );
+
+  const { lastSafeSequence, lastSeenSequence, firstSeenSequence } =
+    sequenceStats;
+
+  if (
+    !previousSafeSequence ||
+    previousSafeSequence?.toString() !== String(lastSafeSequence)
+  ) {
+    logger?.debug(
+      `No missing sequences found up to sequence ${lastSafeSequence}. Setting as last sequence`,
+    );
+    await trySetLastSafeSequence(
+      redis,
+      storagePrefix,
+      emitterChain,
+      emitterAddress,
+      lastSafeSequence,
+    );
+  }
+
+  const vaasFound =
+    missedVaas.missingSequences.length + missedVaas.lookAheadSequences.length;
+
+  logger?.info(
+    `Finished missed VAAs check. Found: ${vaasFound}. Enable debug to see a log with precise results.`,
+  );
+
+  logger?.debug(
+    `Finished missed vaas check. Results: ${JSON.stringify({
+      missedVaas,
+      lastSafeSequence,
+      lastSeenSequence,
+      firstSeenSequence,
+    })}}`,
+  );
+
+  return { missedVaas, sequenceStats };
 }
 
 function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster> {
