@@ -9,7 +9,7 @@ import {
   batchMarkAsSeen,
   batchMarkAsFailedToRecover,
   getAllProcessedSeqsInOrder,
-  tryGetLastSafeSequence
+  tryGetLastSafeSequence,
 } from "../../../relayer/middleware/missedVaasV3/storage";
 import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers";
 import { Redis } from "ioredis";
@@ -29,9 +29,8 @@ const getAllProcessedSeqsInOrderMock =
     typeof getAllProcessedSeqsInOrder
   >;
 
-const tryGetLastSafeSequenceMock = tryGetLastSafeSequence as jest.MockedFunction<
-  typeof tryGetLastSafeSequence
->;
+const tryGetLastSafeSequenceMock =
+  tryGetLastSafeSequence as jest.MockedFunction<typeof tryGetLastSafeSequence>;
 
 const tryFetchVaaMock = tryFetchVaa as jest.MockedFunction<typeof tryFetchVaa>;
 

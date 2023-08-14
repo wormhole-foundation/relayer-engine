@@ -8,11 +8,8 @@ import {
   tryGetLastSafeSequence,
   trySetLastSafeSequence,
   tryGetExistingFailedSequences,
-
 } from "../../../relayer/middleware/missedVaasV3/storage";
-import {
-  calculateSequenceStats,
-} from '../../../relayer/middleware/missedVaasV3/helpers';
+import { calculateSequenceStats } from "../../../relayer/middleware/missedVaasV3/helpers";
 import { runMissedVaaCheck } from "../../../relayer/middleware/missedVaasV3/worker";
 
 import { Redis } from "ioredis";
@@ -26,21 +23,19 @@ const checkForMissedVaasMock = checkForMissedVaas as jest.MockedFunction<
   typeof checkForMissedVaas
 >;
 
-const tryGetLastSafeSequenceMock = tryGetLastSafeSequence as jest.MockedFunction<
-  typeof tryGetLastSafeSequence
->;
+const tryGetLastSafeSequenceMock =
+  tryGetLastSafeSequence as jest.MockedFunction<typeof tryGetLastSafeSequence>;
 
-const trySetLastSafeSequenceMock = trySetLastSafeSequence as jest.MockedFunction<
-  typeof trySetLastSafeSequence
->;
+const trySetLastSafeSequenceMock =
+  trySetLastSafeSequence as jest.MockedFunction<typeof trySetLastSafeSequence>;
 
-const tryGetExistingFailedSequencesMock = tryGetExistingFailedSequences as jest.MockedFunction<
-  typeof tryGetExistingFailedSequences
->;
+const tryGetExistingFailedSequencesMock =
+  tryGetExistingFailedSequences as jest.MockedFunction<
+    typeof tryGetExistingFailedSequences
+  >;
 
-const calculateSequenceStatsMock = calculateSequenceStats as jest.MockedFunction<
-  typeof calculateSequenceStats
->;
+const calculateSequenceStatsMock =
+  calculateSequenceStats as jest.MockedFunction<typeof calculateSequenceStats>;
 
 describe("MissedVaaV3.worker", () => {
   afterEach(() => {
@@ -49,7 +44,6 @@ describe("MissedVaaV3.worker", () => {
 
   const redis = {};
   const processVaaMock = jest.fn() as jest.MockedFunction<ProcessVaaFn>;
-
 
   describe("runMissedVaaCheck", () => {
     function prepareTest(overrides?: any) {
@@ -77,7 +71,7 @@ describe("MissedVaaV3.worker", () => {
       const emitterAddress = "foo";
 
       const opts = {
-        storagePrefix: 'bar',
+        storagePrefix: "bar",
       };
 
       return { filter: { emitterChain, emitterAddress }, opts };
@@ -115,7 +109,7 @@ describe("MissedVaaV3.worker", () => {
 
     test("If there's not previous safe sequence, it will the lastSafeSequence as safe sequence", async () => {
       const safeSequenceMock = 100;
-      const { opts, filter} = prepareTest({
+      const { opts, filter } = prepareTest({
         sequenceStats: { lastSafeSequence: safeSequenceMock },
       });
 
@@ -136,7 +130,7 @@ describe("MissedVaaV3.worker", () => {
       tryGetLastSafeSequenceMock.mockResolvedValue(previousSafeSequenceMock);
 
       const safeSequenceMock = 100;
-      const { opts, filter} = prepareTest({
+      const { opts, filter } = prepareTest({
         sequenceStats: { lastSafeSequence: safeSequenceMock },
       });
 
@@ -157,7 +151,7 @@ describe("MissedVaaV3.worker", () => {
       tryGetLastSafeSequenceMock.mockResolvedValue(previousSafeSequenceMock);
 
       const safeSequenceMock = 100;
-      const { opts, filter} = prepareTest({
+      const { opts, filter } = prepareTest({
         sequenceStats: { lastSafeSequence: safeSequenceMock },
       });
 
@@ -172,11 +166,16 @@ describe("MissedVaaV3.worker", () => {
     });
 
     test("If existing failed sequences exist, they are logged to the console", async () => {
-      const { opts, filter} = prepareTest();
+      const { opts, filter } = prepareTest();
 
-      const loggerMock = { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() };
+      const loggerMock = {
+        warn: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+      };
 
-      const mockFailedSequences = ["1", "2",  "3"];
+      const mockFailedSequences = ["1", "2", "3"];
       tryGetExistingFailedSequencesMock.mockResolvedValue(mockFailedSequences);
 
       await runMissedVaaCheck(
@@ -186,16 +185,15 @@ describe("MissedVaaV3.worker", () => {
         opts,
         loggerMock as unknown as Logger,
       );
-      
+
       expect(loggerMock.warn).toHaveBeenCalledTimes(1);
       const args = loggerMock.warn.mock.calls[0];
-      
-      const logTemplate = `Found sequences that we failed to get from wormhole-rpc. Sequences: ` +
+
+      const logTemplate =
+        `Found sequences that we failed to get from wormhole-rpc. Sequences: ` +
         JSON.stringify(mockFailedSequences);
 
       expect(args[0]).toEqual(logTemplate);
     });
-
-
-  })
+  });
 });

@@ -22,10 +22,7 @@ import {
   tryGetExistingFailedSequences,
 } from "./storage";
 
-import {
-  MissedVaaRunStats,
-  calculateSequenceStats,
-} from "./helpers"
+import { MissedVaaRunStats, calculateSequenceStats } from "./helpers";
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
@@ -118,7 +115,7 @@ export async function spawnMissedVaaWorker(
             redis,
             app.processVaa.bind(app),
             opts,
-            filterLogger
+            filterLogger,
           );
           updateMetrics(
             metrics,
@@ -144,7 +141,6 @@ export async function spawnMissedVaaWorker(
     await sleep(opts.checkInterval || 30_000);
   }
 }
-
 
 export async function runMissedVaaCheck(
   filter: FilterIdentifier,
