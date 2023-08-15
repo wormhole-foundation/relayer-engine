@@ -1,9 +1,45 @@
 import { Histogram, register } from "prom-client";
 import { Middleware } from "../compose.middleware";
-import { StorageContext } from "../storage/storage";
+import { RelayJob, StorageContext } from "../storage/storage";
 import { Counter, Registry } from "prom-client";
 
 type MetricRecord = Record<string, string | number>;
+
+class MeasuredRelayJob {
+  private job?: RelayJob;
+  private startTime: number;
+  private endTime: number;
+
+  constructor(startTime: number, endTime: number, job?: RelayJob) {
+    this.job = job;
+    this.startTime = startTime;
+    this.endTime = endTime;
+  }
+
+  hasReachedMaxAttempts(): boolean {
+    return (this.job?.attempts ?? 0) === (this.job?.maxAttempts ?? -1);
+  }
+
+  vaaTimestamp(): number {
+    // vaa.timestamp is in seconds
+    return this.job?.data?.parsedVaa?.timestamp * 1000 ?? -1;
+  }
+
+  processingTime(): number {
+    return this.endTime - this.startTime;
+  }
+
+  totalTime(): number {
+    if (this.vaaTimestamp() > 0) {
+      return this.endTime - this.vaaTimestamp();
+    }
+
+    return -1;
+  }
+}
+
+const status = "status";
+const terminal = "terminal";
 
 export interface MetricsOpts<C extends StorageContext> {
   registry?: Registry;
@@ -36,14 +72,14 @@ const getLabels = async <C extends StorageContext>(
       Promise.resolve({}));
 
     const allowedKeys = opts.labels?.labelNames ?? [];
-    const validatedLabels: typeof labels = {};
+    const validatedLabels: MetricRecord = {};
     allowedKeys.forEach(key => {
       if (labels[key]) {
         validatedLabels[key] = labels[key];
       }
     });
 
-    return { ...validatedLabels, ...defaultLabels };
+    return { ...defaultLabels, ...validatedLabels };
   } catch (error) {
     ctx.logger?.error(
       "Failed to customize metric labels, please review",
@@ -62,14 +98,14 @@ export function metrics<C extends StorageContext>(
   const processedVaasTotal = new Counter({
     name: "vaas_processed_total",
     help: "Number of incoming vaas processed successfully or unsuccessfully.",
-    labelNames: ["status"].concat(opts.labels?.labelNames ?? []),
+    labelNames: [].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
 
   const finishedVaasTotal = new Counter({
     name: "vaas_finished_total",
     help: "Number of vaas processed successfully or unsuccessfully.",
-    labelNames: ["status", "terminal"].concat(opts.labels?.labelNames ?? []),
+    labelNames: [status, terminal].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
 
@@ -79,15 +115,25 @@ export function metrics<C extends StorageContext>(
     buckets: opts.processingTimeBuckets ?? [
       6000, 7000, 7500, 8000, 8500, 9000, 10000, 12000,
     ],
-    labelNames: ["status"].concat(opts.labels?.labelNames ?? []),
+    labelNames: [status].concat(opts.labels?.labelNames ?? []),
+    registers: [opts.registry],
+  });
+
+  const totalDuration = new Histogram({
+    name: "vaas_total_duration",
+    help: "Processing time in ms for relaying",
+    buckets: opts.processingTimeBuckets ?? [
+      6000, 7000, 7500, 8000, 8500, 9000, 10000, 12000,
+    ],
+    labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
 
   return async (ctx: C, next) => {
     processedVaasTotal.inc();
+    let failure: Error = null;
 
     const startTime = Date.now();
-    let failure: Error = null;
 
     try {
       await next();
@@ -95,16 +141,18 @@ export function metrics<C extends StorageContext>(
       failure = e;
     }
 
-    const time = Date.now() - startTime;
+    const job = new MeasuredRelayJob(startTime, Date.now(), ctx.storage.job);
     const labels = await getLabels(ctx, opts, failure !== null);
-    processingDuration.labels(labels).observe(time);
+
+    processingDuration.labels(labels).observe(job.processingTime());
+
+    if (job.totalTime() > 0) {
+      totalDuration.labels(labels).observe(job.totalTime());
+    }
 
     if (failure) {
-      const reachedMaxAttempts =
-        (ctx.storage.job?.attempts ?? 0) ===
-        (ctx.storage.job?.maxAttempts ?? -1);
       finishedVaasTotal
-        .labels({ ...labels, terminal: `${reachedMaxAttempts}` })
+        .labels({ ...labels, terminal: `${job.hasReachedMaxAttempts()}` })
         .inc();
 
       throw failure;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, test } from "@jest/globals";
-import { Registry } from "prom-client";
+import { MetricValue, Registry } from "prom-client";
 import {
   MetricLabelsOpts,
   metrics,
@@ -39,15 +39,17 @@ describe("metrics middleware", () => {
     await whenExecuted(next);
 
     thenNextCalled(next);
-    await thenMetricPresent("vaas_processed_total", val => expect(val).toBe(1));
+    await thenMetricPresent("vaas_processed_total", values =>
+      expect(values[0].value).toBe(1),
+    );
     await thenMetricPresent(
       "vaas_finished_total",
-      val => expect(val).toBe(1),
+      values => expect(values[0].value).toBe(1),
       true,
     );
   });
 
-  test("should expose time histogram", async () => {
+  test("should expose processing time histogram", async () => {
     givenAMetricsMiddleware();
     givenAContext();
 
@@ -55,7 +57,21 @@ describe("metrics middleware", () => {
 
     await thenMetricPresent(
       "vaas_processing_duration",
-      val => expect(val).toBeGreaterThan(0),
+      values => expect(values[0].value).toBeGreaterThan(0),
+      true,
+    );
+  });
+
+  test("should expose total time histogram", async () => {
+    givenAMetricsMiddleware();
+    givenAContext();
+
+    await whenExecuted(nextProvider());
+
+    await thenMetricPresent(
+      "vaas_total_duration",
+      values =>
+        expect(values.filter(val => val.value).length).toBeGreaterThan(0),
       true,
     );
   });
@@ -75,8 +91,8 @@ describe("metrics middleware", () => {
 
     await thenMetricPresent(
       "vaas_processing_duration",
-      (val, labels) => {
-        expect(val).toBeGreaterThan(0);
+      (values, labels) => {
+        expect(values[0].value).toBeGreaterThan(0);
         expect(labels[targetLabel]).toBe(expectedTarget);
       },
       true,
@@ -99,8 +115,8 @@ describe("metrics middleware", () => {
 
     await thenMetricPresent(
       "vaas_finished_total",
-      (val, labels) => {
-        expect(val).toBe(1);
+      (values, labels) => {
+        expect(values[0].value).toBe(1);
         expect(labels.status).toBe("failed");
         expect(labels.terminal).toBe("true");
         expect(labels[targetLabel]).toBe(expectedTarget);
@@ -109,8 +125,8 @@ describe("metrics middleware", () => {
     );
     await thenMetricPresent(
       "vaas_processing_duration",
-      (val, labels) => {
-        expect(val).toBeGreaterThan(0);
+      (values, labels) => {
+        expect(values[0].value).toBeGreaterThan(0);
         expect(labels.status).toBe("failed");
         expect(labels[targetLabel]).toBe(expectedTarget);
       },
@@ -167,19 +183,19 @@ const whenExecuted = async (next: Next) => {
 const thenMetricPresent = async (
   metric: string,
   expectation: (
-    value: any,
+    values: MetricValue<any>[],
     labels: Partial<Record<string, string | number>>,
   ) => void,
   withStatus: boolean = false,
 ) => {
-  const metricValue = (await registry.getSingleMetric(metric)!.get()).values[0];
-  expect(metricValue).toBeDefined();
-  expectation(metricValue.value, metricValue.labels);
+  const metricValues = (await registry.getSingleMetric(metric)!.get()).values;
+  expect(metricValues).toBeDefined();
+  expectation(metricValues, metricValues[0].labels);
   if (withStatus) {
-    expect(metricValue.labels["status"]).toBeDefined();
+    expect(metricValues[0].labels["status"]).toBeDefined();
   }
   labelOpts?.labelNames!.forEach(labelName =>
-    expect(metricValue.labels[labelName]).toBeDefined(),
+    expect(metricValues[0].labels[labelName]).toBeDefined(),
   );
 };
 
