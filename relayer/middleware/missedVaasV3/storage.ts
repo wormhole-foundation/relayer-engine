@@ -184,21 +184,20 @@ export async function calculateStartingIndex(
   emitterChain: number,
   emitterAddress: string,
   lastSafeSequence?: bigint,
-  startingSequence?: bigint,
-  logger?: Logger,
+  // startingSequence?: bigint,
+  // logger?: Logger,
 ) {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
   let indexToStartFrom: number;
 
-  if (!lastSafeSequence && startingSequence) {
-    indexToStartFrom = await redis.zrank(key, startingSequence.toString());
-    if (!indexToStartFrom) {
-      logger.warn(
-        "Starting Sequence Config not found in redis. No starting sequence will be used.",
-      );
-    }
-  } else if (lastSafeSequence) {
+  // if (!lastSafeSequence && startingSequence) {
+  //   indexToStartFrom = await redis.zrank(key, startingSequence.toString());
+  //   if (!indexToStartFrom) {
+  //     throw new Error('Starting Sequence Configured is not in the set');
+  //   }
+  // } else 
+  if (lastSafeSequence) {
     indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
   }
 
@@ -211,6 +210,7 @@ export async function getAllProcessedSeqsInOrder(
   emitterChain: number,
   emitterAddress: string,
   indexToStartFrom?: number,
+  startingSequenceConfig?: bigint,
 ): Promise<bigint[]> {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
@@ -219,10 +219,17 @@ export async function getAllProcessedSeqsInOrder(
     key,
     indexToStartFrom?.toString(),
   );
-  return results
+
+  const orderedResults = results
     .map(r => Number(r))
-    .sort((a, b) => a - b)
+    .sort()
     .map(BigInt);
+    
+  if (startingSequenceConfig && startingSequenceConfig > orderedResults[0]) {
+    return orderedResults.filter(r => r >= startingSequenceConfig);
+  }
+
+  return orderedResults;
 }
 
 /**

@@ -149,8 +149,8 @@ export async function checkForMissedVaas(
     emitterChain,
     emitterAddress,
     previousSafeSequence,
-    startingSeqConfig,
-    logger,
+    // startingSeqConfig,
+    // logger,
   );
 
   const seenSequences = await getAllProcessedSeqsInOrder(
@@ -159,6 +159,7 @@ export async function checkForMissedVaas(
     emitterChain,
     emitterAddress,
     startingIndex,
+    startingSeqConfig,
   );
 
   const processed: string[] = [];
