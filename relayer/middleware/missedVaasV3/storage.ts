@@ -228,7 +228,7 @@ export async function getAllProcessedSeqsInOrder(
   if (startingSequenceConfig && startingSequenceConfig > orderedResults[0]) {
     const higherSequences = orderedResults.filter(r => r >= startingSequenceConfig);
     if (higherSequences[0] > startingSequenceConfig) {
-      orderedResults.unshift(startingSequenceConfig);
+      orderedResults.unshift(startingSequenceConfig - 1n);
     }
   }
 
