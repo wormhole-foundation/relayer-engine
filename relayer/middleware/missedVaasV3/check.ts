@@ -215,7 +215,7 @@ export async function checkForMissedVaas(
         }
 
         try {
-          await processVaa(vaaResponse.vaaBytes);
+          await processVaa(Buffer.from(vaaResponse.vaaBytes));
           logger?.debug(`Recovered missing VAA ${seqString}`);
 
           processed.push(seqString);
