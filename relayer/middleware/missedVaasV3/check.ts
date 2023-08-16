@@ -149,8 +149,6 @@ export async function checkForMissedVaas(
     emitterChain,
     emitterAddress,
     previousSafeSequence,
-    // startingSeqConfig,
-    // logger,
   );
 
   const seenSequences = await getAllProcessedSeqsInOrder(

@@ -184,19 +184,11 @@ export async function calculateStartingIndex(
   emitterChain: number,
   emitterAddress: string,
   lastSafeSequence?: bigint,
-  // startingSequence?: bigint,
-  // logger?: Logger,
 ) {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
   let indexToStartFrom: number;
 
-  // if (!lastSafeSequence && startingSequence) {
-  //   indexToStartFrom = await redis.zrank(key, startingSequence.toString());
-  //   if (!indexToStartFrom) {
-  //     throw new Error('Starting Sequence Configured is not in the set');
-  //   }
-  // } else 
   if (lastSafeSequence) {
     indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
   }
