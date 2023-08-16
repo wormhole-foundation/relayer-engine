@@ -224,9 +224,12 @@ export async function getAllProcessedSeqsInOrder(
     .map(r => Number(r))
     .sort()
     .map(BigInt);
-    
+
   if (startingSequenceConfig && startingSequenceConfig > orderedResults[0]) {
-    return orderedResults.filter(r => r >= startingSequenceConfig);
+    const higherSequences = orderedResults.filter(r => r >= startingSequenceConfig);
+    if (higherSequences[0] > startingSequenceConfig) {
+      orderedResults.unshift(startingSequenceConfig);
+    }
   }
 
   return orderedResults;
