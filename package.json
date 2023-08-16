@@ -22,7 +22,7 @@
   "dependencies": {
     "@bull-board/api": "^5.0.0",
     "@bull-board/koa": "^5.0.0",
-    "@certusone/wormhole-sdk": "^0.9.22",
+    "@certusone/wormhole-sdk": "0.9.24-beta.0",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",

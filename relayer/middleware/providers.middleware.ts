@@ -234,7 +234,7 @@ async function buildProviders(
 
     try {
       if (isEVMChain(chainId)) {
-        providers.evm[chainId] = endpoints.map(
+        providers.evm[chainId as EVMChainId] = endpoints.map(
           url => new ethers.providers.JsonRpcProvider(url),
         );
       } else if (chainId === CHAIN_ID_SOLANA) {
