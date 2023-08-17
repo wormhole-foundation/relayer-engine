@@ -1,5 +1,5 @@
 import { Histogram, register } from "prom-client";
-import { Middleware } from "../compose.middleware";
+import { Middleware, Next } from "../compose.middleware";
 import { RelayJob, StorageContext } from "../storage/storage";
 import { Counter, Registry } from "prom-client";
 
@@ -129,7 +129,7 @@ export function metrics<C extends StorageContext>(
     registers: [opts.registry],
   });
 
-  return async (ctx: C, next) => {
+  const metricsMiddleware = async (ctx: C, next: Next) => {
     processedVaasTotal.inc();
     let failure: Error = null;
 
@@ -160,4 +160,6 @@ export function metrics<C extends StorageContext>(
 
     finishedVaasTotal.labels(labels).inc();
   };
+
+  return metricsMiddleware;
 }

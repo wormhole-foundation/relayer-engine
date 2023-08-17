@@ -21,6 +21,7 @@
     "node_modules",
     "relayer/lib/**/*",
     "**/__tests__/*",
-    "relayer/src/**/*.test.ts"
+    "relayer/**/*.test.ts",
+    "test/*"
   ]
 }
