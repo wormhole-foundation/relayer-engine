@@ -27,7 +27,7 @@ export type SequenceStats = {
 
 export function calculateSequenceStats(
   runStats: MissedVaaRunStats,
-  failedToFetchSequences: string[],
+  failedToFetchSequences: string[] | null,
   previousSafeSequence?: string,
 ): SequenceStats {
   const { seenSequences } = runStats;
@@ -48,7 +48,7 @@ export function calculateSequenceStats(
 
 function calculateLastSafeSequence(
   runStats: MissedVaaRunStats,
-  failedToFetchSequences: string[],
+  failedToFetchSequences: string[] | null,
   previousSafeSequence?: string,
 ): number {
   if (failedToFetchSequences && failedToFetchSequences.length > 0) {
@@ -102,14 +102,15 @@ export function updateMetrics(
   metrics.workerSuccessfulRuns?.labels().inc();
   metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
 
-  const vaasProcessed = missedVaas.processed.length;
+  const { processed, failedToRecover, lookAheadSequences, missingSequences, failedToReprocess } = missedVaas!;
+  const vaasProcessed = processed.length;
   // This are VAAs that were found missing between known sequences, but we failed
   // to fetch them to reprocess them
-  const vaasFailedToRecover = missedVaas.failedToRecover.length;
+  const vaasFailedToRecover = failedToRecover.length;
   // This are VAAs that were found but failed when trying to re-queue them
-  const vaasFailedToReprocess = missedVaas.failedToReprocess.length;
+  const vaasFailedToReprocess = failedToReprocess.length;
   const vaasFound =
-    missedVaas.missingSequences.length + missedVaas.lookAheadSequences.length;
+    missingSequences.length + lookAheadSequences.length;
 
   const labels = {
     emitterChain: coalesceChainName(emitterChain as ChainId),
@@ -133,14 +134,14 @@ export function updateMetrics(
   }
 
   const { lastSeenSequence, lastSafeSequence, firstSeenSequence } =
-    sequenceStats;
+    sequenceStats!;
 
   metrics.lastSeenSequence?.labels(labels).set(lastSeenSequence);
   metrics.lastSafeSequence?.labels(labels).set(lastSafeSequence);
   metrics.firstSeenSequence?.labels(labels).set(firstSeenSequence);
   metrics.missingSequences
     ?.labels(labels)
-    .set(missedVaas.missingSequences.length ? 1 : 0);
+    .set(missingSequences.length ? 1 : 0);
 }
 
 export async function tryFetchVaa(
@@ -160,7 +161,7 @@ export async function tryFetchVaa(
       100,
       retries,
     );
-  } catch (error) {
+  } catch (error: any) {
     error.stack = new Error().stack;
     if (error.code === 5) {
       return null;

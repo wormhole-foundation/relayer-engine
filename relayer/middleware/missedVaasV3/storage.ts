@@ -7,11 +7,11 @@ import { MissedVaaOpts, FilterIdentifier } from "./worker";
 export async function markVaaAsSeen(
   redis: Cluster | Redis,
   vaaKey: SerializableVaaId,
-  opts: MissedVaaOpts,
+  prefix: string,
 ) {
   const { emitterChain, emitterAddress, sequence } = vaaKey;
   const seenVaaKey = getSeenVaaKey(
-    opts.storagePrefix,
+    prefix,
     emitterChain,
     emitterAddress,
   );
@@ -139,7 +139,7 @@ export async function tryGetLastSafeSequence(
 ): Promise<bigint | null> {
   // since safe sequence is not critical, we'll swallow the error
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
-  let lastSafeSequence: string;
+  let lastSafeSequence: string | null;
   try {
     lastSafeSequence = await redis.get(key);
   } catch (error) {
@@ -157,7 +157,7 @@ export async function tryGetExistingFailedSequences(
   redis: Cluster | Redis,
   filter: FilterIdentifier,
   prefix: string,
-) {
+): Promise<string[] | Error> {
   const failedToFetchKey = getFailedToFetchKey(
     prefix,
     filter.emitterChain,
@@ -171,8 +171,8 @@ export async function tryGetExistingFailedSequences(
       redis,
       failedToFetchKey,
     );
-  } catch (error) {
-    return error;
+  } catch (error: unknown) {
+    return error as Error;
   }
 
   return failedToFetchSequences;
@@ -183,11 +183,11 @@ export async function calculateStartingIndex(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  lastSafeSequence?: bigint,
+  lastSafeSequence?: bigint | null,
 ) {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
-  let indexToStartFrom: number;
+  let indexToStartFrom: number | null = null;
 
   if (lastSafeSequence) {
     indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
@@ -201,7 +201,7 @@ export async function getAllProcessedSeqsInOrder(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  indexToStartFrom?: number,
+  indexToStartFrom?: number | null,
   startingSequenceConfig?: bigint,
 ): Promise<bigint[]> {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);

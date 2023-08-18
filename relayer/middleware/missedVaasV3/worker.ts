@@ -24,6 +24,8 @@ import {
 
 import { MissedVaaRunStats, calculateSequenceStats } from "./helpers";
 
+const DEFAULT_PREFIX = 'MissedVaaWorkerV3';
+
 export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
   logger?: Logger;
@@ -87,19 +89,21 @@ export async function spawnMissedVaaWorker(
 
   const filters = app.filters.map(filter => {
     return {
-      emitterChain: filter.emitterFilter.chainId,
-      emitterAddress: filter.emitterFilter.emitterAddress,
+      emitterChain: filter.emitterFilter!.chainId,
+      emitterAddress: filter.emitterFilter!.emitterAddress,
     };
   });
 
+  const prefix = opts.storagePrefix || DEFAULT_PREFIX;
+
   if (opts.storagePrefix) {
-    await refreshSeenSequences(redisPool, filters, opts);
+    await refreshSeenSequences(redisPool, filters as FilterIdentifier[], opts);
   }
 
-  registerEventListeners(app, redisPool, opts);
+  registerEventListeners(app, redisPool, opts, prefix);
 
   while (true) {
-    opts.logger.info(`Missed VAA middleware run starting...`);
+    opts.logger?.info(`Missed VAA middleware run starting...`);
     await mapConcurrent(filters, filter =>
       redisPool.use(async redis => {
         const startTime = Date.now();
@@ -115,6 +119,7 @@ export async function spawnMissedVaaWorker(
             redis,
             app.processVaa.bind(app),
             opts,
+            prefix,
             filterLogger,
           );
           updateMetrics(
@@ -147,9 +152,9 @@ export async function runMissedVaaCheck(
   redis: Redis | Cluster,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
+  storagePrefix: string,
   logger?: Logger,
 ) {
-  const { storagePrefix } = opts;
   const { emitterChain, emitterAddress } = filter;
 
   const previousSafeSequence = await tryGetLastSafeSequence(
@@ -165,6 +170,7 @@ export async function runMissedVaaCheck(
     redis,
     processVaa,
     opts,
+    storagePrefix,
     previousSafeSequence,
     logger,
   );
@@ -173,7 +179,7 @@ export async function runMissedVaaCheck(
   const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(
     redis,
     filter,
-    opts.storagePrefix,
+    storagePrefix,
   );
 
   if (!Array.isArray(failedToFetchSequencesOrError)) {
@@ -242,8 +248,8 @@ function createRedisPool(opts: RedisConnectionOpts): Pool<Redis | Cluster> {
   const factory = {
     create: async function () {
       const redis = opts.redisCluster
-        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
-        : new Redis(opts.redis);
+        ? new Redis.Cluster(opts.redisClusterEndpoints!, opts.redisCluster)
+        : new Redis(opts.redis!);
       // TODO: metrics.missed_vaa_redis_open_connections.inc();
       return redis;
     },

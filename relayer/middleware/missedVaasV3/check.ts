@@ -13,16 +13,12 @@ import { mapConcurrent } from "../../utils";
 import {
   MissedVaaRunStats,
   tryFetchVaa,
-  calculateSequenceStats,
 } from "./helpers";
 import {
   getAllProcessedSeqsInOrder,
   calculateStartingIndex,
   batchMarkAsFailedToRecover,
   batchMarkAsSeen,
-  tryGetLastSafeSequence,
-  trySetLastSafeSequence,
-  tryGetExistingFailedSequences,
   markVaaAsSeen,
   deleteExistingSeenVAAsData,
   updateSeenSequences,
@@ -31,121 +27,22 @@ import { FilterIdentifier, MissedVaaOpts } from "./worker";
 
 export type ProcessVaaFn = (x: Buffer) => Promise<void>;
 
-export async function runMissedVaaCheck(
-  filter: FilterIdentifier,
-  redis: Redis | Cluster,
-  processVaa: ProcessVaaFn,
-  opts: MissedVaaOpts,
-) {
-  const filterLogger = opts.logger?.child({
-    emitterChain: filter.emitterChain,
-    emitterAddress: filter.emitterAddress,
-  });
-
-  const { storagePrefix } = opts;
-  const { emitterChain, emitterAddress } = filter;
-
-  const previousSafeSequence = await tryGetLastSafeSequence(
-    redis,
-    storagePrefix,
-    emitterChain,
-    emitterAddress,
-    filterLogger,
-  );
-
-  const missedVaas: MissedVaaRunStats = await checkForMissedVaas(
-    filter,
-    redis,
-    processVaa,
-    opts,
-    previousSafeSequence,
-    filterLogger,
-  );
-
-  // TODO: this is an ugly way to handle the error
-  const failedToFetchSequencesOrError = await tryGetExistingFailedSequences(
-    redis,
-    filter,
-    opts.storagePrefix,
-  );
-  if (!Array.isArray(failedToFetchSequencesOrError)) {
-    filterLogger?.error(
-      `Failed to get existing failed sequences from redis. Error: `,
-      failedToFetchSequencesOrError,
-    );
-  } else if (failedToFetchSequencesOrError.length) {
-    filterLogger?.warn(
-      `Found sequences that we failed to get from wormhole-rpc. Sequences: ` +
-        JSON.stringify(failedToFetchSequencesOrError),
-    );
-  } else {
-    filterLogger?.debug("No previous failed sequences found.");
-  }
-
-  const failedToFetchSequences = Array.isArray(failedToFetchSequencesOrError)
-    ? failedToFetchSequencesOrError
-    : null;
-
-  const sequenceStats = calculateSequenceStats(
-    missedVaas,
-    failedToFetchSequences,
-    previousSafeSequence?.toString(),
-  );
-
-  const { lastSafeSequence, lastSeenSequence, firstSeenSequence } =
-    sequenceStats;
-
-  if (
-    !previousSafeSequence ||
-    previousSafeSequence?.toString() !== String(lastSafeSequence)
-  ) {
-    filterLogger?.debug(
-      `No missing sequences found up to sequence ${lastSafeSequence}. Setting as last sequence`,
-    );
-    await trySetLastSafeSequence(
-      redis,
-      storagePrefix,
-      emitterChain,
-      emitterAddress,
-      lastSafeSequence,
-    );
-  }
-
-  const vaasFound =
-    missedVaas.missingSequences.length + missedVaas.lookAheadSequences.length;
-
-  filterLogger?.info(
-    `Finished missed VAAs check. Found: ${vaasFound}. Enable debug to see a log with precise results.`,
-  );
-
-  filterLogger?.debug(
-    `Finished missed vaas check. Results: ${JSON.stringify({
-      missedVaas,
-      lastSafeSequence,
-      lastSeenSequence,
-      firstSeenSequence,
-    })}}`,
-  );
-
-  return { missedVaas, sequenceStats };
-}
-
 export async function checkForMissedVaas(
   filter: FilterIdentifier,
   redis: Cluster | Redis,
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
-  previousSafeSequence?: bigint,
+  prefix: string,
+  previousSafeSequence?: bigint | null,
   logger?: Logger,
 ): Promise<MissedVaaRunStats> {
-  const { storagePrefix } = opts;
   const { emitterChain, emitterAddress } = filter;
   const startingSeqConfig =
     opts.startingSequenceConfig?.[emitterChain as ChainId];
 
   const startingIndex = await calculateStartingIndex(
     redis,
-    storagePrefix,
+    prefix,
     emitterChain,
     emitterAddress,
     previousSafeSequence,
@@ -153,7 +50,7 @@ export async function checkForMissedVaas(
 
   const seenSequences = await getAllProcessedSeqsInOrder(
     redis,
-    storagePrefix,
+    prefix,
     emitterChain,
     emitterAddress,
     startingIndex,
@@ -239,7 +136,7 @@ export async function checkForMissedVaas(
     if (failedToRecover.length)
       await batchMarkAsFailedToRecover(
         redis,
-        storagePrefix,
+        prefix,
         emitterChain,
         emitterAddress,
         failedToRecover,
@@ -249,7 +146,7 @@ export async function checkForMissedVaas(
     if (allSeenVaas.length)
       await batchMarkAsSeen(
         redis,
-        storagePrefix,
+        prefix,
         emitterChain,
         emitterAddress,
         allSeenVaas,
@@ -281,7 +178,7 @@ export async function checkForMissedVaas(
         sequence: seq.toString(),
       } as SerializableVaaId;
 
-      let vaa: GetSignedVAAResponse;
+      let vaa: GetSignedVAAResponse | null = null;
       try {
         vaa = await tryFetchVaa(vaaKey, opts.wormholeRpcs, 3);
       } catch (error) {
@@ -362,6 +259,7 @@ export async function registerEventListeners(
   app: RelayerApp<any>,
   redisPool: Pool<Redis | Cluster>,
   opts: MissedVaaOpts,
+  prefix: string,
 ) {
   async function markVaaSeen(vaa: ParsedVaaWithBytes) {
     let redis: Redis | Cluster;
@@ -376,7 +274,7 @@ export async function registerEventListeners(
     }
 
     try {
-      await markVaaAsSeen(redis, vaa.id, opts);
+      await markVaaAsSeen(redis, vaa.id, prefix);
     } catch (error) {
       opts.logger?.error(
         `Failed to mark VAA ass seen ${vaa.id.sequence}. Vaa will probably be reprocessed. Error: `,
