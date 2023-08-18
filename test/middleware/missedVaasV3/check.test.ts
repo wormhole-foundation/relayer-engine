@@ -2,7 +2,6 @@ import { jest, describe, test } from "@jest/globals";
 
 import {
   ProcessVaaFn,
-  runMissedVaaCheck,
   checkForMissedVaas,
 } from "../../../relayer/middleware/missedVaasV3/check";
 import {
@@ -46,23 +45,26 @@ describe("MissedVaaV3.check", () => {
     function prepareTest() {
       const emitterChain = 1;
       const emitterAddress = "foo";
+      const prefix = "bar";
       const opts = {
-        storagePrefix: "bar",
+        storagePrefix: prefix,
         startingSequenceConfig: {},
       };
 
       return {
         opts,
         filter: { emitterChain, emitterAddress },
+        prefix,
       };
     }
+
 
     /**
      * Leap Sequences:
      */
 
     test("If there are no seen sequences, no VAAs are tried to reprocess", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
       getAllProcessedSeqsInOrderMock.mockResolvedValue([]);
 
       await checkForMissedVaas(
@@ -70,6 +72,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -77,7 +80,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("If there are no leap sequences, no VAAs are tried to reprocess", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 2n, 3n]);
 
@@ -86,6 +89,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -95,7 +99,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("If there are leap sequences, they are tried to be reprocessed", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 2n, 5n, 8n, 13n]);
 
@@ -115,6 +119,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(processVaaMock).toHaveBeenCalledTimes(missingSequencesMock.length);
@@ -138,7 +143,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("If a sequence fails to be recovered it will be marked accordingly and won't interrupt the processing of other seqs", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       // missing sequences are 2 and 4. Will force an error on seq 2 and expect seq 4
       // to have been processed anyway
@@ -158,6 +163,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       // the two missing vaas + look-ahead call
@@ -186,7 +192,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("If a sequence fails to be reprocessed it won't be marked as seen and won't interrupt the processing of other seqs", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       // missing sequences are 2 and 4. Will force an error on seq 2 and expect seq 4
       // to have been processed anyway
@@ -206,6 +212,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       // the two missing vaas + look-ahead call
@@ -233,12 +240,14 @@ describe("MissedVaaV3.check", () => {
       expect(markedSeen.length).toEqual(1);
     });
 
+
+
     /**
      * Look Ahead:
      */
 
     test("No seen sequences yet. If no startingSequence is configured, lookahead is not performed", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([]);
       await checkForMissedVaas(
@@ -246,6 +255,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -255,7 +265,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("No seen sequences yet. If a starting sequence is configured, it will perform lookahead from that sequence", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
       tryFetchVaaMock.mockResolvedValue(null);
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([]);
@@ -270,6 +280,7 @@ describe("MissedVaaV3.check", () => {
             [filter.emitterChain]: mockStartingSequence,
           },
         },
+        prefix,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -283,7 +294,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("Seen sequences exist. it will start lookahead from the configured sequence if it's greater than the last seen seq", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
       tryFetchVaaMock.mockResolvedValue(null);
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 2n]);
@@ -298,6 +309,7 @@ describe("MissedVaaV3.check", () => {
             [filter.emitterChain]: mockStartingSequence,
           },
         },
+        prefix,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -311,7 +323,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("Seen sequences exist. it will start lookahead from the last seen sequence +1 if it's greater than the configured sequence", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
       tryFetchVaaMock.mockResolvedValue(null);
       const seenSequencesMock = [1n, 2n, 3n, 4n, 5n, 6n];
       getAllProcessedSeqsInOrderMock.mockResolvedValue(seenSequencesMock);
@@ -326,6 +338,7 @@ describe("MissedVaaV3.check", () => {
             [filter.emitterChain]: mockStartingSequence,
           },
         },
+        prefix,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
@@ -340,7 +353,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("Look-Ahead will continue fetching VAAs until it gets a not found", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
@@ -353,6 +366,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(tryFetchVaaMock).toHaveBeenCalledTimes(4);
@@ -360,7 +374,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("It will add all found VAAs to the loadAheadSequences and processed stat", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
@@ -373,6 +387,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(lookAheadSequences.length).toEqual(3);
@@ -380,7 +395,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("If processVaa throws is won't be added to processed list", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
@@ -397,6 +412,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
 
       expect(lookAheadSequences.length).toEqual(3);
@@ -404,7 +420,7 @@ describe("MissedVaaV3.check", () => {
     });
 
     test("It doesn't throw if fetchVaa throws", async () => {
-      const { opts, filter } = prepareTest();
+      const { opts, filter, prefix } = prepareTest();
 
       tryFetchVaaMock.mockImplementation((...args: any[]) => {
         throw new Error("foo");
@@ -417,6 +433,7 @@ describe("MissedVaaV3.check", () => {
         redis as unknown as Redis,
         processVaaMock,
         opts,
+        prefix,
       );
     });
   });
