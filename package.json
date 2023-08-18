@@ -8,7 +8,7 @@
     "redis": "docker run --rm -p 6379:6379 --name redis-docker -d redis",
     "test-redis": "docker run --rm -p 6301:6379 --name relayer-engine-test -d redis; npm run test; docker kill relayer-engine-test",
     "test": "npx jest ./test --silent=false",
-    "test-watch": "jest --silent=false --watch ",
+    "test-watch": "jest --silent=false --watch",
     "build": "tsc",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",

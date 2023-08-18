@@ -511,13 +511,12 @@ describe("MissedVaaV3.storage", () => {
       };
     }
 
-    test("It returns undefined if there is no starting sequence nor safe sequence", async () => {
+    test.only("It returns undefined if there is not safe sequence", async () => {
       const {
         prefix,
         emitterChain,
         emitterAddress,
         lastSafeSequence,
-        startingSequence,
       } = prepareTest();
 
       const startingIndex = await calculateStartingIndex(
@@ -526,42 +525,10 @@ describe("MissedVaaV3.storage", () => {
         emitterChain,
         emitterAddress,
         lastSafeSequence,
-        startingSequence,
       );
 
       expect(redis.zrank).not.toHaveBeenCalled();
-      expect(startingIndex).toBeUndefined();
-    });
-
-    test("If there is a starting sequence but not a safe sequence, it will search the starting sequence on the seen sequences", async () => {
-      const mockStartingIndex = 10n;
-      const mockStartingSequence = 100n;
-
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-        lastSafeSequence,
-        startingSequence,
-      } = prepareTest(mockStartingIndex, {
-        startingSequence: mockStartingSequence,
-      });
-
-      const startingIndex = await calculateStartingIndex(
-        redis as unknown as Redis,
-        prefix,
-        emitterChain,
-        emitterAddress,
-        lastSafeSequence,
-        startingSequence,
-      );
-
-      expect(redis.zrank).toHaveBeenCalledTimes(1);
-      // get arguments of redis.zrank first call
-      const args = redis.zrank.mock.calls[0];
-      expect(args[1]).toBe(mockStartingSequence.toString());
-
-      expect(startingIndex).toBe(mockStartingIndex);
+      expect(startingIndex).toBeNull();
     });
 
     test("If there is a safe sequence it will use it to search for the starting index", async () => {
@@ -584,7 +551,6 @@ describe("MissedVaaV3.storage", () => {
         emitterChain,
         emitterAddress,
         lastSafeSequence,
-        startingSequence,
       );
 
       expect(redis.zrank).toHaveBeenCalledTimes(1);
@@ -617,7 +583,6 @@ describe("MissedVaaV3.storage", () => {
         emitterChain,
         emitterAddress,
         lastSafeSequence,
-        startingSequence,
       );
 
       expect(redis.zrank).toHaveBeenCalledTimes(1);
