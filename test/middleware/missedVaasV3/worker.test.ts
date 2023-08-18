@@ -51,7 +51,10 @@ describe("MissedVaaV3.worker", () => {
   const processVaaMock = jest.fn() as jest.MockedFunction<ProcessVaaFn>;
 
   describe("runMissedVaaCheck", () => {
-    function prepareTest(overrides: any = {}, useStoragePrefix: boolean = false) {
+    function prepareTest(
+      overrides: any = {},
+      useStoragePrefix: boolean = false,
+    ) {
       const defaultResults = {
         processed: [],
         seenSequences: [],

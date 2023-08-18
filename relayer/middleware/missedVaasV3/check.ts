@@ -10,10 +10,7 @@ import {
 } from "../../application";
 import { SerializableVaaId } from "../../application";
 import { mapConcurrent } from "../../utils";
-import {
-  MissedVaaRunStats,
-  tryFetchVaa,
-} from "./helpers";
+import { MissedVaaRunStats, tryFetchVaa } from "./helpers";
 import {
   getAllProcessedSeqsInOrder,
   calculateStartingIndex,

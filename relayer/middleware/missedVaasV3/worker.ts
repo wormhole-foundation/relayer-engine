@@ -24,7 +24,7 @@ import {
 
 import { MissedVaaRunStats, calculateSequenceStats } from "./helpers";
 
-const DEFAULT_PREFIX = 'MissedVaaWorkerV3';
+const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 
 export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;

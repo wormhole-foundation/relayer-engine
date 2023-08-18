@@ -102,15 +102,20 @@ export function updateMetrics(
   metrics.workerSuccessfulRuns?.labels().inc();
   metrics.workerRunDuration?.labels().observe(Date.now() - startTime);
 
-  const { processed, failedToRecover, lookAheadSequences, missingSequences, failedToReprocess } = missedVaas!;
+  const {
+    processed,
+    failedToRecover,
+    lookAheadSequences,
+    missingSequences,
+    failedToReprocess,
+  } = missedVaas!;
   const vaasProcessed = processed.length;
   // This are VAAs that were found missing between known sequences, but we failed
   // to fetch them to reprocess them
   const vaasFailedToRecover = failedToRecover.length;
   // This are VAAs that were found but failed when trying to re-queue them
   const vaasFailedToReprocess = failedToReprocess.length;
-  const vaasFound =
-    missingSequences.length + lookAheadSequences.length;
+  const vaasFound = missingSequences.length + lookAheadSequences.length;
 
   const labels = {
     emitterChain: coalesceChainName(emitterChain as ChainId),
@@ -139,9 +144,7 @@ export function updateMetrics(
   metrics.lastSeenSequence?.labels(labels).set(lastSeenSequence);
   metrics.lastSafeSequence?.labels(labels).set(lastSafeSequence);
   metrics.firstSeenSequence?.labels(labels).set(firstSeenSequence);
-  metrics.missingSequences
-    ?.labels(labels)
-    .set(missingSequences.length ? 1 : 0);
+  metrics.missingSequences?.labels(labels).set(missingSequences.length ? 1 : 0);
 }
 
 export async function tryFetchVaa(

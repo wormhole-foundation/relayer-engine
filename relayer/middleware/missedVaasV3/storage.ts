@@ -10,11 +10,7 @@ export async function markVaaAsSeen(
   prefix: string,
 ) {
   const { emitterChain, emitterAddress, sequence } = vaaKey;
-  const seenVaaKey = getSeenVaaKey(
-    prefix,
-    emitterChain,
-    emitterAddress,
-  );
+  const seenVaaKey = getSeenVaaKey(prefix, emitterChain, emitterAddress);
   const sequencesString = sequence.toString();
   await redis.zadd(seenVaaKey, sequencesString, sequencesString);
 }
@@ -218,7 +214,9 @@ export async function getAllProcessedSeqsInOrder(
     .map(BigInt);
 
   if (startingSequenceConfig && startingSequenceConfig > orderedResults[0]) {
-    const higherSequences = orderedResults.filter(r => r >= startingSequenceConfig);
+    const higherSequences = orderedResults.filter(
+      r => r >= startingSequenceConfig,
+    );
     if (higherSequences[0] > startingSequenceConfig) {
       orderedResults.unshift(startingSequenceConfig - 1n);
     }

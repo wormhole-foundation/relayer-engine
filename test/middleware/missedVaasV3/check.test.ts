@@ -58,7 +58,6 @@ describe("MissedVaaV3.check", () => {
       };
     }
 
-
     /**
      * Leap Sequences:
      */
@@ -239,8 +238,6 @@ describe("MissedVaaV3.check", () => {
       // VAAs marked as failed to recover are marked as seen
       expect(markedSeen.length).toEqual(1);
     });
-
-
 
     /**
      * Look Ahead:

@@ -512,12 +512,8 @@ describe("MissedVaaV3.storage", () => {
     }
 
     test("It returns undefined if there is not safe sequence", async () => {
-      const {
-        prefix,
-        emitterChain,
-        emitterAddress,
-        lastSafeSequence,
-      } = prepareTest();
+      const { prefix, emitterChain, emitterAddress, lastSafeSequence } =
+        prepareTest();
 
       const startingIndex = await calculateStartingIndex(
         redis as unknown as Redis,
