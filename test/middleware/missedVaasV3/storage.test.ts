@@ -511,7 +511,7 @@ describe("MissedVaaV3.storage", () => {
       };
     }
 
-    test.only("It returns undefined if there is not safe sequence", async () => {
+    test("It returns undefined if there is not safe sequence", async () => {
       const {
         prefix,
         emitterChain,
