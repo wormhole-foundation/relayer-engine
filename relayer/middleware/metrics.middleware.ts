@@ -16,13 +16,21 @@ class MeasuredRelayJob {
     this.endTime = endTime;
   }
 
+  private currentAttempts(): number {
+    return this.job?.attempts ?? 0;
+  }
+
+  private maxAttempts(): number {
+    return this.job?.maxAttempts ?? Number.MAX_SAFE_INTEGER;
+  }
+
   hasReachedMaxAttempts(): boolean {
-    return (this.job?.attempts ?? 0) === (this.job?.maxAttempts ?? -1);
+    return this.currentAttempts() >= this.maxAttempts();
   }
 
   vaaTimestamp(): number {
     // vaa.timestamp is in seconds
-    return this.job?.data?.parsedVaa?.timestamp * 1000 ?? -1;
+    return this.job?.data?.parsedVaa?.timestamp * 1000 ?? 0;
   }
 
   processingTime(): number {
@@ -34,7 +42,7 @@ class MeasuredRelayJob {
       return this.endTime - this.vaaTimestamp();
     }
 
-    return -1;
+    return 0;
   }
 }
 
