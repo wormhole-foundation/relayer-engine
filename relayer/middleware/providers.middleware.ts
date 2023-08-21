@@ -98,7 +98,7 @@ const defaultSupportedChains = {
     },
   },
   [Environment.TESTNET]: {
-    [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
+    // [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
     [CHAIN_ID_SOLANA]: {
       endpoints: ["https://api.devnet.solana.com"],
     },
@@ -197,7 +197,7 @@ export function providers(
       const environmentDefaultSupportedChains = defaultSupportedChains[ctx.env];
 
       const defaultChains = supportedChains
-        ? pick(environmentDefaultSupportedChains, supportedChains)
+        ? pick(environmentDefaultSupportedChains, supportedChains as any)
         : environmentDefaultSupportedChains;
 
       const chains = Object.assign({}, defaultChains, opts?.chains);
@@ -234,7 +234,7 @@ async function buildProviders(
 
     try {
       if (isEVMChain(chainId)) {
-        providers.evm[chainId] = endpoints.map(
+        providers.evm[chainId as EVMChainId] = endpoints.map(
           url => new ethers.providers.JsonRpcProvider(url),
         );
       } else if (chainId === CHAIN_ID_SOLANA) {

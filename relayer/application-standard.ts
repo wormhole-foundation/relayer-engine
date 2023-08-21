@@ -2,7 +2,7 @@ import { RelayerApp, RelayerAppOpts } from "./application";
 import {
   logging,
   LoggingContext,
-  missedVaas,
+  spawnMissedVaaWorker,
   providers,
   ProvidersOpts,
   sourceTx,
@@ -28,6 +28,16 @@ import { Environment } from "./environment";
 import { TokensByChain } from "./middleware/wallet/wallet-management";
 import { Registry } from "prom-client";
 
+export interface StandardMissedVaaOpts {
+  concurrency?: number;
+  checkInterval?: number;
+  fetchVaaRetries?: number;
+  vaasFetchConcurrency?: number;
+  storagePrefix?: string;
+  startingSequenceConfig?: Partial<Record<ChainId, bigint>>;
+  forceSeenKeysReindex?: boolean;
+}
+
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
   spyEndpoint?: string;
@@ -45,6 +55,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redis?: RedisOptions;
   fetchSourceTxhash?: boolean;
   retryBackoffOptions?: ExponentialBackoffOpts;
+  missedVaaOptions?: StandardMissedVaaOpts;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -98,6 +109,27 @@ export class StandardRelayerApp<
       exponentialBackoff: retryBackoffOptions,
     });
 
+    // this is always true for standard relayer app, but I'm adding this if
+    // to make the dependency explicit
+    if (this.store) {
+      spawnMissedVaaWorker(this, {
+        namespace: name,
+        registry: this.mergedRegistry,
+        logger,
+        redis,
+        redisCluster,
+        redisClusterEndpoints,
+        wormholeRpcs,
+        concurrency: opts.missedVaaOptions?.concurrency,
+        checkInterval: opts.missedVaaOptions?.checkInterval,
+        fetchVaaRetries: opts.missedVaaOptions?.fetchVaaRetries,
+        vaasFetchConcurrency: opts.missedVaaOptions?.vaasFetchConcurrency,
+        storagePrefix: this.store.getPrefix(),
+        startingSequenceConfig: opts.missedVaaOptions?.startingSequenceConfig,
+        forceSeenKeysReindex: opts.missedVaaOptions?.forceSeenKeysReindex,
+      });
+    }
+
     this.mergedRegistry = Registry.merge([
       this.store.registry,
       super.metricsRegistry,
@@ -107,17 +139,7 @@ export class StandardRelayerApp<
     this.useStorage(this.store);
     this.logger(logger);
     this.use(logging(logger)); // <-- logging middleware
-    this.use(
-      missedVaas(this, {
-        namespace: name,
-        logger,
-        redis,
-        redisCluster,
-        redisClusterEndpoints,
-        wormholeRpcs,
-      }),
-    );
-    this.use(providers(opts.providers));
+    this.use(providers(opts.providers, Object.keys(opts.privateKeys ?? {})));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
       this.use(
         wallets(env, {

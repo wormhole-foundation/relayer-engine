@@ -69,7 +69,7 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   concurrency: 1,
 });
 
-interface SerializableVaaId {
+export interface SerializableVaaId {
   emitterChain: ChainId;
   emitterAddress: string;
   sequence: string;
@@ -169,7 +169,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       if (!isOk) {
         this.alreadyFilteredCache.set(id, true);
         this.rootLogger.debug(
-          `Vaa was skipped by filter ${i} of ${this.vaaFilters.length}`,
+          `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
           { emitterChain, emitterAddress, sequence },
         );
         return false;
