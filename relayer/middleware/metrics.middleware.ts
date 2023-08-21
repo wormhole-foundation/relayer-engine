@@ -4,6 +4,7 @@ import { RelayJob, StorageContext } from "../storage/storage";
 import { Counter, Registry } from "prom-client";
 
 type MetricRecord = Record<string, string | number>;
+const defaultTimeBuckets = [6000, 7000, 7500, 8000, 8500, 9000, 10000, 12000];
 
 class MeasuredRelayJob {
   private job?: RelayJob;
@@ -106,7 +107,7 @@ export function metrics<C extends StorageContext>(
   const processedVaasTotal = new Counter({
     name: "vaas_processed_total",
     help: "Number of incoming vaas processed successfully or unsuccessfully.",
-    labelNames: [].concat(opts.labels?.labelNames ?? []),
+    labelNames: opts.labels?.labelNames ?? [],
     registers: [opts.registry],
   });
 
@@ -120,9 +121,7 @@ export function metrics<C extends StorageContext>(
   const processingDuration = new Histogram({
     name: "vaas_processing_duration",
     help: "Processing time in ms for jobs",
-    buckets: opts.processingTimeBuckets ?? [
-      6000, 7000, 7500, 8000, 8500, 9000, 10000, 12000,
-    ],
+    buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
     labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
@@ -130,9 +129,7 @@ export function metrics<C extends StorageContext>(
   const totalDuration = new Histogram({
     name: "vaas_total_duration",
     help: "Processing time in ms for relaying",
-    buckets: opts.processingTimeBuckets ?? [
-      6000, 7000, 7500, 8000, 8500, 9000, 10000, 12000,
-    ],
+    buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
     labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
