@@ -10,6 +10,7 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { StorageContext } from "../../relayer/storage/storage";
 import { ParsedVaaWithBytes } from "../../relayer/application";
 import { Environment } from "../../relayer/environment";
+import { sleep } from "../../relayer/utils";
 
 type TestContext = StorageContext & { target?: string };
 
@@ -133,6 +134,20 @@ describe("metrics middleware", () => {
       false,
     );
   });
+
+  test("should measure relaying time", async () => {
+    const processingOverhead = 5;
+    givenAMetricsMiddleware();
+    givenAContext();
+
+    await whenExecuted(async () => {
+      await sleep(processingOverhead);
+    });
+
+    await thenMetricPresent("vaas_relay_duration", (values, labels) => {
+      expect(values[0].value).toBeGreaterThan(0);
+    });
+  });
 });
 
 const createContext = () => ({
@@ -158,6 +173,7 @@ const createRelayJob = () => ({
   },
   attempts: 1,
   maxAttempts: 1,
+  receivedAt: Date.now(),
   log: (logRow: string) => Promise.resolve(5),
   updateProgress: (progress: number | object) => Promise.resolve(),
 });

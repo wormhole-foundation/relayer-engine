@@ -34,13 +34,33 @@ class MeasuredRelayJob {
     return this.job?.data?.parsedVaa?.timestamp * 1000 ?? 0;
   }
 
+  relayJobTimestamp(): number {
+    return this.job?.receivedAt ?? 0;
+  }
+
   processingTime(): number {
     return this.endTime - this.startTime;
   }
 
+  /**
+   * @returns the time in ms between the timestamp of the block the
+   *          VAA message was published in and the processing end time
+   */
   totalTime(): number {
     if (this.vaaTimestamp() > 0) {
       return this.endTime - this.vaaTimestamp();
+    }
+
+    return 0;
+  }
+
+  /**
+   * @returns the time in ms between the relayer gets notified of the VAA and
+   *          the processing end time
+   */
+  relayingTime(): number {
+    if (this.relayJobTimestamp() > 0) {
+      return this.endTime - this.relayJobTimestamp();
     }
 
     return 0;
@@ -128,7 +148,15 @@ export function metrics<C extends StorageContext>(
 
   const totalDuration = new Histogram({
     name: "vaas_total_duration",
-    help: "Processing time in ms for relaying",
+    help: "Processing time in ms since VAA was published",
+    buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
+    labelNames: [status].concat(opts.labels?.labelNames ?? []),
+    registers: [opts.registry],
+  });
+
+  const relayDuration = new Histogram({
+    name: "vaas_relay_duration",
+    help: "Time between relayer gets notified of VAA and processing end",
     buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
     labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
@@ -153,6 +181,10 @@ export function metrics<C extends StorageContext>(
 
     if (job.totalTime() > 0) {
       totalDuration.labels(labels).observe(job.totalTime());
+    }
+
+    if (job.relayingTime() > 0) {
+      relayDuration.labels(labels).observe(job.relayingTime());
     }
 
     if (failure) {
