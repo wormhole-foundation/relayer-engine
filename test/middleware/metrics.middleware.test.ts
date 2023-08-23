@@ -10,6 +10,7 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import { StorageContext } from "../../relayer/storage/storage";
 import { ParsedVaaWithBytes } from "../../relayer/application";
 import { Environment } from "../../relayer/environment";
+import { sleep } from "../../relayer/utils";
 
 type TestContext = StorageContext & { target?: string };
 
@@ -133,6 +134,52 @@ describe("metrics middleware", () => {
       false,
     );
   });
+
+  test("should allow to customize histogram buckets", async () => {
+    const expectedTarget = "celo";
+    const options = {
+      buckets: { processing: [10, 100, 1000, 1500] },
+    };
+    givenAMetricsMiddleware(options);
+    givenAContext();
+
+    await whenExecuted(
+      nextProvider(() => {
+        ctx.target = expectedTarget;
+      }),
+    );
+
+    await thenMetricPresent(
+      "vaas_processing_duration",
+      values => {
+        expect(
+          values
+            .filter(
+              value =>
+                (value as any)["metricName"] ===
+                "vaas_processing_duration_bucket",
+            ) // ignore sum and count metrics
+            .filter(value => (value.labels as any)["le"] != "+Inf") // ignore default bucket to catch everything beyond specified ones
+            .map(value => (value.labels as any)["le"]),
+        ).toStrictEqual(options.buckets.processing);
+      },
+      false,
+    );
+  });
+
+  test("should measure relaying time", async () => {
+    const processingOverhead = 5;
+    givenAMetricsMiddleware();
+    givenAContext();
+
+    await whenExecuted(async () => {
+      await sleep(processingOverhead);
+    });
+
+    await thenMetricPresent("vaas_relay_duration", (values, labels) => {
+      expect(values[0].value).toBeGreaterThan(0);
+    });
+  });
 });
 
 const createContext = () => ({
@@ -158,6 +205,7 @@ const createRelayJob = () => ({
   },
   attempts: 1,
   maxAttempts: 1,
+  receivedAt: Date.now(),
   log: (logRow: string) => Promise.resolve(5),
   updateProgress: (progress: number | object) => Promise.resolve(),
 });

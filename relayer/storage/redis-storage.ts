@@ -132,6 +132,7 @@ export class RedisStorage implements Storage {
   }
 
   async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
+    const startTime = Date.now();
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
@@ -168,6 +169,7 @@ export class RedisStorage implements Storage {
       id: job.id,
       name: job.name,
       log: job.log.bind(job),
+      receivedAt: startTime,
       updateProgress: job.updateProgress.bind(job),
       maxAttempts: this.opts.attempts,
     };
