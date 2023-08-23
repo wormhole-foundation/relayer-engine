@@ -135,6 +135,38 @@ describe("metrics middleware", () => {
     );
   });
 
+  test("should allow to customize histogram buckets", async () => {
+    const expectedTarget = "celo";
+    const options = {
+      buckets: { processing: [10, 100, 1000, 1500] },
+    };
+    givenAMetricsMiddleware(options);
+    givenAContext();
+
+    await whenExecuted(
+      nextProvider(() => {
+        ctx.target = expectedTarget;
+      }),
+    );
+
+    await thenMetricPresent(
+      "vaas_processing_duration",
+      values => {
+        expect(
+          values
+            .filter(
+              value =>
+                (value as any)["metricName"] ===
+                "vaas_processing_duration_bucket",
+            ) // ignore sum and count metrics
+            .filter(value => (value.labels as any)["le"] != "+Inf") // ignore default bucket to catch everything beyond specified ones
+            .map(value => (value.labels as any)["le"]),
+        ).toStrictEqual(options.buckets.processing);
+      },
+      false,
+    );
+  });
+
   test("should measure relaying time", async () => {
     const processingOverhead = 5;
     givenAMetricsMiddleware();

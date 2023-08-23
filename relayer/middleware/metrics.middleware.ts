@@ -73,7 +73,11 @@ const terminal = "terminal";
 export interface MetricsOpts<C extends StorageContext> {
   registry?: Registry;
   labels?: MetricLabelsOpts<C>;
-  processingTimeBuckets?: number[];
+  buckets?: {
+    processing?: number[];
+    total?: number[];
+    relay?: number[];
+  };
 }
 
 export class MetricLabelsOpts<C extends StorageContext> {
@@ -141,7 +145,7 @@ export function metrics<C extends StorageContext>(
   const processingDuration = new Histogram({
     name: "vaas_processing_duration",
     help: "Processing time in ms for jobs",
-    buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
+    buckets: opts.buckets?.processing ?? defaultTimeBuckets,
     labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
@@ -149,7 +153,7 @@ export function metrics<C extends StorageContext>(
   const totalDuration = new Histogram({
     name: "vaas_total_duration",
     help: "Processing time in ms since VAA was published",
-    buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
+    buckets: opts.buckets?.total ?? defaultTimeBuckets,
     labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
@@ -157,7 +161,7 @@ export function metrics<C extends StorageContext>(
   const relayDuration = new Histogram({
     name: "vaas_relay_duration",
     help: "Time between relayer gets notified of VAA and processing end",
-    buckets: opts.processingTimeBuckets ?? defaultTimeBuckets,
+    buckets: opts.buckets?.relay ?? defaultTimeBuckets,
     labelNames: [status].concat(opts.labels?.labelNames ?? []),
     registers: [opts.registry],
   });
