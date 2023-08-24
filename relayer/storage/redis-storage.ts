@@ -73,7 +73,7 @@ export interface StorageOptions extends RedisConnectionOpts {
   concurrency?: number;
   exponentialBackoff?: ExponentialBackoffOpts;
   maxCompletedQueueSize?: number;
-  maxFailedQueueSize?: number,
+  maxFailedQueueSize?: number;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
