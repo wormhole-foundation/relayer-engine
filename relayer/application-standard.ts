@@ -56,6 +56,8 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   fetchSourceTxhash?: boolean;
   retryBackoffOptions?: ExponentialBackoffOpts;
   missedVaaOptions?: StandardMissedVaaOpts;
+  maxCompletedQueueSize?: number;
+  maxFailedQueueSize?: number;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -96,6 +98,8 @@ export class StandardRelayerApp<
       redisClusterEndpoints,
       wormholeRpcs,
       retryBackoffOptions,
+      maxCompletedQueueSize,
+      maxFailedQueueSize,
     } = opts;
     super(env, opts);
 
@@ -107,6 +111,8 @@ export class StandardRelayerApp<
       namespace: name,
       queueName: `${name}-relays`,
       exponentialBackoff: retryBackoffOptions,
+      maxCompletedQueueSize,
+      maxFailedQueueSize,
     });
 
     // this is always true for standard relayer app, but I'm adding this if
