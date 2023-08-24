@@ -73,6 +73,7 @@ export interface StorageOptions extends RedisConnectionOpts {
   concurrency?: number;
   exponentialBackoff?: ExponentialBackoffOpts;
   maxCompletedQueueSize?: number;
+  maxFailedQueueSize?: number;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -83,6 +84,7 @@ const defaultOptions: Partial<StorageOptions> = {
   queueName: "relays",
   concurrency: 3,
   maxCompletedQueueSize: 10000,
+  maxFailedQueueSize: 10000,
 };
 
 export class RedisStorage implements Storage {
@@ -118,6 +120,7 @@ export class RedisStorage implements Storage {
     this.vaaQueue = new Queue(this.opts.queueName, {
       defaultJobOptions: {
         removeOnComplete: this.opts.maxCompletedQueueSize,
+        removeOnFail: this.opts.maxFailedQueueSize,
       },
       prefix: this.prefix,
       connection: this.redis,
