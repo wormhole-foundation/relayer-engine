@@ -202,7 +202,9 @@ export function providers(
 
       const chains = Object.assign({}, defaultChains, opts?.chains);
 
-      logger?.debug(`Providers initializing... ${JSON.stringify(chains)}`);
+      logger?.debug(
+        `Providers initializing... ${JSON.stringify(maskRPCProviders(chains))}`,
+      );
       providers = await buildProviders(chains, logger);
       logger?.debug(`Providers initialized succesfully.`);
     }
@@ -260,7 +262,9 @@ async function buildProviders(
       error.originalStack = error.stack;
       error.stack = new Error().stack;
       logger?.error(
-        `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${endpoints}. Error: `,
+        `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${maskRPCEndpoints(
+          endpoints,
+        )}. Error: `,
         error,
       );
       throw error;
@@ -268,4 +272,25 @@ async function buildProviders(
   }
 
   return providers;
+}
+
+function maskRPCEndpoints(endpoints: string[]) {
+  return endpoints.map((url: string) => {
+    const apiKeyPos = url.indexOf("apiKey");
+    if (apiKeyPos > -1) {
+      // Found API key in the RPC url, show only initial 3 chars and mask the rest
+      return url.substring(0, apiKeyPos + 10) + "***";
+    }
+    return url;
+  });
+}
+
+function maskRPCProviders(chains: Partial<ChainConfigInfo>) {
+  const maskedChains: Partial<ChainConfigInfo> = {};
+  for (const [chainId, chainConfig] of Object.entries(chains)) {
+    maskedChains[chainId as unknown as ChainId] = {
+      endpoints: maskRPCEndpoints(chainConfig.endpoints),
+    };
+  }
+  return maskedChains;
 }
