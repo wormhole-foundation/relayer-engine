@@ -278,7 +278,7 @@ function maskRPCEndpoints(endpoints: string[]) {
   return endpoints.map((url: string) => {
     const apiKeyPos = url.indexOf("apiKey");
     if (apiKeyPos > -1) {
-      // Found API secret key in the RPC url, show initial 3 chars and mask the rest
+      // Found API key in the RPC url, show only initial 3 chars and mask the rest
       return url.substring(0, apiKeyPos + 10) + "***";
     }
     return url;
