@@ -238,6 +238,7 @@ export class RedisStorage implements Storage {
           id: job.id,
           maxAttempts: this.opts.attempts,
           name: job.name,
+          receivedAt: job.timestamp,
           log: job.log.bind(job),
           updateProgress: job.updateProgress.bind(job),
         };
@@ -253,9 +254,7 @@ export class RedisStorage implements Storage {
       },
     );
     this.workerId = this.worker.id;
-
-    this.worker.on("completed", this.onCompleted.bind(this));
-    this.worker.on("failed", this.onFailed.bind(this));
+    
     this.spawnGaugeUpdateWorker();
   }
 
@@ -282,29 +281,6 @@ export class RedisStorage implements Storage {
       .labels({ queue: this.vaaQueue.name })
       .set(waiting);
     this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
-  }
-
-  private async onCompleted(job: Job) {
-    const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
-    const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
-    this.metrics.completedCounter.labels({ queue: this.vaaQueue.name }).inc();
-    this.metrics.completedDuration
-      .labels({ queue: this.vaaQueue.name })
-      .observe(completedDuration);
-    this.metrics.processedDuration
-      .labels({ queue: this.vaaQueue.name })
-      .observe(processedDuration);
-  }
-
-  private async onFailed(job: Job) {
-    // TODO: Add a failed duration metric for processing time for failed jobs
-    this.metrics.failedRunsCounter.labels({ queue: this.vaaQueue.name }).inc();
-
-    if (job.attemptsMade === this.opts.attempts) {
-      this.metrics.failedWithMaxRetriesCounter
-        .labels({ queue: this.vaaQueue.name })
-        .inc();
-    }
   }
 
   storageKoaUI(path: string) {
