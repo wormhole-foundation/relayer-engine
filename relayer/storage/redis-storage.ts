@@ -254,7 +254,7 @@ export class RedisStorage implements Storage {
       },
     );
     this.workerId = this.worker.id;
-    
+
     this.spawnGaugeUpdateWorker();
   }
 

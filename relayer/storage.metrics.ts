@@ -35,7 +35,7 @@ export function createStorageMetrics(
         help: "Total number of jobs currently in a failed state",
         labelNames: ["queue"],
         registers: [storageRegistry],
-      })
+      }),
     },
   };
 }
