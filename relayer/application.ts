@@ -309,6 +309,8 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     }
     if (this.storage) {
       const job = await this.storage.addVaaToQueue(parsedVaa.bytes);
+      // TODO: it would be ideal to only emit the added event only in
+      // the cases the job was actually added (not already in queue)
       this.emit(RelayerEvents.Added, parsedVaa, job);
     } else {
       this.emit(RelayerEvents.Added, parsedVaa);

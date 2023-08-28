@@ -16,7 +16,7 @@ export interface RelayJob {
   };
   attempts: number;
   maxAttempts: number;
-  receivedAt?: number;
+  receivedAt: number;
   log(logRow: string): Promise<number>;
   updateProgress(progress: number | object): Promise<void>;
 }
