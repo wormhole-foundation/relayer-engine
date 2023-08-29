@@ -147,7 +147,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       return false;
     }
     for (let i = 0; i < this.vaaFilters.length; i++) {
-      const { emitterChain, emitterAddress, sequence } = vaa.id;
       const filter = this.vaaFilters[i];
       let isOk;
       try {

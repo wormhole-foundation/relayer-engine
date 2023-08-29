@@ -16,7 +16,11 @@ import { spawnWalletWorker } from "./wallet.worker";
 import { Queue } from "@datastructures-js/queue";
 import { ProviderContext, UntypedProvider } from "../providers.middleware";
 import { Logger } from "winston";
-import { TokensByChain, startWalletManagement } from "./wallet-management";
+import {
+  TokensByChain,
+  WalletRebalanceConfigByChain,
+  startWalletManagement,
+} from "./wallet-management";
 import { Registry } from "prom-client";
 import { Environment } from "../../environment";
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
@@ -123,6 +127,7 @@ export interface WalletOpts {
     enabled: boolean;
     registry: Registry;
   };
+  rebalanceConfigPerChain: WalletRebalanceConfigByChain;
 }
 
 export function wallets(
@@ -150,6 +155,7 @@ export function wallets(
       opts.tokensByChain,
       opts.metrics,
       opts.logger,
+      opts.rebalanceConfigPerChain,
     );
   }
 

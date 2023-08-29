@@ -66,11 +66,15 @@ const networks = {
 
 export type PrivateKeys = Partial<{ [k in ChainId]: string[] }>;
 export type TokensByChain = Partial<{ [k in ChainId]: string[] }>;
+export type WalletRebalanceConfigByChain = Partial<{
+  [k in ChainId]: WalletManagerFullConfig["config"][""]["rebalance"];
+}>;
 
 function buildWalletsConfig(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
+  rebalanceConfigPerChain?: WalletRebalanceConfigByChain,
 ): WalletManagerFullConfig["config"] {
   const networkByChain: any = networks[env];
   const config: WalletManagerFullConfig["config"] = {};
@@ -121,6 +125,7 @@ function buildWalletsConfig(
     config[chainName] = {
       wallets: chainWallets,
       network: networkByChain[chainId],
+      rebalance: rebalanceConfigPerChain?.[chainId],
     };
   }
   return config;
@@ -132,11 +137,17 @@ export function startWalletManagement(
   tokensByChain?: TokensByChain,
   metricsOpts?: WalletManagerFullConfig["options"]["metrics"],
   logger?: Logger,
+  rebalanceConfigPerChain?: WalletRebalanceConfigByChain,
 ) {
-  const wallets = buildWalletsConfig(env, privateKeys, tokensByChain);
+  const walletConfig = buildWalletsConfig(
+    env,
+    privateKeys,
+    tokensByChain,
+    rebalanceConfigPerChain,
+  );
 
   const manager = buildWalletManager({
-    config: wallets,
+    config: walletConfig,
     options: {
       failOnInvalidChain: false,
       logger: logger?.child({ module: "wallet-manager" }),
