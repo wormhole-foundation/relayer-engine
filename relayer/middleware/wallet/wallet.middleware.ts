@@ -127,7 +127,7 @@ export interface WalletOpts {
     enabled: boolean;
     registry: Registry;
   };
-  rebalanceConfigPerChain: WalletRebalanceConfigByChain;
+  rebalanceConfigPerChain?: WalletRebalanceConfigByChain;
 }
 
 export function wallets(
