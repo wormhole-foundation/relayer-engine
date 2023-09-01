@@ -9,11 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: ${{ matrix.redis-version }}
-          redis-port: 6301
       - name: Checkout repo
         uses: actions/checkout@v3
       - uses: actions/setup-node@v3
