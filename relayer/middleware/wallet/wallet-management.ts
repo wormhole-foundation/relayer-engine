@@ -1,5 +1,7 @@
 import {
   buildWalletManager,
+  IClientWalletManager,
+  ILibraryWalletManager,
   WalletManagerFullConfig,
 } from "@xlabs-xyz/wallet-monitor";
 import { Logger } from "winston";
@@ -132,7 +134,7 @@ export function startWalletManagement(
   tokensByChain?: TokensByChain,
   metricsOpts?: WalletManagerFullConfig["options"]["metrics"],
   logger?: Logger,
-) {
+): IClientWalletManager | ILibraryWalletManager {
   const wallets = buildWalletsConfig(env, privateKeys, tokensByChain);
 
   const manager = buildWalletManager({
