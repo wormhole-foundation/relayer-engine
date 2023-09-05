@@ -120,7 +120,7 @@ export class StandardRelayerApp<
     if (this.store) {
       spawnMissedVaaWorker(this, {
         namespace: name,
-        registry: this.mergedRegistry,
+        registry: this.store.registry,
         logger,
         redis,
         redisCluster,
