@@ -43,7 +43,7 @@ const networks = {
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ETH]: "goerli",
-    [CHAIN_ID_SOLANA]: "devnet",
+    [CHAIN_ID_SOLANA]: "solana-devnet",
     [CHAIN_ID_AVAX]: "testnet",
     [CHAIN_ID_CELO]: "alfajores",
     [CHAIN_ID_BSC]: "testnet",
