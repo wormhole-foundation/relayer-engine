@@ -42,7 +42,7 @@ const networks = {
     [CHAIN_ID_MOONBEAM]: "moonbeam-mainnet",
     [CHAIN_ID_SUI]: "mainnet",
     [CHAIN_ID_BASE]: "mainnet",
-    [CHAIN_ID_ARBITRUM]: "Arbitrum"
+    [CHAIN_ID_ARBITRUM]: "Arbitrum",
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ETH]: "goerli",
@@ -56,7 +56,7 @@ const networks = {
     [CHAIN_ID_SUI]: "testnet",
     [CHAIN_ID_BASE]: "goerli",
     [CHAIN_ID_ARBITRUM]: "Arbitrum Testnet",
-    [CHAIN_ID_OPTIMISM]: "goerli"
+    [CHAIN_ID_OPTIMISM]: "goerli",
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: "devnet",
@@ -70,7 +70,7 @@ const networks = {
     [CHAIN_ID_SUI]: "devnet",
     [CHAIN_ID_ARBITRUM]: "devnet",
     [CHAIN_ID_OPTIMISM]: "devnet",
-    [CHAIN_ID_BASE]: "devnet"
+    [CHAIN_ID_BASE]: "devnet",
   },
 };
 
