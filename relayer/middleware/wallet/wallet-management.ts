@@ -25,6 +25,8 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SEI,
   CHAIN_ID_SUI,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_OPTIMISM,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { Environment } from "../../environment";
 
@@ -40,6 +42,7 @@ const networks = {
     [CHAIN_ID_MOONBEAM]: "moonbeam-mainnet",
     [CHAIN_ID_SUI]: "mainnet",
     [CHAIN_ID_BASE]: "mainnet",
+    [CHAIN_ID_ARBITRUM]: "Arbitrum"
   },
   [Environment.TESTNET]: {
     [CHAIN_ID_ETH]: "goerli",
@@ -52,6 +55,8 @@ const networks = {
     [CHAIN_ID_MOONBEAM]: "moonbase-alpha",
     [CHAIN_ID_SUI]: "testnet",
     [CHAIN_ID_BASE]: "goerli",
+    [CHAIN_ID_ARBITRUM]: "Arbitrum Testnet",
+    [CHAIN_ID_OPTIMISM]: "goerli"
   },
   [Environment.DEVNET]: {
     [CHAIN_ID_ETH]: "devnet",
@@ -63,6 +68,9 @@ const networks = {
     [CHAIN_ID_FANTOM]: "devnet",
     [CHAIN_ID_MOONBEAM]: "devnet",
     [CHAIN_ID_SUI]: "devnet",
+    [CHAIN_ID_ARBITRUM]: "devnet",
+    [CHAIN_ID_OPTIMISM]: "devnet",
+    [CHAIN_ID_BASE]: "devnet"
   },
 };
 
