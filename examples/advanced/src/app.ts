@@ -5,7 +5,6 @@ import {
   Environment,
   logging,
   LoggingContext,
-  missedVaas,
   providers,
   RelayerApp,
   sourceTx,
@@ -21,7 +20,7 @@ import {
 } from "@wormhole-foundation/relayer-engine";
 import { CHAIN_ID_SOLANA, SignedVaa } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
-import { ApiController } from "./controller";
+import { Controller } from "./controller";
 import { Logger } from "winston";
 import { RedisStorage } from "../../../relayer/storage/redis-storage";
 
@@ -51,7 +50,7 @@ async function main(namespace: string) {
 
   const app = new RelayerApp<MyRelayerContext>(Environment.TESTNET);
 
-  const fundsCtrl = new ApiController();
+  const fundsCtrl = new Controller();
   // Config
   const store = new TestStorage({
     attempts: 3,
@@ -62,7 +61,6 @@ async function main(namespace: string) {
 
   // Set up middleware
   app.use(logging(rootLogger)); // <-- logging middleware
-  // app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
   app.use(providers());
   app.use(tokenBridgeContracts());
   app.use(stagingArea());
@@ -72,7 +70,7 @@ async function main(namespace: string) {
     .chain(CHAIN_ID_SOLANA)
     .address(
       "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
-      fundsCtrl.processFundsTransfer
+      fundsCtrl.redeemVaa
     );
 
   // passing a function with 3 args will be used to process errors

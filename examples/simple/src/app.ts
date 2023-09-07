@@ -26,7 +26,7 @@ import { CHAIN_ID_SOLANA, TokenBridgePayload } from "@certusone/wormhole-sdk";
         `Got a VAA with sequence: ${ctx.vaa?.sequence} from with txhash: ${ctx.sourceTxHash}`,
       );
 
-      const {payload} = ctx.tokenBridge
+      const { payload } = ctx.tokenBridge;
 
       // only care about transfers
       // TODO: do something more interesting than logging like:
@@ -34,18 +34,26 @@ import { CHAIN_ID_SOLANA, TokenBridgePayload } from "@certusone/wormhole-sdk";
       // - tracking transfer amounts over time
       switch (payload?.payloadType) {
         case TokenBridgePayload.Transfer:
-          ctx.logger.info(`Transfer processing for: \n` +
-            `\tToken: ${payload.tokenChain}:${payload.tokenAddress.toString('hex')}\n` +
-            `\tAmount: ${payload.amount}\n` +
-            `\tReceiver: ${payload.toChain}:${payload.to.toString('hex')}\n`);
+          ctx.logger.info(
+            `Transfer processing for: \n` +
+              `\tToken: ${payload.tokenChain}:${payload.tokenAddress.toString(
+                "hex",
+              )}\n` +
+              `\tAmount: ${payload.amount}\n` +
+              `\tReceiver: ${payload.toChain}:${payload.to.toString("hex")}\n`,
+          );
           break;
         case TokenBridgePayload.TransferWithPayload:
-          ctx.logger.info(`Transfer processing for: \n` +
-            `\tToken: ${payload.tokenChain}:${payload.tokenAddress.toString('hex')}\n` +
-            `\tAmount: ${payload.amount}\n` +
-            `\tSender ${payload.fromAddress?.toString('hex')}\n` +
-            `\tReceiver: ${payload.toChain}:${payload.to.toString('hex')}\n`+
-            `\tPayload: ${payload.tokenTransferPayload.toString('hex')}\n`);
+          ctx.logger.info(
+            `Transfer processing for: \n` +
+              `\tToken: ${payload.tokenChain}:${payload.tokenAddress.toString(
+                "hex",
+              )}\n` +
+              `\tAmount: ${payload.amount}\n` +
+              `\tSender ${payload.fromAddress?.toString("hex")}\n` +
+              `\tReceiver: ${payload.toChain}:${payload.to.toString("hex")}\n` +
+              `\tPayload: ${payload.tokenTransferPayload.toString("hex")}\n`,
+          );
           break;
       }
 
