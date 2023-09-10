@@ -3,7 +3,7 @@
     "target": "ESNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2021"],
-    "declaration": false,
+    "declaration": true,
     "skipLibCheck": true,
     "allowJs": true,
     "noImplicitAny": true,
