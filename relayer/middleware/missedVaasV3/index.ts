@@ -1,2 +1,2 @@
-export { spawnMissedVaaWorker } from "./worker";
-export type { MissedVaaOpts as MissedVaaWorkerOpts } from "./worker";
+export { spawnMissedVaaWorker } from "./worker.js";
+export type { MissedVaaOpts as MissedVaaWorkerOpts } from "./worker.js";

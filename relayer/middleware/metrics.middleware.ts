@@ -1,7 +1,6 @@
-import { Histogram, register } from "prom-client";
-import { Middleware, Next } from "../compose.middleware";
-import { RelayJob, StorageContext } from "../storage/storage";
-import { Counter, Registry } from "prom-client";
+import { Counter, Histogram, register, Registry } from "prom-client";
+import { Middleware, Next } from "../compose.middleware.js";
+import { RelayJob, StorageContext } from "../storage/storage.js";
 
 type MetricRecord = Record<string, string | number>;
 const defaultTimeBuckets = [6000, 7000, 7500, 8000, 8500, 9000, 10000, 12000];
@@ -15,14 +14,6 @@ class MeasuredRelayJob {
     this.job = job;
     this.startTime = startTime;
     this.endTime = endTime;
-  }
-
-  private currentAttempts(): number {
-    return this.job?.attempts ?? 0;
-  }
-
-  private maxAttempts(): number {
-    return this.job?.maxAttempts ?? Number.MAX_SAFE_INTEGER;
   }
 
   hasReachedMaxAttempts(): boolean {
@@ -64,6 +55,14 @@ class MeasuredRelayJob {
     }
 
     return 0;
+  }
+
+  private currentAttempts(): number {
+    return this.job?.attempts ?? 0;
+  }
+
+  private maxAttempts(): number {
+    return this.job?.maxAttempts ?? Number.MAX_SAFE_INTEGER;
   }
 }
 

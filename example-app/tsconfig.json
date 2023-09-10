@@ -2,7 +2,7 @@
   "compilerOptions": {
     "outDir": "build",
     "target": "ESNext",
-    "module": "CommonJS",
+    "module": "ESNext",
     "moduleResolution": "node",
     "lib": ["ES2021"],
     "declaration": true,
@@ -16,6 +16,9 @@
     "downlevelIteration": true,
     "sourceMap": true,
     "allowSyntheticDefaultImports": true
+  },
+  "ts-node": {
+    "esm": true
   },
   "include": ["src"],
   "exclude": [

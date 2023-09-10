@@ -4,9 +4,9 @@ import {
   ListenerFn,
   ParsedVaaWithBytes,
   RelayerEvents,
-} from "./application";
+} from "./application.js";
 import { Logger } from "winston";
-import { Environment } from "./environment";
+import { Environment } from "./environment.js";
 
 export type FetchVaaFn = (
   emitterChain: ChainId | string,

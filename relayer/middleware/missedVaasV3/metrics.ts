@@ -1,4 +1,4 @@
-import { Registry, Counter, Histogram, Gauge } from "prom-client";
+import { Counter, Gauge, Histogram, Registry } from "prom-client";
 
 export type MissedVaaMetrics = {
   workerFailedRuns?: Counter;

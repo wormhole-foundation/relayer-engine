@@ -6,8 +6,8 @@ import {
   Redis,
   RedisOptions,
 } from "ioredis";
-import { Middleware, Next } from "../compose.middleware";
-import { Context } from "../context";
+import { Middleware, Next } from "../compose.middleware.js";
+import { Context } from "../context.js";
 import { createPool } from "generic-pool";
 
 export interface StagingAreaContext extends Context {
@@ -80,6 +80,7 @@ function sanitize(dirtyString: string): string {
 
 class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
   private readonly stagingAreaKey: string;
+
   constructor(
     private readonly redis: Redis | Cluster,
     readonly logger: Logger,
@@ -90,18 +91,6 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
 
   getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV> {
     return this.getKeysInternal(this.redis, keys);
-  }
-
-  private getKeysInternal<KV extends Record<string, any>>(
-    redis: Redis | Cluster,
-    keys: string[],
-  ): Promise<KV> {
-    return Promise.all(
-      keys.map(async k => {
-        const val = await redis.get(`${this.stagingAreaKey}/${k}`);
-        return [k, val !== null ? JSON.parse(val) : undefined];
-      }),
-    ).then(Object.fromEntries);
   }
 
   async withKey<T, KV extends Record<string, any>>(
@@ -138,6 +127,18 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
       this.logger.error(e);
       throw e;
     }
+  }
+
+  private getKeysInternal<KV extends Record<string, any>>(
+    redis: Redis | Cluster,
+    keys: string[],
+  ): Promise<KV> {
+    return Promise.all(
+      keys.map(async k => {
+        const val = await redis.get(`${this.stagingAreaKey}/${k}`);
+        return [k, val !== null ? JSON.parse(val) : undefined];
+      }),
+    ).then(Object.fromEntries);
   }
 }
 

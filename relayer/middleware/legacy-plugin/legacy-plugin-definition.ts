@@ -123,10 +123,12 @@ export interface Plugin<WorkflowData = any> {
   shouldSpy: boolean; // Boolean toggle if relayer should connect to Guardian Network via non-validation guardiand node
   shouldRest: boolean; // Boolean toggle if relayer should connect to Guardian Network via REST API
   maxRetries?: number;
+
   afterSetup?(
     providers: Providers,
     listenerResources?: { eventSource: EventSource; db: StagingAreaKeyLock },
   ): Promise<void>;
+
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
   consumeEvent( // Function to be defined in plug-in that takes as input a VAA outputs a list of actions
     vaa: ParsedVaaWithBytes,
@@ -140,6 +142,7 @@ export interface Plugin<WorkflowData = any> {
       }
     | undefined
   >;
+
   handleWorkflow(
     workflow: Workflow<WorkflowData>,
     providers: Providers,
@@ -164,6 +167,7 @@ export interface StagingAreaKeyLock {
     f: (kvs: KV, ctx: OpaqueTx) => Promise<{ newKV: KV; val: T }>,
     tx?: OpaqueTx,
   ): Promise<T>;
+
   getKeys<KV extends Record<string, any>>(keys: string[]): Promise<KV>;
 }
 

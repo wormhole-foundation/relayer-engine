@@ -2,21 +2,22 @@ import * as wh from "@certusone/wormhole-sdk";
 import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
-import { Providers } from "../providers.middleware";
+import { Providers } from "../providers.middleware.js";
 import {
   EVMWallet,
   SeiWallet,
   SolanaWallet,
   SuiWallet,
   Wallet,
-} from "./wallet.middleware";
+} from "./wallet.middleware.js";
 import { Ed25519Keypair, RawSigner } from "@mysten/sui.js";
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;
-  getBalance(): Promise<string>;
   address: string;
+
+  getBalance(): Promise<string>;
 }
 
 export async function createWalletToolbox(

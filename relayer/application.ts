@@ -16,8 +16,8 @@ import {
   ErrorMiddleware,
   Middleware,
   Next,
-} from "./compose.middleware";
-import { Context } from "./context";
+} from "./compose.middleware.js";
+import { Context } from "./context.js";
 import { Logger } from "winston";
 import { BigNumber } from "ethers";
 import {
@@ -30,17 +30,17 @@ import {
   mergeDeep,
   parseVaaWithBytes,
   sleep,
-} from "./utils";
+} from "./utils.js";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
-import { defaultLogger } from "./logging";
-import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
-import { RelayJob, Storage } from "./storage/storage";
-import { emitterCapByEnv } from "./configs/sui";
+import { defaultLogger } from "./logging.js";
+import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper.js";
+import { RelayJob, Storage } from "./storage/storage.js";
+import { emitterCapByEnv } from "./configs/sui.js";
 import { LRUCache } from "lru-cache";
-import { Environment } from "./environment";
-import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
+import { Environment } from "./environment.js";
+import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy.js";
 import { Registry } from "prom-client";
-import { createRelayerMetrics, RelayerMetrics } from "./application.metrics";
+import { createRelayerMetrics, RelayerMetrics } from "./application.metrics.js";
 
 export { UnrecoverableError };
 
@@ -95,15 +95,15 @@ export enum RelayerEvents {
 export type ListenerFn = (vaa: ParsedVaaWithBytes, job?: RelayJob) => void;
 
 export class RelayerApp<ContextT extends Context> extends EventEmitter {
+  storage: Storage;
+  filters: {
+    emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
+  }[] = [];
   private pipeline?: Middleware;
   private errorPipeline?: ErrorMiddleware;
   private chainRouters: Partial<Record<ChainId, ChainRouter<ContextT>>> = {};
   private spyUrl?: string;
   private rootLogger: Logger;
-  storage: Storage;
-  filters: {
-    emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
-  }[] = [];
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
   private alreadyFilteredCache = new LRUCache<string, boolean>({ max: 1000 });
@@ -135,47 +135,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    */
   filter(newFilter: FilterFN) {
     this.vaaFilters.push(newFilter);
-  }
-
-  private async shouldProcessVaa(vaa: ParsedVaaWithBytes): Promise<boolean> {
-    if (this.vaaFilters.length === 0) {
-      return true;
-    }
-    const { emitterChain, emitterAddress, sequence } = vaa.id;
-    const id = `${emitterChain}-${emitterAddress}-${sequence}`;
-    if (this.alreadyFilteredCache.get(id)) {
-      return false;
-    }
-    for (let i = 0; i < this.vaaFilters.length; i++) {
-      const { emitterChain, emitterAddress, sequence } = vaa.id;
-      const filter = this.vaaFilters[i];
-      let isOk;
-      try {
-        isOk = await filter(vaa);
-      } catch (e: any) {
-        isOk = false;
-        this.rootLogger.debug(
-          `filter ${i} of ${this.vaaFilters.length} threw an exception`,
-          {
-            emitterChain,
-            emitterAddress,
-            sequence,
-            message: e.message,
-            stack: e.stack,
-            name: e.name,
-          },
-        );
-      }
-      if (!isOk) {
-        this.alreadyFilteredCache.set(id, true);
-        this.rootLogger.debug(
-          `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
-          { emitterChain, emitterAddress, sequence },
-        );
-        return false;
-      }
-    }
-    return true;
   }
 
   on(eventName: RelayerEvents, listener: ListenerFn): this {
@@ -319,41 +278,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   }
 
   /**
-   * Pushes a vaa through the pipeline. Unless you're the storage service you probably want to use `processVaa`.
-   * @param vaa
-   * @param opts
-   */
-  private async pushVaaThroughPipeline(
-    vaa: SignedVaa,
-    opts: any,
-  ): Promise<void> {
-    const parsedVaa = parseVaaWithBytes(vaa);
-
-    let ctx: Context = {
-      config: {
-        spyFilters: await this.spyFilters(),
-      },
-      env: this.env,
-      fetchVaa: this.fetchVaa.bind(this),
-      fetchVaas: this.fetchVaas.bind(this),
-      locals: {},
-      on: this.on.bind(this),
-      processVaa: this.processVaa.bind(this),
-      vaa: parsedVaa,
-      vaaBytes: vaa,
-    };
-    Object.assign(ctx, opts);
-    try {
-      await this.pipeline?.(ctx, () => {});
-      this.emit(RelayerEvents.Completed, parsedVaa, opts?.storage?.job);
-    } catch (e) {
-      this.errorPipeline?.(e, ctx, () => {});
-      this.emit(RelayerEvents.Failed, parsedVaa, opts?.storage?.job);
-      throw e;
-    }
-  }
-
-  /**
    * Gives you a Chain router so you can add middleware on an address.
    * @example:
    * ```
@@ -401,42 +325,30 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     return this;
   }
 
-  private async spyFilters(): Promise<
-    { emitterFilter?: { chainId?: ChainId; emitterAddress?: string } }[]
-  > {
-    const spyFilters = new Set<any>();
-    for (const chainRouter of Object.values(this.chainRouters)) {
-      for (const filter of await chainRouter.spyFilters()) {
-        spyFilters.add(filter);
-      }
-    }
-    return Array.from(spyFilters.values());
-  }
-
   /**
-   * Pass in the URL where you have an instance of the spy listening. Usually localhost:7073
-   *
-   * You can run the spy locally (for TESTNET) by doing:
-   * ```
-    docker run \
-        --platform=linux/amd64 \
-        -p 7073:7073 \
-        --entrypoint /guardiand \
-        ghcr.io/wormhole-foundation/guardiand:latest \
-    spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i
-   * ```
-   *
-   * You can run the spy locally (for MAINNET) by doing:
-   * ```
-   docker run \
-      --platform=linux/amd64 \
-      -p 7073:7073 \
-      --entrypoint /guardiand \
-      ghcr.io/wormhole-foundation/guardiand:latest \
-   spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7,/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8999/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC
-   * ```
-   * @param url
-   */
+     * Pass in the URL where you have an instance of the spy listening. Usually localhost:7073
+     *
+     * You can run the spy locally (for TESTNET) by doing:
+     * ```
+     docker run \
+     --platform=linux/amd64 \
+     -p 7073:7073 \
+     --entrypoint /guardiand \
+     ghcr.io/wormhole-foundation/guardiand:latest \
+     spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i
+     * ```
+     *
+     * You can run the spy locally (for MAINNET) by doing:
+     * ```
+     docker run \
+     --platform=linux/amd64 \
+     -p 7073:7073 \
+     --entrypoint /guardiand \
+     ghcr.io/wormhole-foundation/guardiand:latest \
+     spy --nodeKey /node.key --spyRPC "[::]:7073" --network /wormhole/mainnet/2 --bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWQp644DK27fd3d4Km3jr7gHiuJJ5ZGmy8hH4py7fP4FP7,/dns4/wormhole-v2-mainnet-bootstrap.xlabs.xyz/udp/8999/quic/p2p/12D3KooWNQ9tVrcb64tw6bNs2CaNrUGPM7yRrKvBBheQ5yCyPHKC
+     * ```
+     * @param url
+     */
   spy(url: string) {
     this.spyUrl = url;
     return this;
@@ -459,19 +371,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    */
   useStorage(storage: Storage) {
     this.storage = storage;
-  }
-
-  private generateChainRoutes(): Middleware<ContextT> {
-    return async (ctx: ContextT, next: Next) => {
-      let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
-      if (!router) {
-        this.rootLogger.error(
-          "received a vaa but we don't have a router for it",
-        );
-        return;
-      }
-      await router.process(ctx, next);
-    };
   }
 
   /**
@@ -524,6 +423,114 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     }
   }
 
+  /**
+   * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
+   */
+  stop() {
+    return this.storage.stopWorker();
+  }
+
+  private async shouldProcessVaa(vaa: ParsedVaaWithBytes): Promise<boolean> {
+    if (this.vaaFilters.length === 0) {
+      return true;
+    }
+    const { emitterChain, emitterAddress, sequence } = vaa.id;
+    const id = `${emitterChain}-${emitterAddress}-${sequence}`;
+    if (this.alreadyFilteredCache.get(id)) {
+      return false;
+    }
+    for (let i = 0; i < this.vaaFilters.length; i++) {
+      const { emitterChain, emitterAddress, sequence } = vaa.id;
+      const filter = this.vaaFilters[i];
+      let isOk;
+      try {
+        isOk = await filter(vaa);
+      } catch (e: any) {
+        isOk = false;
+        this.rootLogger.debug(
+          `filter ${i} of ${this.vaaFilters.length} threw an exception`,
+          {
+            emitterChain,
+            emitterAddress,
+            sequence,
+            message: e.message,
+            stack: e.stack,
+            name: e.name,
+          },
+        );
+      }
+      if (!isOk) {
+        this.alreadyFilteredCache.set(id, true);
+        this.rootLogger.debug(
+          `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
+          { emitterChain, emitterAddress, sequence },
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Pushes a vaa through the pipeline. Unless you're the storage service you probably want to use `processVaa`.
+   * @param vaa
+   * @param opts
+   */
+  private async pushVaaThroughPipeline(
+    vaa: SignedVaa,
+    opts: any,
+  ): Promise<void> {
+    const parsedVaa = parseVaaWithBytes(vaa);
+
+    let ctx: Context = {
+      config: {
+        spyFilters: await this.spyFilters(),
+      },
+      env: this.env,
+      fetchVaa: this.fetchVaa.bind(this),
+      fetchVaas: this.fetchVaas.bind(this),
+      locals: {},
+      on: this.on.bind(this),
+      processVaa: this.processVaa.bind(this),
+      vaa: parsedVaa,
+      vaaBytes: vaa,
+    };
+    Object.assign(ctx, opts);
+    try {
+      await this.pipeline?.(ctx, () => {});
+      this.emit(RelayerEvents.Completed, parsedVaa, opts?.storage?.job);
+    } catch (e) {
+      this.errorPipeline?.(e, ctx, () => {});
+      this.emit(RelayerEvents.Failed, parsedVaa, opts?.storage?.job);
+      throw e;
+    }
+  }
+
+  private async spyFilters(): Promise<
+    { emitterFilter?: { chainId?: ChainId; emitterAddress?: string } }[]
+  > {
+    const spyFilters = new Set<any>();
+    for (const chainRouter of Object.values(this.chainRouters)) {
+      for (const filter of await chainRouter.spyFilters()) {
+        spyFilters.add(filter);
+      }
+    }
+    return Array.from(spyFilters.values());
+  }
+
+  private generateChainRoutes(): Middleware<ContextT> {
+    return async (ctx: ContextT, next: Next) => {
+      let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
+      if (!router) {
+        this.rootLogger.error(
+          "received a vaa but we don't have a router for it",
+        );
+        return;
+      }
+      await router.process(ctx, next);
+    };
+  }
+
   private waitForReady(client: SpyRPCServiceClient): Promise<void> {
     return new Promise((resolve, reject) => {
       const deadline = new Date();
@@ -538,13 +545,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         }
       });
     });
-  }
-
-  /**
-   * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
-   */
-  stop() {
-    return this.storage.stopWorker();
   }
 
   private onVaaFromQueue = async (job: RelayJob) => {
