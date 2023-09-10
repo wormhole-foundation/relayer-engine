@@ -1,5 +1,5 @@
 import { Next } from "@wormhole-foundation/relayer-engine";
-import { MyRelayerContext } from "./app";
+import { MyRelayerContext } from "./app.js";
 
 export class ApiController {
   processFundsTransfer = async (ctx: MyRelayerContext, next: Next) => {

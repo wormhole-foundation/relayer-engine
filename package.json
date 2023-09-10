@@ -26,7 +26,7 @@
       "import": "./lib/esm/index.js",
       "default": "./lib/esm/index.js"
     },
-    "./relayer/*": {
+    "./*": {
       "types": "./lib/types/*.d.ts",
       "require": "./lib/cjs/*.js",
       "import": "./lib/esm/*.js",

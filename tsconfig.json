@@ -18,7 +18,6 @@
   "include": ["relayer"],
   "exclude": [
     "node_modules",
-    "relayer/lib/**/*",
     "**/__tests__/*",
     "relayer/**/*.test.ts",
     "test/*"

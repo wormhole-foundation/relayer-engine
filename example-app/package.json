@@ -6,7 +6,7 @@
   "module": "src/app.ts",
   "types": "build/*.d.ts",
   "scripts": {
-    "start": "ts-node src/app.ts",
+    "start": "ts-node --esm src/app.ts",
     "build": "tsc",
     "watch": "tsc --watch",
     "redis": "docker run --rm -p 6379:6379 --name redis-docker -d redis",
