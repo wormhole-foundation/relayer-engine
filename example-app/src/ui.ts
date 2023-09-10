@@ -1,5 +1,5 @@
 import { RelayerApp } from "@wormhole-foundation/relayer-engine";
-import { RedisStorage } from "@wormhole-foundation/relayer-engine/relayer/storage/redis-storage.js";
+import { RedisStorage } from "@wormhole-foundation/relayer-engine/storage/redis-storage";
 import { Logger } from "winston";
 import Koa from "koa";
 

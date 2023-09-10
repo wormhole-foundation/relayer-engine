@@ -16,7 +16,7 @@ import {
   WalletContext,
   wallets,
 } from "@wormhole-foundation/relayer-engine";
-import { RedisStorage } from "@wormhole-foundation/relayer-engine/relayer/storage/redis-storage";
+import { RedisStorage } from "@wormhole-foundation/relayer-engine/storage/redis-storage";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
