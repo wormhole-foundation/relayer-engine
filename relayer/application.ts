@@ -94,7 +94,9 @@ export enum RelayerEvents {
 
 export type ListenerFn = (vaa: ParsedVaaWithBytes, job?: RelayJob) => void;
 
-export class RelayerApp<ContextT extends Context> extends EventEmitter {
+export class RelayerApp<
+  ContextT extends Context = Context,
+> extends EventEmitter {
   storage: Storage;
   filters: {
     emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
