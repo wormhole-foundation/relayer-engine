@@ -1,4 +1,3 @@
-import { Registry } from "prom-client";
 import { Context } from "../context";
 import { ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 
@@ -17,6 +16,7 @@ export interface RelayJob {
   };
   attempts: number;
   maxAttempts: number;
+  receivedAt: number;
   log(logRow: string): Promise<number>;
   updateProgress(progress: number | object): Promise<void>;
 }

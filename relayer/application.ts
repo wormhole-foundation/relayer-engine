@@ -38,6 +38,9 @@ import { RelayJob, Storage } from "./storage/storage";
 import { emitterCapByEnv } from "./configs/sui";
 import { LRUCache } from "lru-cache";
 import { Environment } from "./environment";
+import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy";
+import { Registry } from "prom-client";
+import { createRelayerMetrics, RelayerMetrics } from "./application.metrics";
 
 export { UnrecoverableError };
 
@@ -66,7 +69,7 @@ const defaultOpts = (env: Environment): RelayerAppOpts => ({
   concurrency: 1,
 });
 
-interface SerializableVaaId {
+export interface SerializableVaaId {
   emitterChain: ChainId;
   emitterAddress: string;
   sequence: string;
@@ -104,6 +107,8 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
   private alreadyFilteredCache = new LRUCache<string, boolean>({ max: 1000 });
+  private metrics: RelayerMetrics;
+  private registry: Registry;
 
   constructor(
     public env: Environment = Environment.TESTNET,
@@ -111,6 +116,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   ) {
     super();
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
+    const { metrics, registry } = createRelayerMetrics();
+    this.metrics = metrics;
+    this.registry = registry;
+  }
+
+  get metricsRegistry(): Registry {
+    return this.registry;
   }
 
   /**
@@ -157,7 +169,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       if (!isOk) {
         this.alreadyFilteredCache.set(id, true);
         this.rootLogger.debug(
-          `Vaa was skipped by filter ${i} of ${this.vaaFilters.length}`,
+          `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
           { emitterChain, emitterAddress, sequence },
         );
         return false;
@@ -297,6 +309,8 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     }
     if (this.storage) {
       const job = await this.storage.addVaaToQueue(parsedVaa.bytes);
+      // TODO: it would be ideal to only emit the added event only in
+      // the cases the job was actually added (not already in queue)
       this.emit(RelayerEvents.Added, parsedVaa, job);
     } else {
       this.emit(RelayerEvents.Added, parsedVaa);
@@ -468,6 +482,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     this.use(this.generateChainRoutes());
 
     this.filters = await this.spyFilters();
+    this.metrics.spySubscribedFilters.set(this.filters.length);
     this.rootLogger.debug(JSON.stringify(this.filters, null, 2));
     if (this.filters.length > 0 && !this.spyUrl) {
       throw new Error("you need to setup the spy url");
@@ -475,27 +490,54 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
 
     this.storage?.startWorker(this.onVaaFromQueue);
 
+    // we retry connecting every 1 second. So if attempts is 10, we've been trying to connect for 10 seconds.
+    let attempts = 0;
     while (true) {
-      const client = createSpyRPCServiceClient(this.spyUrl!);
-
       try {
+        const client: SpyRPCServiceClient = createSpyRPCServiceClient(
+          this.spyUrl!,
+        );
+        await this.waitForReady(client);
+
+        this.rootLogger.info(`connected to the spy at: ${this.spyUrl}`);
+
+        attempts = 0;
         const stream = await subscribeSignedVAA(client, {
           // @ts-ignore spy sdk uses ChainID but js uses ChainId...
           filters: this.filters,
         });
 
-        this.rootLogger.info(`connected to the spy at: ${this.spyUrl}`);
-
         for await (const vaa of stream) {
           this.rootLogger.debug(`Received VAA through spy`);
+          this.metrics.lastVaaReceived.set(Date.now());
+          this.metrics.vaasViaSpyTotal.inc();
           this.processVaa(vaa.vaaBytes);
         }
       } catch (err) {
-        this.rootLogger.error("error connecting to the spy");
+        attempts++;
+        this.rootLogger.error(
+          `error connecting to the spy ${
+            this.spyUrl
+          }. Down for: ${secondsToHuman(attempts)}...`,
+        );
       }
-
-      await sleep(300); // wait a bit before trying to reconnect.
     }
+  }
+
+  private waitForReady(client: SpyRPCServiceClient): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const deadline = new Date();
+      deadline.setSeconds(deadline.getSeconds() + 1); // TODO parametrize wait time
+      client.waitForReady(deadline, err => {
+        if (err) {
+          this.metrics.connectedSpies.set(0);
+          reject(err);
+        } else {
+          this.metrics.connectedSpies.set(1);
+          resolve(undefined);
+        }
+      });
+    });
   }
 
   /**
@@ -553,6 +595,34 @@ class ChainRouter<ContextT extends Context> {
     }
     return handler?.(ctx, next);
   }
+}
+
+// from: https://stackoverflow.com/questions/8211744/convert-time-interval-given-in-seconds-into-more-human-readable-form
+/**
+ * Translates seconds into human readable format of seconds, minutes, hours, days, and years
+ *
+ * @param  {number} seconds The number of seconds to be processed
+ * @return {string}         The phrase describing the amount of time
+ */
+function secondsToHuman(seconds: number) {
+  const levels: [number, string][] = [
+    [Math.floor(seconds / 31536000), "years"],
+    [Math.floor((seconds % 31536000) / 86400), "days"],
+    [Math.floor(((seconds % 31536000) % 86400) / 3600), "hours"],
+    [Math.floor((((seconds % 31536000) % 86400) % 3600) / 60), "minutes"],
+    [(((seconds % 31536000) % 86400) % 3600) % 60, "seconds"],
+  ];
+  let returntext = "";
+
+  for (let i = 0, max = levels.length; i < max; i++) {
+    if (levels[i][0] === 0) continue;
+    returntext += ` ${levels[i][0]} ${
+      levels[i][0] === 1
+        ? levels[i][1].substr(0, levels[i][1].length - 1)
+        : levels[i][1]
+    }`;
+  }
+  return returntext.trim();
 }
 
 export type ContractFilter = {

@@ -71,8 +71,8 @@ const privateKeys = {
 async function main() {
   let opts: any = yargs(process.argv.slice(2)).argv;
 
-  const env = Environment.TESTNET;
-  const app = new RelayerApp<MyRelayerContext>(env);
+  const app = new RelayerApp<MyRelayerContext>(Environment.TESTNET);
+
   const fundsCtrl = new ApiController();
   const namespace = "simple-relayer-example";
   // Config
@@ -107,7 +107,7 @@ async function main() {
       fundsCtrl.processFundsTransfer
     );
 
-  // Another way to do it if you want to listen to multiple addresses on different chaints:
+  // Another way to do it if you want to listen to multiple addresses on different chains:
   // app.multiple(
   //   { [CHAIN_ID_SOLANA]: "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
   //     [CHAIN_ID_ETH]: ["0xabc1230000000...","0xdef456000....."]

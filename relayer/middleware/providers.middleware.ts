@@ -4,28 +4,34 @@ import {
   CHAIN_ID_ACALA,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
+  CHAIN_ID_BASE,
   CHAIN_ID_BSC,
   CHAIN_ID_CELO,
   CHAIN_ID_ETH,
   CHAIN_ID_MOONBEAM,
-  CHAIN_ID_SOLANA,
   CHAIN_ID_SEI,
+  CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   ChainId,
+  CHAINS,
   EVMChainId,
-  isEVMChain,
+  EVMChainNames,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_AVAX,
   CHAIN_ID_FANTOM,
+  CHAIN_ID_KLAYTN,
+  CHAIN_ID_OPTIMISM,
   CHAIN_ID_POLYGON,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import * as sui from "@mysten/sui.js";
 import { Environment } from "../environment";
 import { getCosmWasmClient } from "@sei-js/core";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { Logger } from "winston";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
@@ -67,6 +73,12 @@ const defaultSupportedChains = {
     [CHAIN_ID_MOONBEAM]: { endpoints: ["https://rpc.api.moonbeam.network"] },
     [CHAIN_ID_ACALA]: { endpoints: ["https://eth-rpc-acala.aca-api.network"] },
     [CHAIN_ID_ALGORAND]: { endpoints: ["https://node.algoexplorerapi.io/"] },
+    [CHAIN_ID_ARBITRUM]: {
+      endpoints: [
+        "https://arbitrum-one.publicnode.com",
+        "https://rpc.ankr.com/arbitrum",
+      ],
+    },
     [CHAIN_ID_APTOS]: {
       endpoints: ["https://fullnode.mainnet.aptoslabs.com/v1"],
     },
@@ -75,9 +87,18 @@ const defaultSupportedChains = {
       faucets: [""],
       websockets: [""],
     },
+    [CHAIN_ID_KLAYTN]: {
+      endpoints: ["https://public-node-api.klaytnapi.com/v1/cypress"],
+    },
+    [CHAIN_ID_OPTIMISM]: {
+      endpoints: ["https://optimism.api.onfinality.io/public"],
+    },
+    [CHAIN_ID_BASE]: {
+      endpoints: ["https://developer-access-mainnet.base.org"],
+    },
   },
   [Environment.TESTNET]: {
-    [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
+    // [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
     [CHAIN_ID_SOLANA]: {
       endpoints: ["https://api.devnet.solana.com"],
     },
@@ -111,7 +132,22 @@ const defaultSupportedChains = {
       websockets: [sui.testnetConnection.websocket],
     },
     [CHAIN_ID_SEI]: {
-      endpoints: ["https://sei.kingnodes.com"],
+      endpoints: ["https://sei-testnet-2-rpc.brocha.in"],
+    },
+    [CHAIN_ID_KLAYTN]: {
+      endpoints: ["https://public-en-cypress.klaytn.net"],
+    },
+    [CHAIN_ID_OPTIMISM]: {
+      endpoints: ["https://goerli.optimism.io"],
+    },
+    [CHAIN_ID_ARBITRUM]: {
+      endpoints: [
+        "https://arbitrum-goerli.public.blastapi.io",
+        "https://arbitrum-goerli.publicnode.com",
+      ],
+    },
+    [CHAIN_ID_BASE]: {
+      endpoints: ["https://goerli.base.org"],
     },
   },
   [Environment.DEVNET]: {
@@ -124,34 +160,69 @@ const defaultSupportedChains = {
   },
 };
 
+function pick<T extends Object, Prop extends string | number | symbol>(
+  obj: T,
+  keys: Prop[],
+): Pick<T, Prop & keyof T> {
+  const res = {} as Pick<T, Prop & keyof T>;
+  for (const key of keys) {
+    if (key in obj) {
+      // We need to assert that this is a key of T because `key in obj` does not provide this type guard
+      const keyAsserted = key as Prop & keyof T;
+      res[keyAsserted] = obj[keyAsserted];
+    }
+  }
+  return res;
+}
+
 /**
  * providers is a middleware that populates `ctx.providers` with provider information
  * @param opts
  */
-export function providers(opts?: ProvidersOpts): Middleware<ProviderContext> {
+export function providers(
+  opts?: ProvidersOpts,
+  supportedChains?: string[],
+): Middleware<ProviderContext> {
   let providers: Providers;
 
   return async (ctx: ProviderContext, next) => {
+    const logger = ctx.logger?.child({ module: "providers" });
+
     if (!providers) {
-      ctx.logger?.debug(`Providers initializing...`);
-      providers = await buildProviders(ctx.env, opts);
-      ctx.logger?.debug(`Providers Initialized`);
+      // it makes no sense to start providers for all default
+      // chains, we should only start providers for the chains the relayer
+      // will use.
+      // The config is optional because of backwards compatibility
+      // If no config is passed, we'll start providers for all default chains
+      const environmentDefaultSupportedChains = defaultSupportedChains[ctx.env];
+
+      const defaultChains = supportedChains
+        ? pick(environmentDefaultSupportedChains, supportedChains as any)
+        : environmentDefaultSupportedChains;
+
+      const chains = Object.assign({}, defaultChains, opts?.chains);
+
+      logger?.debug(
+        `Providers initializing... ${JSON.stringify(maskRPCProviders(chains))}`,
+      );
+      providers = await buildProviders(chains, logger);
+      logger?.debug(`Providers initialized succesfully.`);
     }
+
     ctx.providers = providers;
-    ctx.logger?.debug("Providers attached to context");
+
     await next();
   };
 }
 
+const evmChainIds = EVMChainNames.map(n => CHAINS[n]);
+const isEvmChainId = Object.fromEntries(evmChainIds.map(id => [id, true]));
+const isEVMChain = (chainId: ChainId) => isEvmChainId[chainId] ?? false;
+
 async function buildProviders(
-  env: Environment,
-  opts?: ProvidersOpts,
+  supportedChains: Partial<ChainConfigInfo>,
+  logger?: Logger,
 ): Promise<Providers> {
-  const supportedChains = Object.assign(
-    {},
-    defaultSupportedChains[env],
-    opts?.chains,
-  );
   const providers: Providers = {
     evm: {},
     solana: [],
@@ -162,27 +233,64 @@ async function buildProviders(
   for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
     const chainId = Number(chainIdStr) as ChainId;
     const { endpoints, faucets, websockets } = chainCfg;
-    if (isEVMChain(chainId)) {
-      providers.evm[chainId] = endpoints.map(
-        url => new ethers.providers.JsonRpcProvider(url),
-      );
-    } else if (chainId === CHAIN_ID_SOLANA) {
-      providers.solana = endpoints.map(url => new solana.Connection(url));
-    } else if (chainId === CHAIN_ID_SUI) {
-      providers.sui = endpoints.map((url, i) => {
-        let conn = new sui.Connection({
-          fullnode: url,
-          faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
-          websocket: (websockets && websockets[i]) || websockets[0], // same as above
+
+    try {
+      if (isEVMChain(chainId)) {
+        providers.evm[chainId as EVMChainId] = endpoints.map(
+          url => new ethers.providers.JsonRpcProvider(url),
+        );
+      } else if (chainId === CHAIN_ID_SOLANA) {
+        providers.solana = endpoints.map(url => new solana.Connection(url));
+      } else if (chainId === CHAIN_ID_SUI) {
+        providers.sui = endpoints.map((url, i) => {
+          let conn = new sui.Connection({
+            fullnode: url,
+            faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
+            websocket: (websockets && websockets[i]) || websockets[0], // same as above
+          });
+          return new sui.JsonRpcProvider(conn);
         });
-        return new sui.JsonRpcProvider(conn);
-      });
-    } else if (chainId === CHAIN_ID_SEI) {
-      const seiProviderPromises = endpoints.map(url => getCosmWasmClient(url));
-      providers.sei = await Promise.all(seiProviderPromises);
-    } else {
-      providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
+      } else if (chainId === CHAIN_ID_SEI) {
+        const seiProviderPromises = endpoints.map(url =>
+          getCosmWasmClient(url),
+        );
+        providers.sei = await Promise.all(seiProviderPromises);
+      } else {
+        providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
+      }
+    } catch (error) {
+      error.originalStack = error.stack;
+      error.stack = new Error().stack;
+      logger?.error(
+        `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${maskRPCEndpoints(
+          endpoints,
+        )}. Error: `,
+        error,
+      );
+      throw error;
     }
   }
+
   return providers;
+}
+
+function maskRPCEndpoints(endpoints: string[]) {
+  return endpoints.map((url: string) => {
+    const apiKeyPos = url.indexOf("apiKey");
+    if (apiKeyPos > -1) {
+      // Found API key in the RPC url, show only initial 3 chars and mask the rest
+      return url.substring(0, apiKeyPos + 10) + "***";
+    }
+    return url;
+  });
+}
+
+function maskRPCProviders(chains: Partial<ChainConfigInfo>) {
+  const maskedChains: Partial<ChainConfigInfo> = {};
+  for (const [chainId, chainConfig] of Object.entries(chains)) {
+    maskedChains[chainId as unknown as ChainId] = {
+      endpoints: maskRPCEndpoints(chainConfig.endpoints),
+    };
+  }
+  return maskedChains;
 }

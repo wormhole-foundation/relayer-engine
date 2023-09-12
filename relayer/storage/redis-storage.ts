@@ -8,8 +8,8 @@ import {
   Redis,
   RedisOptions,
 } from "ioredis";
-import { createStorageMetrics } from "../storage.metrics";
-import { Counter, Gauge, Histogram, Registry } from "prom-client";
+import { createStorageMetrics, StorageMetrics } from "../storage.metrics";
+import { Registry } from "prom-client";
 import { sleep } from "../utils";
 import { onJobHandler, RelayJob, Storage } from "./storage";
 import { KoaAdapter } from "@bull-board/koa";
@@ -61,10 +61,19 @@ export interface RedisConnectionOpts {
   namespace?: string;
 }
 
+export interface ExponentialBackoffOpts {
+  baseDelayMs: number; // amount of time to apply each exp. backoff round
+  maxDelayMs: number; // max amount of time to wait between retries
+  backOffFn?: (attemptsMade: number) => number; // custom backoff function
+}
+
 export interface StorageOptions extends RedisConnectionOpts {
   queueName: string;
   attempts: number;
   concurrency?: number;
+  exponentialBackoff?: ExponentialBackoffOpts;
+  maxCompletedQueueSize?: number;
+  maxFailedQueueSize?: number;
 }
 
 export type JobData = { parsedVaa: any; vaaBytes: string };
@@ -74,6 +83,8 @@ const defaultOptions: Partial<StorageOptions> = {
   redis: {},
   queueName: "relays",
   concurrency: 3,
+  maxCompletedQueueSize: 10000,
+  maxFailedQueueSize: 10000,
 };
 
 export class RedisStorage implements Storage {
@@ -83,15 +94,7 @@ export class RedisStorage implements Storage {
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
   public registry: Registry;
-  private metrics: {
-    delayedGauge: Gauge<string>;
-    waitingGauge: Gauge<string>;
-    activeGauge: Gauge<string>;
-    completedCounter: Counter<string>;
-    failedCounter: Counter<string>;
-    completedDuration: Histogram<string>;
-    processedDuration: Histogram<string>;
-  };
+  private metrics: StorageMetrics;
   private opts: StorageOptions;
 
   workerId: string;
@@ -112,7 +115,13 @@ export class RedisStorage implements Storage {
             this.opts.redisCluster,
           )
         : new Redis(this.opts.redis);
+
+    // TODO: consider using a queue per chain
     this.vaaQueue = new Queue(this.opts.queueName, {
+      defaultJobOptions: {
+        removeOnComplete: this.opts.maxCompletedQueueSize,
+        removeOnFail: this.opts.maxFailedQueueSize,
+      },
       prefix: this.prefix,
       connection: this.redis,
     });
@@ -121,7 +130,12 @@ export class RedisStorage implements Storage {
     this.registry = registry;
   }
 
+  getPrefix() {
+    return [this.prefix, this.opts.queueName].join(":");
+  }
+
   async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
+    const startTime = Date.now();
     const parsedVaa = parseVaa(vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
@@ -130,6 +144,14 @@ export class RedisStorage implements Storage {
       emitterAddress: parsedVaa.emitterAddress.toString("hex"),
       sequence: parsedVaa.sequence.toString(),
     });
+    const retryStrategy = this.opts.exponentialBackoff
+      ? {
+          backOff: {
+            type: "custom",
+          },
+        }
+      : undefined;
+
     const job = await this.vaaQueue.add(
       idWithoutHash,
       {
@@ -138,9 +160,9 @@ export class RedisStorage implements Storage {
       },
       {
         jobId: id,
-        removeOnComplete: 1000,
-        removeOnFail: 5000,
+        removeOnFail: 50000,
         attempts: this.opts.attempts,
+        ...retryStrategy,
       },
     );
 
@@ -150,6 +172,7 @@ export class RedisStorage implements Storage {
       id: job.id,
       name: job.name,
       log: job.log.bind(job),
+      receivedAt: startTime,
       updateProgress: job.updateProgress.bind(job),
       maxAttempts: this.opts.attempts,
     };
@@ -166,6 +189,31 @@ export class RedisStorage implements Storage {
     this.logger?.debug(
       `Starting worker for queue: ${this.opts.queueName}. Prefix: ${this.prefix}.`,
     );
+
+    // Use user provided backoff function if available, otherwise use xlabs default
+    let backOffFunction = undefined;
+    if (this.opts.exponentialBackoff?.backOffFn) {
+      backOffFunction = this.opts.exponentialBackoff.backOffFn;
+    } else {
+      backOffFunction = (attemptsMade: number) => {
+        const exponentialDelay =
+          Math.pow(2, attemptsMade) *
+          (this.opts.exponentialBackoff?.baseDelayMs || 1000);
+        return Math.min(
+          exponentialDelay,
+          this.opts.exponentialBackoff?.maxDelayMs || 3_600_000, // 1 hour as default
+        );
+      };
+    }
+
+    const workerSettings = this.opts.exponentialBackoff
+      ? {
+          settings: {
+            backoffStrategy: backOffFunction,
+          },
+        }
+      : undefined;
+
     this.worker = new Worker(
       this.opts.queueName,
       async job => {
@@ -190,6 +238,7 @@ export class RedisStorage implements Storage {
           id: job.id,
           maxAttempts: this.opts.attempts,
           name: job.name,
+          receivedAt: job.timestamp,
           log: job.log.bind(job),
           updateProgress: job.updateProgress.bind(job),
         };
@@ -201,12 +250,11 @@ export class RedisStorage implements Storage {
         prefix: this.prefix,
         connection: this.redis,
         concurrency: this.opts.concurrency,
+        ...workerSettings,
       },
     );
     this.workerId = this.worker.id;
 
-    this.worker.on("completed", this.onCompleted.bind(this));
-    this.worker.on("failed", this.onFailed.bind(this));
     this.spawnGaugeUpdateWorker();
   }
 
@@ -223,7 +271,8 @@ export class RedisStorage implements Storage {
   }
 
   private async updateGauges() {
-    const { active, delayed, waiting } = await this.vaaQueue.getJobCounts();
+    const { active, delayed, waiting, failed } =
+      await this.vaaQueue.getJobCounts();
     this.metrics.activeGauge.labels({ queue: this.vaaQueue.name }).set(active);
     this.metrics.delayedGauge
       .labels({ queue: this.vaaQueue.name })
@@ -231,23 +280,7 @@ export class RedisStorage implements Storage {
     this.metrics.waitingGauge
       .labels({ queue: this.vaaQueue.name })
       .set(waiting);
-  }
-
-  private async onCompleted(job: Job) {
-    const completedDuration = job.finishedOn! - job.timestamp!; // neither can be null
-    const processedDuration = job.finishedOn! - job.processedOn!; // neither can be null
-    this.metrics.completedCounter.labels({ queue: this.vaaQueue.name }).inc();
-    this.metrics.completedDuration
-      .labels({ queue: this.vaaQueue.name })
-      .observe(completedDuration);
-    this.metrics.processedDuration
-      .labels({ queue: this.vaaQueue.name })
-      .observe(processedDuration);
-  }
-
-  private async onFailed(job: Job) {
-    // TODO: Add a failed duration metric for processing time for failed jobs
-    this.metrics.failedCounter.labels({ queue: this.vaaQueue.name }).inc();
+    this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
   }
 
   storageKoaUI(path: string) {

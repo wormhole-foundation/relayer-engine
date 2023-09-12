@@ -135,7 +135,9 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         "You need to first use the providers middleware.",
       );
     }
-    if (!suiState) {
+    // User might or might not use sui, so a provider for sui
+    // might not be present.
+    if (!suiState && ctx.providers.sui[0]) {
       suiState = await getObjectFields(
         ctx.providers.sui[0],
         CONTRACTS[ctx.env.toUpperCase() as "MAINNET"].sui.token_bridge,

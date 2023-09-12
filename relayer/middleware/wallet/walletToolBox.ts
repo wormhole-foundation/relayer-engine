@@ -66,16 +66,19 @@ function createSolanaWalletToolBox(
   providers: Providers,
   privateKey: Uint8Array,
 ): WalletToolBox<SolanaWallet> {
+  const keypair = solana.Keypair.fromSecretKey(privateKey);
   return {
     ...providers,
     wallet: {
       conn: providers.solana[0],
-      payer: solana.Keypair.fromSecretKey(privateKey),
+      payer: keypair,
     },
     async getBalance(): Promise<string> {
-      return "TODO";
+      return (
+        await providers.solana[0].getBalance(keypair.publicKey)
+      ).toString();
     },
-    address: "TODO",
+    address: keypair.publicKey.toBase58(),
   };
 }
 

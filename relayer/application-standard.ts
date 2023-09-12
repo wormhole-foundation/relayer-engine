@@ -1,29 +1,42 @@
 import { RelayerApp, RelayerAppOpts } from "./application";
-import { logging, LoggingContext } from "./middleware/logger.middleware";
-import { missedVaas } from "./middleware/missedVaas";
-import { providers, ProvidersOpts } from "./middleware/providers.middleware";
-import { WalletContext, wallets } from "./middleware/wallet/wallet.middleware";
 import {
-  TokenBridgeContext,
-  tokenBridgeContracts,
-} from "./middleware/tokenBridge.middleware";
-import {
+  logging,
+  LoggingContext,
+  spawnMissedVaaWorker,
+  providers,
+  ProvidersOpts,
+  sourceTx,
+  SourceTxContext,
   stagingArea,
   StagingAreaContext,
-} from "./middleware/staging-area.middleware";
+  TokenBridgeContext,
+  tokenBridgeContracts,
+  WalletContext,
+  wallets,
+} from "./middleware";
 import { Logger } from "winston";
 import { StorageContext } from "./storage/storage";
-import { RedisStorage } from "./storage/redis-storage";
+import { ExponentialBackoffOpts, RedisStorage } from "./storage/redis-storage";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { mergeDeep } from "./utils";
-import { sourceTx, SourceTxContext } from "./middleware/source-tx.middleware";
 import { defaultLogger } from "./logging";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { Environment } from "./environment";
 import { TokensByChain } from "./middleware/wallet/wallet-management";
+import { Registry } from "prom-client";
+
+export interface StandardMissedVaaOpts {
+  concurrency?: number;
+  checkInterval?: number;
+  fetchVaaRetries?: number;
+  vaasFetchConcurrency?: number;
+  storagePrefix?: string;
+  startingSequenceConfig?: Partial<Record<ChainId, bigint>>;
+  forceSeenKeysReindex?: boolean;
+}
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
@@ -41,6 +54,10 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
   fetchSourceTxhash?: boolean;
+  retryBackoffOptions?: ExponentialBackoffOpts;
+  missedVaaOptions?: StandardMissedVaaOpts;
+  maxCompletedQueueSize?: number;
+  maxFailedQueueSize?: number;
 }
 
 const defaultOpts: Partial<StandardRelayerAppOpts> = {
@@ -62,7 +79,8 @@ export type StandardRelayerContext = LoggingContext &
 export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext,
 > extends RelayerApp<ContextT> {
-  private store: RedisStorage;
+  private readonly store: RedisStorage;
+  private readonly mergedRegistry: Registry;
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger ?? defaultLogger;
@@ -79,6 +97,9 @@ export class StandardRelayerApp<
       redisCluster,
       redisClusterEndpoints,
       wormholeRpcs,
+      retryBackoffOptions,
+      maxCompletedQueueSize,
+      maxFailedQueueSize,
     } = opts;
     super(env, opts);
 
@@ -89,23 +110,42 @@ export class StandardRelayerApp<
       attempts: opts.workflows.retries ?? 3,
       namespace: name,
       queueName: `${name}-relays`,
+      exponentialBackoff: retryBackoffOptions,
+      maxCompletedQueueSize,
+      maxFailedQueueSize,
     });
 
-    this.spy(spyEndpoint);
-    this.useStorage(this.store);
-    this.logger(logger);
-    this.use(logging(logger)); // <-- logging middleware
-    this.use(
-      missedVaas(this, {
+    // this is always true for standard relayer app, but I'm adding this if
+    // to make the dependency explicit
+    if (this.store) {
+      spawnMissedVaaWorker(this, {
         namespace: name,
+        registry: this.store.registry,
         logger,
         redis,
         redisCluster,
         redisClusterEndpoints,
         wormholeRpcs,
-      }),
-    );
-    this.use(providers(opts.providers));
+        concurrency: opts.missedVaaOptions?.concurrency,
+        checkInterval: opts.missedVaaOptions?.checkInterval,
+        fetchVaaRetries: opts.missedVaaOptions?.fetchVaaRetries,
+        vaasFetchConcurrency: opts.missedVaaOptions?.vaasFetchConcurrency,
+        storagePrefix: this.store.getPrefix(),
+        startingSequenceConfig: opts.missedVaaOptions?.startingSequenceConfig,
+        forceSeenKeysReindex: opts.missedVaaOptions?.forceSeenKeysReindex,
+      });
+    }
+
+    this.mergedRegistry = Registry.merge([
+      this.store.registry,
+      super.metricsRegistry,
+    ]);
+
+    this.spy(spyEndpoint);
+    this.useStorage(this.store);
+    this.logger(logger);
+    this.use(logging(logger)); // <-- logging middleware
+    this.use(providers(opts.providers, Object.keys(opts.privateKeys ?? {})));
     if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
       this.use(
         wallets(env, {
@@ -141,7 +181,7 @@ export class StandardRelayerApp<
    * - workflow_total_duration: Processing time for completed jobs (processing until completed)
    */
   get metricsRegistry() {
-    return this.store.registry;
+    return this.mergedRegistry;
   }
 
   /**
