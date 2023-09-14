@@ -17,6 +17,7 @@ import {
   WalletContext,
   wallets,
   RedisStorage,
+  spawnMissedVaaWorker,
 } from "@wormhole-foundation/relayer-engine";
 import {
   CHAIN_ID_SOLANA,
@@ -26,6 +27,7 @@ import {
 import { rootLogger } from "./log";
 import { ApiController } from "./controller";
 import { Logger } from "winston";
+import { Registry } from "prom-client";
 
 export type MyRelayerContext = LoggingContext &
   StorageContext &
@@ -84,9 +86,32 @@ async function main() {
 
   // Set up middleware
   app.use(logging(rootLogger)); // <-- logging middleware
-  // app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
-  app.use(providers());
 
+  if (opts.missedVaas?.enabled) {
+    const missedVaasMetricsRegistry = new Registry();
+    const { forceSeenKeysReindex, startingSequenceConfig } = opts.missedVaas;
+
+    spawnMissedVaaWorker(app, {
+      registry: missedVaasMetricsRegistry,
+      logger: rootLogger.child({ module: "missed-vaas" }),
+      namespace: namespace,
+      checkInterval: 15000,
+      concurrency: 1,
+      vaasFetchConcurrency: 1,
+      storagePrefix: store.getPrefix(),
+      startingSequenceConfig,
+      forceSeenKeysReindex,
+
+      // wormholeRpcs,
+      // redis,
+      // redisCluster,
+      // redisClusterEndpoints,
+    });
+
+    //registries.push(missedVaasMetricsRegistry);
+  }
+
+  app.use(providers());
   app.use(
     wallets(Environment.TESTNET, {
       privateKeys,
