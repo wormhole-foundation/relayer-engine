@@ -210,7 +210,7 @@ export async function getAllProcessedSeqsInOrder(
 
   const orderedResults = results
     .map(r => Number(r))
-    .sort()
+    .sort((a, b) => (a > b ? 1 : -1))
     .map(BigInt);
 
   if (startingSequenceConfig && startingSequenceConfig > orderedResults[0]) {
@@ -218,8 +218,10 @@ export async function getAllProcessedSeqsInOrder(
       r => r >= startingSequenceConfig,
     );
     if (higherSequences[0] > startingSequenceConfig) {
-      orderedResults.unshift(startingSequenceConfig - 1n);
+      higherSequences.unshift(startingSequenceConfig - 1n);
     }
+
+    return higherSequences;
   }
 
   return orderedResults;
