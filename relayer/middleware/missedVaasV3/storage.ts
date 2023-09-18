@@ -210,7 +210,7 @@ export async function getAllProcessedSeqsInOrder(
 
   const orderedResults = results
     .map(r => Number(r))
-    .sort()
+    .sort((a, b) => (a > b ? 1 : -1))
     .map(BigInt);
 
   if (startingSequenceConfig && startingSequenceConfig > orderedResults[0]) {
