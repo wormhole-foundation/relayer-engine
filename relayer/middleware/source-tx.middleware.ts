@@ -2,9 +2,16 @@
 import { Middleware } from "../compose.middleware";
 import { Context } from "../context";
 import { sleep } from "../utils";
-import { ChainId, isEVMChain } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_BSC,
+  CHAIN_ID_SOLANA,
+  ChainId,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { Environment } from "../environment";
+import { LRUCache } from "lru-cache";
+import { ParsedVaaWithBytes } from "../application.js";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -36,14 +43,37 @@ const defaultOptsByEnv: { [k in Environment]: Partial<SourceTxOpts> } = {
   },
 };
 
+function ifVAAFinalized(vaa: ParsedVaaWithBytes) {
+  const { consistencyLevel, emitterChain } = vaa;
+  if (emitterChain === CHAIN_ID_SOLANA) {
+    return consistencyLevel === 32;
+  } else if (emitterChain === CHAIN_ID_BSC) {
+    return consistencyLevel > 15;
+  }
+  return consistencyLevel !== 200 && consistencyLevel !== 201;
+}
+
 export function sourceTx(
   optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
+  const alreadyFetchedHashes = new LRUCache({ max: 1_000 });
+
   return async (ctx, next) => {
     if (!opts) {
       // initialize options now that we know the environment from context
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
+    }
+    const vaaId = `${ctx.vaa.id.emitterChain}-${ctx.vaa.id.emitterAddress}-${ctx.vaa.id.sequence}`;
+    const txHashFromCache = alreadyFetchedHashes.get(vaaId) as
+      | string
+      | undefined;
+
+    if (txHashFromCache) {
+      ctx.logger?.debug(`Already fetched tx hash: ${txHashFromCache}`);
+      ctx.sourceTxHash = txHashFromCache;
+      await next();
+      return;
     }
 
     const { emitterChain, emitterAddress, sequence } = ctx.vaa;
@@ -57,11 +87,15 @@ export function sourceTx(
       opts.retries,
       opts.wormscanEndpoint,
     );
-    ctx.logger?.debug(
-      txHash === ""
-        ? "Could not retrieve tx hash."
-        : `Retrieved tx hash: ${txHash}`,
-    );
+    if (txHash === "") {
+      ctx.logger?.debug("Could not retrieve tx hash.");
+    } else {
+      // TODO look at consistency level before using cache? (not sure what the checks are)
+      if (ifVAAFinalized(ctx.vaa)) {
+        alreadyFetchedHashes.set(vaaId, txHash);
+      }
+      ctx.logger?.debug(`Retrieved tx hash: ${txHash}`);
+    }
     ctx.sourceTxHash = txHash;
     await next();
   };
