@@ -1,6 +1,6 @@
 import { Logger } from "winston";
-import { Middleware } from "../compose.middleware";
-import { Context } from "../context";
+import { Middleware } from "../compose.middleware.js";
+import { Context } from "../context.js";
 
 export interface LoggingContext extends Context {
   logger: Logger;

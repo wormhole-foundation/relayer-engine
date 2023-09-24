@@ -1,7 +1,4 @@
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { bech32 } from "bech32";
-import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import { zeroPad } from "ethers/lib/utils";
 import {
   ChainId,
   EVMChainId,
@@ -10,9 +7,14 @@ import {
   parseVaa,
   SignedVaa,
 } from "@certusone/wormhole-sdk";
-import { ParsedVaaWithBytes } from "./application";
+import { bech32 } from "bech32";
+import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/index.js";
+import { zeroPad } from "ethers/lib/utils.js";
+import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
-import { map } from "bluebird";
+import bluebird from "bluebird";
+
+const { map } = bluebird;
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,

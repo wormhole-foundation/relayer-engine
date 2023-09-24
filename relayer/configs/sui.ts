@@ -1,5 +1,5 @@
 // This is not part of the wormhole SDK but it is fixed and shouldn't change across releases.
-import { Environment } from "../environment";
+import { Environment } from "../environment.js";
 
 const tokenBridgeEmitterCapTestnet =
   "b22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610";

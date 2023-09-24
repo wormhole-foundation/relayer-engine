@@ -1,7 +1,7 @@
-import { Middleware } from "../compose.middleware";
+import { Middleware } from "../compose.middleware.js";
 import {
-  CHAIN_ID_TO_NAME,
   CHAIN_ID_SUI,
+  CHAIN_ID_TO_NAME,
   ChainId,
   ChainName,
   coalesceChainName,
@@ -14,16 +14,15 @@ import {
   TokenTransfer,
 } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
-import { ProviderContext } from "./providers.middleware";
+import { ProviderContext } from "./providers.middleware.js";
 import { UnrecoverableError } from "bullmq";
 import {
   ITokenBridge,
   ITokenBridge__factory,
-} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
-import { encodeEmitterAddress } from "../utils";
-import { JsonRpcProvider } from "@mysten/sui.js";
-import { getObjectFields } from "@certusone/wormhole-sdk/lib/cjs/sui";
-import { Environment } from "../environment";
+} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/index.js";
+import { encodeEmitterAddress } from "../utils.js";
+import { getObjectFields } from "@certusone/wormhole-sdk/lib/cjs/sui/index.js";
+import { Environment } from "../environment.js";
 
 function extractTokenBridgeAddressesFromSdk(env: Environment) {
   return Object.fromEntries(

@@ -1,5 +1,5 @@
-import { Middleware } from "../compose.middleware";
-import { Context } from "../context";
+import { Middleware } from "../compose.middleware.js";
+import { Context } from "../context.js";
 import {
   CHAIN_ID_ACALA,
   CHAIN_ID_ALGORAND,
@@ -26,9 +26,9 @@ import {
   CHAIN_ID_KLAYTN,
   CHAIN_ID_OPTIMISM,
   CHAIN_ID_POLYGON,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
 import * as sui from "@mysten/sui.js";
-import { Environment } from "../environment";
+import { Environment } from "../environment.js";
 import { getCosmWasmClient } from "@sei-js/core";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { Logger } from "winston";

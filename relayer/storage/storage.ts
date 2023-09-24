@@ -1,4 +1,4 @@
-import { Context } from "../context";
+import { Context } from "../context.js";
 import { ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 
 export interface StorageContext extends Context {
@@ -17,7 +17,9 @@ export interface RelayJob {
   attempts: number;
   maxAttempts: number;
   receivedAt: number;
+
   log(logRow: string): Promise<number>;
+
   updateProgress(progress: number | object): Promise<void>;
 }
 
@@ -25,6 +27,8 @@ export type onJobHandler = (job: RelayJob) => Promise<any>;
 
 export interface Storage {
   addVaaToQueue(vaa: SignedVaa): Promise<RelayJob>;
+
   startWorker(cb: onJobHandler): void;
+
   stopWorker(): Promise<void>;
 }

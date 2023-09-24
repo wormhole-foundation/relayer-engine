@@ -2,14 +2,16 @@
   "name": "@wormhole-foundation/relayer-engine",
   "version": "0.2.2",
   "description": "Relayer Engine",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "type": "module",
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/esm/index.js",
+  "types": "./lib/types/index.d.ts",
   "scripts": {
     "redis": "docker run --rm -p 6379:6379 --name redis-docker -d redis",
     "test-redis": "docker run --rm -p 6301:6379 --name relayer-engine-test -d redis; npm run test; docker kill relayer-engine-test",
     "test": "jest --silent=false",
     "test-watch": "jest --silent=false --watch",
-    "build": "tsc",
+    "build": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "watch": "tsc --watch",
     "typecheck": "tsc --noEmit --skipLibCheck",
     "prettier": "prettier --write $(git diff main --name-only --diff-filter u | grep '.ts$' | xargs)",
@@ -17,7 +19,21 @@
     "testnet-spy": "docker run --platform=linux/amd64 -p 7073:7073 --entrypoint /guardiand ghcr.io/wormhole-foundation/guardiand:latest spy --nodeKey /node.key --spyRPC \"[::]:7073\" --network /wormhole/testnet/2/1 --bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWAkB9ynDur1Jtoa97LBUp8RXdhzS5uHgAfdTquJbrbN7i",
     "prepare": "npm run build"
   },
-  "author": "Joe Howarth",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/cjs/index.js",
+      "import": "./lib/esm/index.js",
+      "default": "./lib/esm/index.js"
+    },
+    "./relayer/*": {
+      "types": "./lib/types/*.d.ts",
+      "require": "./lib/cjs/*.js",
+      "import": "./lib/esm/*.js",
+      "default": "./lib/esm/*.js"
+    }
+  },
+  "author": "Joe Howarth, xLabs Inc.",
   "license": "Apache-2.0",
   "dependencies": {
     "@bull-board/api": "^5.0.0",
