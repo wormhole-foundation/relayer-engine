@@ -14,7 +14,8 @@ import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
 import bluebird from "bluebird";
 
-const { map } = bluebird;
+// @ts-ignore disgusting fix to support commonJS and esm
+const map = bluebird.map ?? bluebird.default.map;
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -194,7 +195,7 @@ export function dbg<T>(x: T, msg?: string): T {
   return x;
 }
 
-export function mapConcurrent(
+export async function mapConcurrent(
   arr: any[],
   fn: (...args: any[]) => any,
   concurrency: number = 5,

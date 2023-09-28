@@ -13,7 +13,8 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "sourceMap": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": ["relayer"],
   "exclude": [
