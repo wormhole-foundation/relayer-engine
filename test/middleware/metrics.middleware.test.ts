@@ -11,13 +11,11 @@ import { StorageContext } from "../../relayer/storage/storage";
 import { ParsedVaaWithBytes } from "../../relayer/application";
 import { Environment } from "../../relayer/environment";
 import { sleep } from "../../relayer/utils";
+import { VaaFactory } from "../vaa-factory";
 
 type TestContext = StorageContext & { target?: string };
 
-const vaa = Buffer.from(
-  "AQAAAAABAGYGQ1g8mB5UMkeq28zodCdhDUk8YSjRSseFmP3VkKHMDUuZmDpQ6ccsPSx+bUkDIDp+ud6Qfes9nvZcWHkH1tQAZNPDWAg9AQAAAgAAAAAAAAAAAAAAAPiQmC+TEN9X0A9lnPT9h+Za3tjXAAAAAAACh1YBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPoAAAAAAAAAAAAAAAAtPvycRQ/T797kaXe0xgF5CsiCNYAAgAAAAAAAAAAAAAAAI8moAJdzMbPwHp9OHVigKEOKVrXAB4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-  "base64",
-);
+const vaa = VaaFactory.getVaa();
 const targetLabel = "targetLabel";
 
 let ctx: TestContext;
