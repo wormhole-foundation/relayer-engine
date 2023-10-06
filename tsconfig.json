@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2021"],
+    "lib": ["ES2023"],
     "declaration": true,
     "skipLibCheck": true,
     "allowJs": true,
