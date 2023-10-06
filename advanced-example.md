@@ -2,7 +2,7 @@
 
 This example details a more complex implementation of a Relayer Application. For a simple example see this [example](./README.md#simple-relayer-code-example)
 
-The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/example-app/src/app.ts)
+The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/examples/advanced/src/app.ts)
 
 ## Setup
 
@@ -14,7 +14,7 @@ Clone the repository, `cd` into the directory, and install the requirements.
 
 ```sh
 git clone https://github.com/wormhole-foundation/relayer-engine.git
-cd relayer-engine/example-app
+cd relayer-engine/examples/advanced/
 npm i
 ```
 
@@ -122,16 +122,6 @@ app.use(logging(rootLogger));
 app.use(missedVaas(app, { namespace: "simple", logger: rootLogger }));
 // we want to apply the chain specific providers to the context passed downstream
 app.use(providers());
-
-// make wallets available within the context
-app.use(
-  wallets(Environment.TESTNET, {
-    privateKeys,
-    namespace,
-    metrics: { enabled: true, registry: store.registry },
-  }),
-);
-
 // enrich the context with details about the token bridge
 app.use(tokenBridgeContracts());
 // ensure we use redis safely in a concurrent environment
