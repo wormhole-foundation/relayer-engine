@@ -1,9 +1,10 @@
 import * as http from "http";
-import { grpcResponseToBuffer, GrpcSuccessResponse } from "@cloudnc/grpc-web-testing-toolbox/base";
+import { setTimeout } from 'timers/promises'
+import { grpcResponseToBuffer } from "@cloudnc/grpc-web-testing-toolbox/base";
 import {
     GetSignedVAAResponse,
 } from "@certusone/wormhole-sdk-proto-node/lib/cjs/publicrpc/v1/publicrpc";
-import { beforeAll } from "@jest/globals";
+import { afterAll, beforeAll } from "@jest/globals";
 import { getSignedVAA } from "@certusone/wormhole-sdk";
 import { FastFailedGrpcTransportFactory } from "../relayer/publicrpc/timeoutable-grpc-transport";
 import { time } from "console";
@@ -30,7 +31,7 @@ class WormholeMock {
 
         // we use http because things are built around grpc-web
         this.httpServer = http.createServer(async (req, res) => {
-            await new Promise(resolve => setTimeout(resolve, this.delayMs));
+            await setTimeout(this.delayMs, null, { ref: false });
         
             if (req.url?.startsWith("/publicrpc")) {
                 res.writeHead(200, { "Content-Type": "application/text" });
@@ -76,6 +77,10 @@ describe("getSignedVaa", () => {
 
     beforeEach(async () => {
         await server.start();
+    });
+
+    afterAll(async () => {
+        await server.stop();
     });
 
     test("should work when using fast failed transport factory", async () => {

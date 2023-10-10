@@ -2,21 +2,25 @@ import { grpc } from "@improbable-eng/grpc-web";
 import * as http from "http";
 import * as https from "https";
 
-export function FastFailedGrpcTransportFactory(connectTimeoutMs: number = 10_000, readTimeoutMs: number = 10_000): grpc.TransportFactory {
+/**
+ * Transport factory for grpc-web that applies a timeout.
+ * 
+ * @param timeoutMs -  value is passed directly to the timeout option of http.request
+ * @returns the factory
+ */
+export function FastFailedGrpcTransportFactory(timeoutMs: number = 10_000): grpc.TransportFactory {
     return function (opts: grpc.TransportOptions) {
-        return new TimeoutableTransport(opts, connectTimeoutMs, readTimeoutMs);
+        return new TimeoutableTransport(opts, timeoutMs);
     };
 }
 
 class TimeoutableTransport implements grpc.Transport {
-    private readonly connectTimeoutMs: number;
-    private readonly readTimeoutMs: number;
+    private readonly timeoutMs: number;
     private readonly options: grpc.TransportOptions;
     private request?: http.ClientRequest;
 
-    constructor(opts: grpc.TransportOptions, connectTimeoutMs: number, readTimeoutMs: number) {
-        this.connectTimeoutMs = connectTimeoutMs;
-        this.readTimeoutMs = readTimeoutMs;
+    constructor(opts: grpc.TransportOptions, timeoutMs: number) {
+        this.timeoutMs = timeoutMs;
         this.options = opts;
     }
 
@@ -33,17 +37,17 @@ class TimeoutableTransport implements grpc.Transport {
             path: url.pathname, 
             headers: headers,
             method: "POST",
-            timeout: this.connectTimeoutMs,
+            timeout: this.timeoutMs,
         };
         const requestBuilder = httpOptions.protocol === "https:" ? https.request : http.request;
         this.request = requestBuilder(httpOptions, (res) => this.responseCallback(res));
-        this.request.on("error", (err) => {
-            this.options.onEnd(err);
-        });
+        this.request
+        .on("error", (err) => this.options.onEnd(err))
+        .on('timeout', () => this.request.destroy());
     }
 
     responseCallback(response: http.IncomingMessage): void {
-        var headers = this.filterHeadersForUndefined(response.headers);
+        const headers = this.filterHeadersForUndefined(response.headers);
         this.options.onHeaders(new grpc.Metadata(headers), response.statusCode);
         response.on("data", (chunk) => {
             this.options.onChunk(this.toArrayBuffer(chunk));
@@ -70,26 +74,26 @@ class TimeoutableTransport implements grpc.Transport {
     filterHeadersForUndefined(headers: http.IncomingHttpHeaders) {
         const filteredHeaders: http.IncomingHttpHeaders = {};
         for (const key in headers) {
-            var value = headers[key];
-            if (headers.hasOwnProperty(key)) {
-                if (value !== undefined) {
-                    filteredHeaders[key] = value;
-                }
+            const value = headers[key];
+            if (headers.hasOwnProperty(key) && value !== undefined) {
+                filteredHeaders[key] = value;
             }
         }
         return filteredHeaders;
     }
-    toArrayBuffer(buf: Buffer) {
-        var view = new Uint8Array(buf.length);
-        for (var i = 0; i < buf.length; i++) {
-            view[i] = buf[i];
+
+    toArrayBuffer(buffer: Buffer) {
+        const view = new Uint8Array(buffer.length);
+        for (let i = 0; i < buffer.length; i++) {
+            view[i] = buffer[i];
         }
         return view;
     }
-    toBuffer(ab: Uint8Array) {
-        var buf = Buffer.alloc(ab.byteLength);
-        for (var i = 0; i < buf.length; i++) {
-            buf[i] = ab[i];
+    
+    toBuffer(arrayBuffer: Uint8Array) {
+        const buf = Buffer.alloc(arrayBuffer.byteLength);
+        for (let i = 0; i < buf.length; i++) {
+            buf[i] = arrayBuffer[i];
         }
         return buf;
     }
