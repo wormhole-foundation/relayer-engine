@@ -4,26 +4,35 @@ import * as https from "https";
 
 /**
  * Transport factory for grpc-web that applies a timeout.
+ * Also allows for some more customization of the underlying http request.
  *
  * @param timeoutMs -  value is passed directly to the timeout option of http.request
+ * @param httpOptions - options passed directly to http.request
  * @returns the factory
  */
 export function FailFastGrpcTransportFactory(
   timeoutMs: number = 10_000,
+  httpOptions?: http.RequestOptions,
 ): grpc.TransportFactory {
   return function (opts: grpc.TransportOptions) {
-    return new TimeoutableTransport(opts, timeoutMs);
+    return new TimeoutableTransport(opts, timeoutMs, httpOptions);
   };
 }
 
 class TimeoutableTransport implements grpc.Transport {
   private readonly timeoutMs: number;
   private readonly options: grpc.TransportOptions;
+  private readonly httpOptions?: http.RequestOptions;
   private request?: http.ClientRequest;
 
-  constructor(opts: grpc.TransportOptions, timeoutMs: number) {
+  constructor(
+    opts: grpc.TransportOptions,
+    timeoutMs: number,
+    httpOptions?: http.RequestOptions,
+  ) {
     this.timeoutMs = timeoutMs;
     this.options = opts;
+    this.httpOptions = httpOptions;
   }
 
   start(metadata: grpc.Metadata): void {
@@ -33,13 +42,14 @@ class TimeoutableTransport implements grpc.Transport {
     });
     const url = new URL(this.options.url);
     const httpOptions = {
+      ...this.httpOptions,
       protocol: url.protocol,
       host: url.hostname,
       port: url.port,
       path: url.pathname,
-      headers: headers,
-      method: "POST",
       timeout: this.timeoutMs,
+      method: "POST",
+      headers: headers,
     };
     const requestBuilder =
       httpOptions.protocol === "https:" ? https.request : http.request;
