@@ -8,7 +8,7 @@ import * as https from "https";
  * @param timeoutMs -  value is passed directly to the timeout option of http.request
  * @returns the factory
  */
-export function FastFailedGrpcTransportFactory(
+export function FailFastGrpcTransportFactory(
   timeoutMs: number = 10_000,
 ): grpc.TransportFactory {
   return function (opts: grpc.TransportOptions) {

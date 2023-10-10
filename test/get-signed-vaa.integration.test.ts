@@ -4,8 +4,7 @@ import { grpcResponseToBuffer } from "@cloudnc/grpc-web-testing-toolbox/base";
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-node/lib/cjs/publicrpc/v1/publicrpc";
 import { afterAll, beforeAll } from "@jest/globals";
 import { getSignedVAA } from "@certusone/wormhole-sdk";
-import { FastFailedGrpcTransportFactory } from "../relayer/publicrpc/timeoutable-grpc-transport";
-import { time } from "console";
+import { FailFastGrpcTransportFactory } from "../relayer/publicrpc/fail-fast-grpc-transport";
 
 type WormholeMockConfig = {
   grpcUri: string;
@@ -79,7 +78,7 @@ describe("getSignedVaa", () => {
   });
 
   test("should work when using fast failed transport factory", async () => {
-    const transport = FastFailedGrpcTransportFactory(500);
+    const transport = FailFastGrpcTransportFactory(500);
     const vaaResponse = await getSignedVAA(
       url,
       "celo",
@@ -92,7 +91,7 @@ describe("getSignedVaa", () => {
 
   test("should fail when unable to connect using fast failed transport factory", async () => {
     await server.stop();
-    const transport = FastFailedGrpcTransportFactory(500);
+    const transport = FailFastGrpcTransportFactory(500);
     await expect(
       getSignedVAA(
         url,
@@ -107,7 +106,7 @@ describe("getSignedVaa", () => {
   test("should fail when timeout is reached", async () => {
     const timeout = 500;
     server.delayed(timeout + 100);
-    const transport = FastFailedGrpcTransportFactory(500, timeout);
+    const transport = FailFastGrpcTransportFactory(timeout);
     await expect(
       getSignedVAA(
         url,
