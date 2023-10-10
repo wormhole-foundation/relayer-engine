@@ -5,6 +5,7 @@ import * as https from "https";
 /**
  * Transport factory for grpc-web that applies a timeout.
  * Also allows for some more customization of the underlying http request.
+ * It's based on @improbable-eng/grpc-web-node-http-transport.
  *
  * @param timeoutMs -  value is passed directly to the timeout option of http.request
  * @param httpOptions - options passed directly to http.request
@@ -18,6 +19,8 @@ export function FailFastGrpcTransportFactory(
     return new TimeoutableTransport(opts, timeoutMs, httpOptions);
   };
 }
+
+export class TimeoutError extends Error {}
 
 class TimeoutableTransport implements grpc.Transport {
   private readonly timeoutMs: number;
@@ -56,9 +59,14 @@ class TimeoutableTransport implements grpc.Transport {
     this.request = requestBuilder(httpOptions, res =>
       this.responseCallback(res),
     );
-    this.request
-      .on("error", err => this.options.onEnd(err))
-      .on("timeout", () => this.request.destroy());
+    this.request.on("error", err => this.options.onEnd(err));
+    this.request.on("timeout", () => this.onTimeout());
+  }
+
+  onTimeout() {
+    this.request?.destroy(
+      new TimeoutError(`Request cancelled after ${this.timeoutMs}ms`),
+    );
   }
 
   responseCallback(response: http.IncomingMessage): void {

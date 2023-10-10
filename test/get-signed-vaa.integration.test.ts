@@ -11,7 +11,7 @@ type WormholeMockConfig = {
 };
 
 /**
- * A mock for Wormhole RPCa.
+ * A mock for Wormhole's Public RPC.
  */
 class WormholeMock {
   private httpServer?: http.Server;
@@ -27,23 +27,21 @@ class WormholeMock {
 
     // we use http because things are built around grpc-web
     this.httpServer = http.createServer(async (req, res) => {
+      res.writeHead(200, { "Content-Type": "application/text" });
       await setTimeout(this.delayMs, null, { ref: false });
-
-      if (req.url?.startsWith("/publicrpc")) {
-        res.writeHead(200, { "Content-Type": "application/text" });
-        res.end(
-          grpcResponseToBuffer({
-            message: GetSignedVAAResponse.encode({
-              vaaBytes: Buffer.from(""),
-            }).finish(),
-          }),
-        );
-        return;
-      }
-      res.writeHead(404);
-      res.end();
+      res.end(
+        grpcResponseToBuffer({
+          message: GetSignedVAAResponse.encode({
+            vaaBytes: Buffer.from(""),
+          }).finish(),
+        }),
+      );
+      return;
     });
-    this.httpServer.listen(httpAddress.split(":")[2]);
+
+    await new Promise(resolve =>
+      this.httpServer?.listen(httpAddress.split(":")[2], () => resolve(null)),
+    );
     this.started = true;
 
     return {
@@ -104,8 +102,8 @@ describe("getSignedVaa", () => {
   });
 
   test("should fail when timeout is reached", async () => {
-    const timeout = 500;
-    server.delayed(timeout + 100);
+    const timeout = 100;
+    server.delayed(timeout * 2);
     const transport = FailFastGrpcTransportFactory(timeout);
     await expect(
       getSignedVAA(
