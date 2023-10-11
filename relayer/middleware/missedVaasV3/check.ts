@@ -329,7 +329,7 @@ async function lookAhead(
     }
   }
 
-  return { lookAheadSequences,processed };
+  return { lookAheadSequences, processed };
 }
 
 function scanForSequenceLeaps(seenSequences: bigint[]) {
