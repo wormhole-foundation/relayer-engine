@@ -167,52 +167,13 @@ export async function checkForMissedVaas(
     `Looking ahead for missed VAAs from sequence: ${lookAheadSequence}`,
   );
 
-  const lookAheadSequences: string[] = [];
-  if (lookAheadSequence) {
-    for (let seq = lookAheadSequence; true; seq++) {
-      const vaaKey = {
-        ...filter,
-        sequence: seq.toString(),
-      } as SerializableVaaId;
-
-      let vaa: GetSignedVAAResponse | null = null;
-      try {
-        vaa = await tryFetchVaa(vaaKey, opts.wormholeRpcs, 3);
-      } catch (error) {
-        let message = "unknown";
-        if (error instanceof Error) {
-          message = error.message;
-        }
-        logger?.error(
-          `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
-          error,
-        );
-      }
-
-      if (!vaa) break;
-
-      lookAheadSequences.push(seq.toString());
-
-      logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
-
-      try {
-        // since we add this VAA to the queue, there's no need to mark it as seen
-        // (it will be automatically marked as seen when the "added" event is fired)
-        await processVaa(Buffer.from(vaa.vaaBytes));
-        lookAheadSequence = seq + 1n;
-        processed.push(seq.toString());
-      } catch (error) {
-        logger?.error(
-          `Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`,
-          error,
-        );
-      }
-    }
-  } else {
-    logger?.warn(
-      `No VAAs seen and no starting sequence was configured. Won't look ahead for missed VAAs.`,
-    );
-  }
+  const lookAheadSequences: string[] = await lookAhead(
+    lookAheadSequence,
+    filter,
+    opts.wormholeRpcs,
+    processVaa,
+    processed,
+  );
 
   return {
     processed,
@@ -288,6 +249,74 @@ export async function registerEventListeners(
 
   app.addListener(RelayerEvents.Added, markVaaSeen);
   app.addListener(RelayerEvents.Skipped, markVaaSeen);
+}
+
+async function lookAhead(
+  lookAheadSequence: bigint, 
+  filter: FilterIdentifier,
+  wormholeRpcs: string[],
+  processVaa: ProcessVaaFn,
+  processed: string[],
+  logger?: Logger
+) {
+  const lookAheadSequences: string[] = [];
+  if (!lookAheadSequence) {
+    logger?.warn(
+      `No VAAs seen and no starting sequence was configured. Won't look ahead for missed VAAs.`,
+    );
+
+    return lookAheadSequences;
+  }
+
+  let lookAheadFailures = 0;
+  const maxLookAheadFailures = 10;
+  
+  for (let seq = lookAheadSequence; true; seq++) {
+    const vaaKey = {
+      ...filter,
+      sequence: seq.toString(),
+    } as SerializableVaaId;
+
+    let vaa: GetSignedVAAResponse | null = null;
+    try {
+      vaa = await tryFetchVaa(vaaKey, wormholeRpcs, 3);
+      lookAheadFailures = 0;
+    } catch (error) {
+      let message = "unknown";
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      logger?.error(
+        `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
+        error,
+      );
+      
+      lookAheadFailures++;
+    }
+
+    if (!vaa && lookAheadFailures >= maxLookAheadFailures) {
+      return lookAheadSequences;
+    };
+
+    // TODO: if not found but not max failures, should we consider this as missing?
+    if (!vaa) continue;
+
+    lookAheadSequences.push(seq.toString());
+
+    logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
+
+    try {
+      // since we add this VAA to the queue, there's no need to mark it as seen
+      // (it will be automatically marked as seen when the "added" event is fired)
+      await processVaa(Buffer.from(vaa.vaaBytes));
+      processed.push(seq.toString());
+    } catch (error) {
+      logger?.error(
+        `Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`,
+        error,
+      );
+    }
+  }
 }
 
 function scanForSequenceLeaps(seenSequences: bigint[]) {
