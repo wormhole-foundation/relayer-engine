@@ -426,13 +426,15 @@ describe("MissedVaaV3.check", () => {
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
 
-      await expect(checkForMissedVaas(
-        filter,
-        redis as unknown as Redis,
-        processVaaMock,
-        opts,
-        prefix,
-      )).rejects.toThrow("foo");
+      await expect(
+        checkForMissedVaas(
+          filter,
+          redis as unknown as Redis,
+          processVaaMock,
+          opts,
+          prefix,
+        ),
+      ).rejects.toThrow("foo");
     });
   });
 });

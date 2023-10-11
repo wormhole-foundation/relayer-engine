@@ -164,7 +164,7 @@ export async function checkForMissedVaas(
         : startingSeqConfig // same as Math.max, which doesn't support bigint
       : lastSeq || startingSeqConfig;
 
-  const {lookAheadSequences, processed: processedLookAhead } = await lookAhead(
+  const { lookAheadSequences, processed: processedLookAhead } = await lookAhead(
     lookAheadSequence,
     filter,
     opts.wormholeRpcs,
@@ -273,7 +273,7 @@ async function lookAhead(
 
     return { lookAheadSequences, processed };
   }
-  
+
   let vaasNotFound = 0;
 
   for (let seq = lookAheadSequence; true; seq++) {
@@ -302,13 +302,15 @@ async function lookAhead(
     }
 
     if (!vaa && vaasNotFound < maxLookAhead) {
-      logger?.debug(`Look Ahead VAA not found. Sequence: ${seq.toString()}`)
+      logger?.debug(`Look Ahead VAA not found. Sequence: ${seq.toString()}`);
       vaasNotFound++;
       continue;
     }
 
     if (!vaa && vaasNotFound >= maxLookAhead) {
-      logger?.debug(`Look Ahead VAA reached max look ahead. Sequence: ${seq.toString()}`)
+      logger?.debug(
+        `Look Ahead VAA reached max look ahead. Sequence: ${seq.toString()}`,
+      );
       break;
     }
 
