@@ -294,7 +294,7 @@ async function lookAhead(
         `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
         error,
       );
-      lookAheadFailures++;
+      throw error;
     }
 
     // Stop looking ahead after failures >= MAX_LOOK_AHEAD
@@ -302,9 +302,10 @@ async function lookAhead(
       return lookAheadSequences;
     }
 
-    if (!vaa) continue;
-
-    lookAheadSequences.push(seq.toString());
+    if (!vaa) {
+      lookAheadFailures++;
+      continue;
+    }
 
     logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
 
@@ -312,7 +313,7 @@ async function lookAhead(
       // since we add this VAA to the queue, there's no need to mark it as seen
       // (it will be automatically marked as seen when the "added" event is fired)
       await processVaa(Buffer.from(vaa.vaaBytes));
-      processed.push(seq.toString());
+      lookAheadSequences.push(seq.toString());
     } catch (error) {
       logger?.error(
         `Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`,
@@ -320,6 +321,8 @@ async function lookAhead(
       );
     }
   }
+
+  return lookAheadSequences;
 }
 
 function scanForSequenceLeaps(seenSequences: bigint[]) {
