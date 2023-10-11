@@ -250,13 +250,13 @@ export async function registerEventListeners(
 }
 
 async function lookAhead(
-  lookAheadSequence: bigint, 
+  lookAheadSequence: bigint,
   filter: FilterIdentifier,
   wormholeRpcs: string[],
   processVaa: ProcessVaaFn,
   processed: string[],
   failedToRecover: string[],
-  logger?: Logger
+  logger?: Logger,
 ) {
   logger?.info(
     `Looking ahead for missed VAAs from sequence: ${lookAheadSequence}`,
@@ -273,7 +273,7 @@ async function lookAhead(
   let lookAheadFailures: string[] = []; // Use this as both a failure counter and a bucket to keep track of failed-to-fetch vaas
   const MAX_LOOK_AHEAD = 10; // TODO: make this configurable
   const LOOK_AHEAD_RETRIES = 3; // TODO: should this be configurable?
-  
+
   for (let seq = lookAheadSequence; true; seq++) {
     const vaaKey = {
       ...filter,
@@ -282,13 +282,15 @@ async function lookAhead(
 
     let vaa: GetSignedVAAResponse | null = null;
     try {
-      // TODO: will this throw if the VAA is not found?
       vaa = await tryFetchVaa(vaaKey, wormholeRpcs, LOOK_AHEAD_RETRIES);
       // if we successfully fetched a VAA, include previous failures in the failedToRecover bucket.
-      if (lookAheadFailures.length > 0) {
-        failedToRecover.push(...lookAheadFailures);
+      if (vaa) {
+        // TODO: `tryFetchVaa` should throw if the VAA is not found (for any reason), so we can simplify this
+        if (lookAheadFailures.length > 0) {
+          failedToRecover.push(...lookAheadFailures);
+        }
+        lookAheadFailures = [];
       }
-      lookAheadFailures = [];
     } catch (error) {
       let message = "unknown";
       if (error instanceof Error) {
@@ -304,7 +306,7 @@ async function lookAhead(
     // Stop looking ahead after failures >= MAX_LOOK_AHEAD
     if (!vaa && lookAheadFailures.length >= MAX_LOOK_AHEAD) {
       return lookAheadSequences;
-    };
+    }
 
     if (!vaa) continue;
 
