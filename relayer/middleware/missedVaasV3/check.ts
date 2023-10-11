@@ -179,8 +179,12 @@ export async function checkForMissedVaas(
       try {
         vaa = await tryFetchVaa(vaaKey, opts.wormholeRpcs, 3);
       } catch (error) {
+        let message = "unknown";
+        if (error instanceof Error) {
+          message = error.message;
+        }
         logger?.error(
-          `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: `,
+          `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
           error,
         );
       }
