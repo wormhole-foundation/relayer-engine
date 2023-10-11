@@ -140,6 +140,7 @@ export async function checkForMissedVaas(
       );
 
     const allSeenVaas = processed.concat(failedToRecover);
+
     if (allSeenVaas.length)
       await batchMarkAsSeen(
         redis,
@@ -167,6 +168,8 @@ export async function checkForMissedVaas(
     lookAheadSequence,
     filter,
     opts.wormholeRpcs,
+    opts.fetchVaaRetries,
+    opts.maxLookAhead,
     processVaa,
     logger,
   );
@@ -253,6 +256,8 @@ async function lookAhead(
   lookAheadSequence: bigint,
   filter: FilterIdentifier,
   wormholeRpcs: string[],
+  maxRetries: number,
+  maxLookAhead: number,
   processVaa: ProcessVaaFn,
   logger?: Logger,
 ) {
@@ -267,10 +272,8 @@ async function lookAhead(
 
     return lookAheadSequences;
   }
-
-  let vaaNotFound = 0; // Failures counter
-  const MAX_LOOK_AHEAD = 10; // TODO: make this configurable
-  const LOOK_AHEAD_RETRIES = 3 * wormholeRpcs.length; // Retry 3 times per wormhole rpc. // TODO: should 3 be configurable?
+  
+  let vaasNotFound = 0;
 
   for (let seq = lookAheadSequence; true; seq++) {
     const vaaKey = {
@@ -280,10 +283,10 @@ async function lookAhead(
 
     let vaa: GetSignedVAAResponse | null = null;
     try {
-      vaa = await tryFetchVaa(vaaKey, wormholeRpcs, LOOK_AHEAD_RETRIES);
+      vaa = await tryFetchVaa(vaaKey, wormholeRpcs, maxRetries);
       // reset failure counter if we successfully fetched a vaa
       if (vaa) {
-        vaaNotFound = 0;
+        vaasNotFound = 0;
       }
     } catch (error) {
       let message = "unknown";
@@ -297,13 +300,12 @@ async function lookAhead(
       throw error;
     }
 
-    // Stop looking ahead after failures >= MAX_LOOK_AHEAD
-    if (!vaa && vaaNotFound >= MAX_LOOK_AHEAD) {
+    if (!vaa && vaasNotFound >= maxLookAhead) {
       break;
     }
 
     if (!vaa) {
-      vaaNotFound++;
+      vaasNotFound++;
       continue;
     }
 
