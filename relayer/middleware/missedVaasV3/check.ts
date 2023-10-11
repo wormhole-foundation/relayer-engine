@@ -169,7 +169,6 @@ export async function checkForMissedVaas(
     opts.wormholeRpcs,
     processVaa,
     processed,
-    failedToRecover,
     logger,
   );
 
@@ -255,7 +254,6 @@ async function lookAhead(
   wormholeRpcs: string[],
   processVaa: ProcessVaaFn,
   processed: string[],
-  failedToRecover: string[],
   logger?: Logger,
 ) {
   logger?.info(
@@ -270,9 +268,9 @@ async function lookAhead(
     return lookAheadSequences;
   }
 
-  let lookAheadFailures: string[] = []; // Use this as both a failure counter and a bucket to keep track of failed-to-fetch vaas
+  let lookAheadFailures: 0; // Failures counter
   const MAX_LOOK_AHEAD = 10; // TODO: make this configurable
-  const LOOK_AHEAD_RETRIES = 3; // TODO: should this be configurable?
+  const LOOK_AHEAD_RETRIES = 3 * wormholeRpcs.length; // Retry 3 times per wormhole rpc. // TODO: should 3 be configurable?
 
   for (let seq = lookAheadSequence; true; seq++) {
     const vaaKey = {
@@ -283,13 +281,9 @@ async function lookAhead(
     let vaa: GetSignedVAAResponse | null = null;
     try {
       vaa = await tryFetchVaa(vaaKey, wormholeRpcs, LOOK_AHEAD_RETRIES);
-      // if we successfully fetched a VAA, include previous failures in the failedToRecover bucket.
+      // reset failure counter if we successfully fetched a vaa
       if (vaa) {
-        // TODO: `tryFetchVaa` should throw if the VAA is not found (for any reason), so we can simplify this
-        if (lookAheadFailures.length > 0) {
-          failedToRecover.push(...lookAheadFailures);
-        }
-        lookAheadFailures = [];
+        lookAheadFailures = 0;
       }
     } catch (error) {
       let message = "unknown";
@@ -300,11 +294,11 @@ async function lookAhead(
         `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
         error,
       );
-      lookAheadFailures.push(seq.toString());
+      lookAheadFailures++;
     }
 
     // Stop looking ahead after failures >= MAX_LOOK_AHEAD
-    if (!vaa && lookAheadFailures.length >= MAX_LOOK_AHEAD) {
+    if (!vaa && lookAheadFailures >= MAX_LOOK_AHEAD) {
       return lookAheadSequences;
     }
 
