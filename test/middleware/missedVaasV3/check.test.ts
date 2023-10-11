@@ -49,6 +49,7 @@ describe("MissedVaaV3.check", () => {
       const opts = {
         storagePrefix: prefix,
         startingSequenceConfig: {},
+        maxLookAhead: 10,
       };
 
       return {
@@ -94,7 +95,7 @@ describe("MissedVaaV3.check", () => {
       expect(processVaaMock).not.toHaveBeenCalled();
 
       // if there are seen sequences, look ahead will be ran
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(opts.maxLookAhead + 1);
     });
 
     test("If there are leap sequences, they are tried to be reprocessed", async () => {
@@ -124,7 +125,7 @@ describe("MissedVaaV3.check", () => {
       expect(processVaaMock).toHaveBeenCalledTimes(missingSequencesMock.length);
       // + 1 because of the look-ahead call
       expect(tryFetchVaaMock).toHaveBeenCalledTimes(
-        missingSequencesMock.length + 1,
+        missingSequencesMock.length + opts.maxLookAhead + 1,
       );
       expect(batchMarkAsSeenMock).toHaveBeenCalledTimes(1);
       expect(batchMarkAsFailedToRecoverMock).toHaveBeenCalledTimes(0);
@@ -166,7 +167,7 @@ describe("MissedVaaV3.check", () => {
       );
 
       // the two missing vaas + look-ahead call
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(3);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(2 + opts.maxLookAhead + 1);
 
       // only vaa 4 got to be processed
       expect(processVaaMock).toHaveBeenCalledTimes(1);
@@ -215,7 +216,7 @@ describe("MissedVaaV3.check", () => {
       );
 
       // the two missing vaas + look-ahead call
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(3);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(2 + opts.maxLookAhead + 1);
 
       // both missing vaas were tried to process
       expect(processVaaMock).toHaveBeenCalledTimes(2);
@@ -284,7 +285,7 @@ describe("MissedVaaV3.check", () => {
       expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
       expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
 
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1 + opts.maxLookAhead);
 
       const vaaSequenceFetched = tryFetchVaaMock.mock.calls[0][0].sequence;
       expect(vaaSequenceFetched).toEqual(mockStartingSequence.toString());
@@ -313,7 +314,7 @@ describe("MissedVaaV3.check", () => {
       expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
       expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
 
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1 + opts.maxLookAhead);
 
       const vaaSequenceFetched = tryFetchVaaMock.mock.calls[0][0].sequence;
       expect(vaaSequenceFetched).toEqual(mockStartingSequence.toString());
@@ -342,7 +343,7 @@ describe("MissedVaaV3.check", () => {
       expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
       expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
 
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(opts.maxLookAhead + 1);
 
       const vaaSequenceFetched = tryFetchVaaMock.mock.calls[0][0].sequence;
       const lastSeenSequence = seenSequencesMock[seenSequencesMock.length - 1];
@@ -366,7 +367,7 @@ describe("MissedVaaV3.check", () => {
         prefix,
       );
 
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(4);
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(3 + opts.maxLookAhead + 1);
       expect(processVaaMock).toHaveBeenCalledTimes(3);
     });
 
@@ -416,7 +417,7 @@ describe("MissedVaaV3.check", () => {
       expect(processed.length).toEqual(2);
     });
 
-    test("It doesn't throw if fetchVaa throws", async () => {
+    test("It throws if fetchVaa throws", async () => {
       const { opts, filter, prefix } = prepareTest();
 
       tryFetchVaaMock.mockImplementation((...args: any[]) => {
@@ -425,13 +426,13 @@ describe("MissedVaaV3.check", () => {
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
 
-      await checkForMissedVaas(
+      await expect(checkForMissedVaas(
         filter,
         redis as unknown as Redis,
         processVaaMock,
         opts,
         prefix,
-      );
+      )).rejects.toThrow("foo");
     });
   });
 });

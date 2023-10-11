@@ -164,7 +164,7 @@ export async function checkForMissedVaas(
         : startingSeqConfig // same as Math.max, which doesn't support bigint
       : lastSeq || startingSeqConfig;
 
-  const lookAheadSequences: string[] = await lookAhead(
+  const {lookAheadSequences, processed: processedLookAhead } = await lookAhead(
     lookAheadSequence,
     filter,
     opts.wormholeRpcs,
@@ -174,7 +174,7 @@ export async function checkForMissedVaas(
     logger,
   );
 
-  processed.push(...lookAheadSequences);
+  processed.push(...processedLookAhead);
 
   return {
     processed,
@@ -257,7 +257,7 @@ async function lookAhead(
   filter: FilterIdentifier,
   wormholeRpcs: string[],
   maxRetries: number,
-  maxLookAhead: number,
+  maxLookAhead: number = 10,
   processVaa: ProcessVaaFn,
   logger?: Logger,
 ) {
@@ -265,12 +265,13 @@ async function lookAhead(
     `Looking ahead for missed VAAs from sequence: ${lookAheadSequence}`,
   );
   const lookAheadSequences: string[] = [];
+  const processed: string[] = [];
   if (!lookAheadSequence) {
     logger?.warn(
       `No VAAs seen and no starting sequence was configured. Won't look ahead for missed VAAs.`,
     );
 
-    return lookAheadSequences;
+    return { lookAheadSequences, processed };
   }
   
   let vaasNotFound = 0;
@@ -300,14 +301,18 @@ async function lookAhead(
       throw error;
     }
 
-    if (!vaa && vaasNotFound >= maxLookAhead) {
-      break;
-    }
-
-    if (!vaa) {
+    if (!vaa && vaasNotFound < maxLookAhead) {
+      logger?.debug(`Look Ahead VAA not found. Sequence: ${seq.toString()}`)
       vaasNotFound++;
       continue;
     }
+
+    if (!vaa && vaasNotFound >= maxLookAhead) {
+      logger?.debug(`Look Ahead VAA reached max look ahead. Sequence: ${seq.toString()}`)
+      break;
+    }
+
+    lookAheadSequences.push(seq.toString());
 
     logger?.info(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
 
@@ -315,7 +320,7 @@ async function lookAhead(
       // since we add this VAA to the queue, there's no need to mark it as seen
       // (it will be automatically marked as seen when the "added" event is fired)
       await processVaa(Buffer.from(vaa.vaaBytes));
-      lookAheadSequences.push(seq.toString());
+      processed.push(seq.toString());
     } catch (error) {
       logger?.error(
         `Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`,
@@ -324,7 +329,7 @@ async function lookAhead(
     }
   }
 
-  return lookAheadSequences;
+  return { lookAheadSequences,processed };
 }
 
 function scanForSequenceLeaps(seenSequences: bigint[]) {
