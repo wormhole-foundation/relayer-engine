@@ -162,7 +162,7 @@ export async function tryFetchVaa(
       vaaKey.sequence,
       { transport: FailFastGrpcTransportFactory() },
       100,
-      retries,
+      retries * wormholeRpcs.length,
     );
   } catch (error: any) {
     error.stack = new Error().stack;
