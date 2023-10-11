@@ -168,9 +168,10 @@ export async function checkForMissedVaas(
     filter,
     opts.wormholeRpcs,
     processVaa,
-    processed,
     logger,
   );
+
+  processed.push(...lookAheadSequences);
 
   return {
     processed,
@@ -253,7 +254,6 @@ async function lookAhead(
   filter: FilterIdentifier,
   wormholeRpcs: string[],
   processVaa: ProcessVaaFn,
-  processed: string[],
   logger?: Logger,
 ) {
   logger?.info(
