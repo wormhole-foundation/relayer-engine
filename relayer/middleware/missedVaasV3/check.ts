@@ -163,16 +163,14 @@ export async function checkForMissedVaas(
         : startingSeqConfig // same as Math.max, which doesn't support bigint
       : lastSeq || startingSeqConfig;
 
-  logger?.info(
-    `Looking ahead for missed VAAs from sequence: ${lookAheadSequence}`,
-  );
-
   const lookAheadSequences: string[] = await lookAhead(
     lookAheadSequence,
     filter,
     opts.wormholeRpcs,
     processVaa,
     processed,
+    failedToRecover,
+    logger,
   );
 
   return {
@@ -257,8 +255,12 @@ async function lookAhead(
   wormholeRpcs: string[],
   processVaa: ProcessVaaFn,
   processed: string[],
+  failedToRecover: string[],
   logger?: Logger
 ) {
+  logger?.info(
+    `Looking ahead for missed VAAs from sequence: ${lookAheadSequence}`,
+  );
   const lookAheadSequences: string[] = [];
   if (!lookAheadSequence) {
     logger?.warn(
@@ -268,8 +270,9 @@ async function lookAhead(
     return lookAheadSequences;
   }
 
-  let lookAheadFailures = 0;
-  const maxLookAheadFailures = 10;
+  let lookAheadFailures: string[] = []; // Use this as both a failure counter and a bucket to keep track of failed-to-fetch vaas
+  const MAX_LOOK_AHEAD = 10; // TODO: make this configurable
+  const LOOK_AHEAD_RETRIES = 3; // TODO: should this be configurable?
   
   for (let seq = lookAheadSequence; true; seq++) {
     const vaaKey = {
@@ -279,8 +282,13 @@ async function lookAhead(
 
     let vaa: GetSignedVAAResponse | null = null;
     try {
-      vaa = await tryFetchVaa(vaaKey, wormholeRpcs, 3);
-      lookAheadFailures = 0;
+      // TODO: will this throw if the VAA is not found?
+      vaa = await tryFetchVaa(vaaKey, wormholeRpcs, LOOK_AHEAD_RETRIES);
+      // if we successfully fetched a VAA, include previous failures in the failedToRecover bucket.
+      if (lookAheadFailures.length > 0) {
+        failedToRecover.push(...lookAheadFailures);
+      }
+      lookAheadFailures = [];
     } catch (error) {
       let message = "unknown";
       if (error instanceof Error) {
@@ -290,15 +298,14 @@ async function lookAhead(
         `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
         error,
       );
-      
-      lookAheadFailures++;
+      lookAheadFailures.push(seq.toString());
     }
 
-    if (!vaa && lookAheadFailures >= maxLookAheadFailures) {
+    // Stop looking ahead after failures >= MAX_LOOK_AHEAD
+    if (!vaa && lookAheadFailures.length >= MAX_LOOK_AHEAD) {
       return lookAheadSequences;
     };
 
-    // TODO: if not found but not max failures, should we consider this as missing?
     if (!vaa) continue;
 
     lookAheadSequences.push(seq.toString());
