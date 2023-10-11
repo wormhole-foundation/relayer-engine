@@ -129,26 +129,6 @@ export async function checkForMissedVaas(
       },
       opts.vaasFetchConcurrency,
     );
-
-    if (failedToRecover.length)
-      await batchMarkAsFailedToRecover(
-        redis,
-        prefix,
-        emitterChain,
-        emitterAddress,
-        failedToRecover,
-      );
-
-    const allSeenVaas = processed.concat(failedToRecover);
-
-    if (allSeenVaas.length)
-      await batchMarkAsSeen(
-        redis,
-        prefix,
-        emitterChain,
-        emitterAddress,
-        allSeenVaas,
-      );
   }
 
   // look ahead of greatest seen sequence in case the next vaa was missed
@@ -180,6 +160,26 @@ export async function checkForMissedVaas(
 
   processed.push(...processedLookAhead);
   failedToRecover.push(...failedToRecoverLookAhead);
+
+  if (failedToRecover.length)
+    await batchMarkAsFailedToRecover(
+      redis,
+      prefix,
+      emitterChain,
+      emitterAddress,
+      failedToRecover,
+    );
+
+  const allSeenVaas = processed.concat(failedToRecover);
+
+  if (allSeenVaas.length)
+    await batchMarkAsSeen(
+      redis,
+      prefix,
+      emitterChain,
+      emitterAddress,
+      allSeenVaas,
+    );
 
   return {
     processed,
@@ -295,6 +295,11 @@ async function lookAhead(
       // reset failure counter if we successfully fetched a vaa
       if (vaa) {
         if (vaasNotFound.length > 0) {
+          logger?.warn(
+            `Look Ahead existing VAAs not found in the guardian: [${vaasNotFound.join(
+              ", ",
+            )}]`,
+          );
           failedToRecover.push(...vaasNotFound);
         }
         vaasNotFound = [];
@@ -312,7 +317,7 @@ async function lookAhead(
     }
 
     if (!vaa && vaasNotFound.length < maxLookAhead) {
-      logger?.warn(`Look Ahead VAA not found. Sequence: ${seq.toString()}`);
+      logger?.debug(`Look Ahead VAA not found. Sequence: ${seq.toString()}`);
       vaasNotFound.push(seq.toString());
       continue;
     }
