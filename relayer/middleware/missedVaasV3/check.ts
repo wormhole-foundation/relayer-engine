@@ -268,7 +268,7 @@ async function lookAhead(
     return lookAheadSequences;
   }
 
-  let lookAheadFailures: 0; // Failures counter
+  let vaaNotFound: 0; // Failures counter
   const MAX_LOOK_AHEAD = 10; // TODO: make this configurable
   const LOOK_AHEAD_RETRIES = 3 * wormholeRpcs.length; // Retry 3 times per wormhole rpc. // TODO: should 3 be configurable?
 
@@ -283,7 +283,7 @@ async function lookAhead(
       vaa = await tryFetchVaa(vaaKey, wormholeRpcs, LOOK_AHEAD_RETRIES);
       // reset failure counter if we successfully fetched a vaa
       if (vaa) {
-        lookAheadFailures = 0;
+        vaaNotFound = 0;
       }
     } catch (error) {
       let message = "unknown";
@@ -298,12 +298,12 @@ async function lookAhead(
     }
 
     // Stop looking ahead after failures >= MAX_LOOK_AHEAD
-    if (!vaa && lookAheadFailures >= MAX_LOOK_AHEAD) {
+    if (!vaa && vaaNotFound >= MAX_LOOK_AHEAD) {
       break;
     }
 
     if (!vaa) {
-      lookAheadFailures++;
+      vaaNotFound++;
       continue;
     }
 
