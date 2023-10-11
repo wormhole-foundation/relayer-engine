@@ -299,7 +299,7 @@ async function lookAhead(
 
     // Stop looking ahead after failures >= MAX_LOOK_AHEAD
     if (!vaa && lookAheadFailures >= MAX_LOOK_AHEAD) {
-      return lookAheadSequences;
+      break;
     }
 
     if (!vaa) {
