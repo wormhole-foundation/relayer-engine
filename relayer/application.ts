@@ -31,7 +31,7 @@ import {
   parseVaaWithBytes,
   sleep,
 } from "./utils";
-import { FailFastGrpcTransportFactory } from "./publicrpc/fail-fast-grpc-transport";
+import { FailFastGrpcTransportFactory } from "./rpc/fail-fast-grpc-transport";
 import { defaultLogger } from "./logging";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper";
 import { RelayJob, Storage } from "./storage/storage";

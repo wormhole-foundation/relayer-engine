@@ -1,4 +1,4 @@
-import { FailFastGrpcTransportFactory } from "../../publicrpc/fail-fast-grpc-transport";
+import { FailFastGrpcTransportFactory } from "../../rpc/fail-fast-grpc-transport";
 import {
   coalesceChainName,
   ChainId,
