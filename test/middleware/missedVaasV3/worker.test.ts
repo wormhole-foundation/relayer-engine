@@ -42,6 +42,10 @@ const tryGetExistingFailedSequencesMock =
 const calculateSequenceStatsMock =
   calculateSequenceStats as jest.MockedFunction<typeof calculateSequenceStats>;
 
+const workingWormscanClient = {
+  listVaas: jest.fn(() => Promise.resolve({ data: [] })),
+};
+
 describe("MissedVaaV3.worker", () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -94,6 +98,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(checkForMissedVaasMock).toHaveBeenCalledTimes(1);
@@ -107,6 +112,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(updateSeenSequencesMock).toHaveBeenCalledTimes(0);
@@ -123,11 +129,12 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(checkForMissedVaasMock).toHaveBeenCalledTimes(1);
       const args = checkForMissedVaasMock.mock.calls[0];
-      expect(args[5]).toEqual(mockSafeSequence);
+      expect(args[6]).toEqual(mockSafeSequence);
     });
 
     test("If there's not previous safe sequence, it will the lastSafeSequence as safe sequence", async () => {
@@ -142,6 +149,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(trySetLastSafeSequenceMock).toHaveBeenCalledTimes(1);
@@ -164,6 +172,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(trySetLastSafeSequenceMock).toHaveBeenCalledTimes(1);
@@ -186,6 +195,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(trySetLastSafeSequenceMock).toHaveBeenCalledTimes(0);
@@ -210,6 +220,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
         loggerMock as unknown as Logger,
       );
 

@@ -1,4 +1,4 @@
-import { jest, describe, test } from "@jest/globals";
+import { jest, describe, test, beforeEach } from "@jest/globals";
 
 import {
   ProcessVaaFn,
@@ -8,10 +8,10 @@ import {
   batchMarkAsSeen,
   batchMarkAsFailedToRecover,
   getAllProcessedSeqsInOrder,
-  tryGetLastSafeSequence,
 } from "../../../relayer/middleware/missedVaasV3/storage";
 import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers";
 import { Redis } from "ioredis";
+import { Wormscan, WormscanVaa } from "../../../relayer/rpc/wormscan-client";
 
 jest.mock("../../../relayer/middleware/missedVaasV3/storage");
 jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
@@ -28,14 +28,49 @@ const getAllProcessedSeqsInOrderMock =
     typeof getAllProcessedSeqsInOrder
   >;
 
-const tryGetLastSafeSequenceMock =
-  tryGetLastSafeSequence as jest.MockedFunction<typeof tryGetLastSafeSequence>;
-
 const tryFetchVaaMock = tryFetchVaa as jest.MockedFunction<typeof tryFetchVaa>;
+
+let listVaaResponse: WormscanVaa[] = [];
+
+const failingWormscanClient: Wormscan = {
+  listVaas: jest.fn(() =>
+    Promise.resolve({ data: [], error: new Error("foo") }),
+  ),
+};
+
+const workingWormscanClient: Wormscan = {
+  listVaas: jest.fn(() => Promise.resolve({ data: listVaaResponse })),
+};
 
 describe("MissedVaaV3.check", () => {
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    listVaaResponse = [
+      {
+        id: "bar",
+        sequence: 4n,
+        vaa: Buffer.from("bar"),
+        emitterAddr: "foo",
+        emitterChain: 1,
+      },
+      {
+        id: "baz",
+        sequence: 3n,
+        vaa: Buffer.from("baz"),
+        emitterAddr: "foo",
+        emitterChain: 1,
+      },
+      {
+        id: "foo",
+        sequence: 2n,
+        vaa: Buffer.from("foo"),
+        emitterAddr: "foo",
+        emitterChain: 1,
+      },
+    ];
   });
 
   const redis = {};
@@ -73,15 +108,15 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
-      expect(tryFetchVaaMock).not.toHaveBeenCalled();
     });
 
     test("If there are no leap sequences, no VAAs are tried to reprocess", async () => {
       const { opts, filter, prefix } = prepareTest();
-
+      listVaaResponse = [];
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 2n, 3n]);
 
       await checkForMissedVaas(
@@ -90,12 +125,12 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
 
       // if there are seen sequences, look ahead will be ran
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(opts.maxLookAhead + 1);
     });
 
     test("If there are leap sequences, they are tried to be reprocessed", async () => {
@@ -120,12 +155,14 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(processVaaMock).toHaveBeenCalledTimes(missingSequencesMock.length);
-      // + 1 because of the look-ahead call
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(
-        missingSequencesMock.length + opts.maxLookAhead + 1,
+      expect(workingWormscanClient.listVaas).toHaveBeenCalledWith(
+        1,
+        expect.any(String),
+        expect.objectContaining({ pageSize: opts.maxLookAhead }),
       );
       expect(batchMarkAsSeenMock).toHaveBeenCalledTimes(1);
       expect(batchMarkAsFailedToRecoverMock).toHaveBeenCalledTimes(0);
@@ -164,10 +201,11 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       // the two missing vaas + look-ahead call
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(2 + opts.maxLookAhead + 1);
+      expect(workingWormscanClient.listVaas).toHaveBeenCalledTimes(1);
 
       // only vaa 4 got to be processed
       expect(processVaaMock).toHaveBeenCalledTimes(1);
@@ -200,7 +238,6 @@ describe("MissedVaaV3.check", () => {
 
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("seq-2") });
       tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("seq-4") });
-      tryFetchVaaMock.mockResolvedValueOnce(null); // look-ahead call.
 
       // first call will fail (Sequence 2)
       processVaaMock.mockImplementationOnce(async (...args: any[]) => {
@@ -213,10 +250,11 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
-      // the two missing vaas + look-ahead call
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(2 + opts.maxLookAhead + 1);
+      // the two missing vaas
+      expect(tryFetchVaaMock).toHaveBeenCalledTimes(2);
 
       // both missing vaas were tried to process
       expect(processVaaMock).toHaveBeenCalledTimes(2);
@@ -254,12 +292,12 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(processVaaMock).not.toHaveBeenCalled();
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(0);
       expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
-      expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
+      expect(workingWormscanClient.listVaas).not.toHaveBeenCalled();
     });
 
     test("No seen sequences yet. If a starting sequence is configured, it will perform lookahead from that sequence", async () => {
@@ -279,24 +317,35 @@ describe("MissedVaaV3.check", () => {
           },
         },
         prefix,
+        workingWormscanClient,
       );
 
-      expect(processVaaMock).not.toHaveBeenCalled();
-      expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
+      expect(processVaaMock).toHaveBeenCalledTimes(listVaaResponse.length);
+      expect(batchMarkAsSeenMock).toHaveBeenCalled();
       expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
 
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1 + opts.maxLookAhead);
-
-      const vaaSequenceFetched = tryFetchVaaMock.mock.calls[0][0].sequence;
-      expect(vaaSequenceFetched).toEqual(mockStartingSequence.toString());
+      expect(workingWormscanClient.listVaas).toHaveBeenCalledTimes(1);
     });
 
     test("Seen sequences exist. it will start lookahead from the configured sequence if it's greater than the last seen seq", async () => {
       const { opts, filter, prefix } = prepareTest();
-      tryFetchVaaMock.mockResolvedValue(null);
+      const mockStartingSequence = 5n;
+
+      expect(listVaaResponse.length).toBeGreaterThan(0);
+      expect(
+        listVaaResponse.every(v => v.sequence <= mockStartingSequence),
+      ).toBe(true);
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 2n]);
-      const mockStartingSequence = 5n;
+
+      listVaaResponse.push({
+        id: "foo",
+        sequence: mockStartingSequence + 1n,
+        vaa: Buffer.from("foo"),
+        emitterAddr: "foo",
+        emitterChain: 1,
+      });
+
       await checkForMissedVaas(
         filter,
         redis as unknown as Redis,
@@ -308,24 +357,26 @@ describe("MissedVaaV3.check", () => {
           },
         },
         prefix,
+        workingWormscanClient,
       );
 
-      expect(processVaaMock).not.toHaveBeenCalled();
-      expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
-      expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
-
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(1 + opts.maxLookAhead);
-
-      const vaaSequenceFetched = tryFetchVaaMock.mock.calls[0][0].sequence;
-      expect(vaaSequenceFetched).toEqual(mockStartingSequence.toString());
+      expect(processVaaMock).toHaveBeenCalledTimes(1);
     });
 
     test("Seen sequences exist. it will start lookahead from the last seen sequence +1 if it's greater than the configured sequence", async () => {
       const { opts, filter, prefix } = prepareTest();
-      tryFetchVaaMock.mockResolvedValue(null);
       const seenSequencesMock = [1n, 2n, 3n, 4n, 5n, 6n];
+      tryFetchVaaMock.mockResolvedValue(null);
       getAllProcessedSeqsInOrderMock.mockResolvedValue(seenSequencesMock);
       const mockStartingSequence = 5n;
+
+      expect(listVaaResponse.length).toBeGreaterThan(0);
+      expect(
+        listVaaResponse.every(
+          v => v.sequence <= seenSequencesMock[seenSequencesMock.length - 1],
+        ),
+      ).toBe(true);
+
       await checkForMissedVaas(
         filter,
         redis as unknown as Redis,
@@ -337,46 +388,18 @@ describe("MissedVaaV3.check", () => {
           },
         },
         prefix,
+        workingWormscanClient,
       );
+
+      expect(workingWormscanClient.listVaas).toHaveBeenCalledTimes(1);
 
       expect(processVaaMock).not.toHaveBeenCalled();
       expect(batchMarkAsSeenMock).not.toHaveBeenCalled();
       expect(batchMarkAsFailedToRecoverMock).not.toHaveBeenCalled();
-
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(opts.maxLookAhead + 1);
-
-      const vaaSequenceFetched = tryFetchVaaMock.mock.calls[0][0].sequence;
-      const lastSeenSequence = seenSequencesMock[seenSequencesMock.length - 1];
-      expect(vaaSequenceFetched).toEqual((lastSeenSequence + 1n).toString());
-    });
-
-    test("Look-Ahead will continue fetching VAAs until it gets a not found", async () => {
-      const { opts, filter, prefix } = prepareTest();
-
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("baz") });
-
-      getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
-
-      await checkForMissedVaas(
-        filter,
-        redis as unknown as Redis,
-        processVaaMock,
-        opts,
-        prefix,
-      );
-
-      expect(tryFetchVaaMock).toHaveBeenCalledTimes(3 + opts.maxLookAhead + 1);
-      expect(processVaaMock).toHaveBeenCalledTimes(3);
     });
 
     test("It will add all found VAAs to the loadAheadSequences and processed stat", async () => {
       const { opts, filter, prefix } = prepareTest();
-
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("baz") });
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
 
@@ -386,20 +409,16 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
-      expect(lookAheadSequences.length).toEqual(3);
-      expect(processed.length).toEqual(3);
+      expect(lookAheadSequences.length).toEqual(listVaaResponse.length);
+      expect(processed.length).toEqual(listVaaResponse.length);
     });
 
     test("If processVaa throws is won't be added to processed list", async () => {
       const { opts, filter, prefix } = prepareTest();
 
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("foo") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("bar") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("baz") });
-
-      processVaaMock.mockResolvedValueOnce();
       processVaaMock.mockResolvedValueOnce();
       processVaaMock.mockRejectedValueOnce("foo");
 
@@ -411,18 +430,15 @@ describe("MissedVaaV3.check", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
-      expect(lookAheadSequences.length).toEqual(3);
+      expect(lookAheadSequences.length).toEqual(listVaaResponse.length);
       expect(processed.length).toEqual(2);
     });
 
-    test("It throws if fetchVaa throws", async () => {
+    test("It throws if listVaas throws", async () => {
       const { opts, filter, prefix } = prepareTest();
-
-      tryFetchVaaMock.mockImplementation((...args: any[]) => {
-        throw new Error("foo");
-      });
 
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n]);
 
@@ -433,8 +449,48 @@ describe("MissedVaaV3.check", () => {
           processVaaMock,
           opts,
           prefix,
+          failingWormscanClient,
         ),
       ).rejects.toThrow("foo");
+    });
+
+    test("It reports failed to recover vaas found when a gap is found", async () => {
+      const { opts, filter, prefix } = prepareTest();
+      expect(listVaaResponse.length).toBeGreaterThan(0);
+      const mockStartingSequence = listVaaResponse[0].sequence;
+
+      getAllProcessedSeqsInOrderMock.mockResolvedValue([mockStartingSequence]);
+
+      listVaaResponse.push({
+        id: "foo",
+        sequence: listVaaResponse[0].sequence + 2n, // skip one
+        vaa: Buffer.from("foo"),
+        emitterAddr: "foo",
+        emitterChain: 1,
+      });
+
+      await checkForMissedVaas(
+        filter,
+        redis as unknown as Redis,
+        processVaaMock,
+        {
+          ...opts,
+          startingSequenceConfig: {
+            [filter.emitterChain]: mockStartingSequence,
+          },
+        },
+        prefix,
+        workingWormscanClient,
+      );
+
+      expect(processVaaMock).toHaveBeenCalledTimes(1);
+      expect(batchMarkAsFailedToRecoverMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        [(mockStartingSequence + 1n).toString()],
+      );
     });
   });
 });

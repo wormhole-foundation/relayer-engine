@@ -1,6 +1,14 @@
 import { HttpClient } from "./http-client";
 
-export class WormscanClient {
+export interface Wormscan {
+  listVaas(
+    chain: number,
+    emitterAddress: string,
+    opts?: WormscanOptions,
+  ): Promise<WormscanResult<WormscanVaa[]>>;
+}
+
+export class WormscanClient implements Wormscan {
   private baseUrl: URL;
   private defaultOptions?: WormscanOptions;
   private client: HttpClient;
@@ -35,7 +43,7 @@ export class WormscanClient {
       );
       return { data: response.data };
     } catch (err: Error | any) {
-      return { error: err };
+      return { error: err, data: [] };
     }
   }
 
@@ -67,5 +75,5 @@ export type WormscanVaa = {
 
 export type WormscanResult<T> = {
   error?: Error;
-  data?: T;
+  data: T;
 };
