@@ -41,7 +41,13 @@ export class WormscanClient implements Wormscan {
         )}&pageSize=${this.getPageSize(opts)}`,
         opts,
       );
-      return { data: response.data };
+
+      return {
+        data: response.data.map(v => {
+          v.vaa = Buffer.from(v.vaa.toString(), "base64");
+          return v;
+        }),
+      };
     } catch (err: Error | any) {
       return { error: err, data: [] };
     }
@@ -65,13 +71,13 @@ export type WormscanOptions = {
   timeout?: number;
 };
 
-export type WormscanVaa = {
+export class WormscanVaa {
   id: string;
   sequence: bigint;
   vaa: Buffer;
   emitterAddr: string;
   emitterChain: number;
-};
+}
 
 export type WormscanResult<T> = {
   error?: Error;

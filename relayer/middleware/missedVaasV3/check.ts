@@ -295,15 +295,16 @@ async function lookAhead(
     throw latestVaas.error;
   }
 
-  if (latestVaas.data.length === 0) {
-    logger?.debug(`No Look Ahead VAAs found.`);
-    return { lookAheadSequences, processed, failedToRecover };
-  }
-
   // latestVaas.data is sorted DESC based on timestamp, so we sort ASC by sequence
   const vaas = latestVaas.data
     .filter(vaa => vaa.sequence > lastSeenSequence)
     .sort((a, b) => Number(a.sequence - b.sequence));
+
+  if (vaas.length === 0) {
+    logger?.debug(`No Look Ahead VAAs found.`);
+    return { lookAheadSequences, processed, failedToRecover };
+  }
+
   logger?.debug(
     `Found ${vaas.length} Look Ahead VAAs. From ${vaas[0].sequence} to ${
       vaas[vaas.length - 1].sequence
@@ -314,11 +315,10 @@ async function lookAhead(
 
   for (const vaa of vaas) {
     lookAheadSequences.push(vaa.sequence.toString());
-
-    if (vaa.sequence - lastVisitedSequence > 0) {
-      const missing = Array.from(
-        { length: Number(vaa.sequence - lastVisitedSequence - 1n) },
-        (_, i) => (lastVisitedSequence + BigInt(i + 1)).toString(),
+    const sequenceGap = BigInt(vaa.sequence) - BigInt(lastVisitedSequence);
+    if (sequenceGap > 0) {
+      const missing = Array.from({ length: Number(sequenceGap - 1n) }, (_, i) =>
+        (lastVisitedSequence + BigInt(i + 1)).toString(),
       );
       failedToRecover = failedToRecover.concat(missing);
     }
@@ -326,7 +326,7 @@ async function lookAhead(
     try {
       // since we add this VAA to the queue, there's no need to mark it as seen
       // (it will be automatically marked as seen when the "added" event is fired)
-      await processVaa(Buffer.from(vaa.vaa));
+      await processVaa(vaa.vaa);
       processed.push(vaa.sequence.toString());
     } catch (error) {
       logger?.error(
