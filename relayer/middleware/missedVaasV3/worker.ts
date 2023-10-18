@@ -90,6 +90,7 @@ export async function spawnMissedVaaWorker(
   const redisPool = createRedisPool(opts);
   const wormscan = new WormscanClient(new URL(opts.wormscanUrl), {
     maxDelay: 60_000,
+    noCache: true,
   });
 
   if (!app.filters.length) {

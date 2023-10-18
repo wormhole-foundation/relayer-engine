@@ -21,6 +21,7 @@ export class WormscanClient implements Wormscan {
       retries: defaultOptions?.retries,
       initialDelay: defaultOptions?.initialDelay,
       maxDelay: defaultOptions?.maxDelay,
+      cache: defaultOptions?.noCache ? "no-cache" : "default",
     });
   }
 
@@ -71,6 +72,7 @@ export type WormscanOptions = {
   initialDelay?: number;
   maxDelay?: number;
   timeout?: number;
+  noCache?: boolean;
 };
 
 class WormscanVaaResponse {
