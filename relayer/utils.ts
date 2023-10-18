@@ -195,7 +195,7 @@ export function dbg<T>(x: T, msg?: string): T {
   return x;
 }
 
-export async function mapConcurrent(
+export function mapConcurrent(
   arr: any[],
   fn: (...args: any[]) => any,
   concurrency: number = 5,
