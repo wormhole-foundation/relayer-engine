@@ -1,5 +1,5 @@
 {
-  "name": "example-app",
+  "name": "advanced-relayer-example",
   "version": "1.0.0",
   "description": "",
   "type": "module",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.9.11",
     "@mysten/sui.js": "^0.32.1",
-    "@wormhole-foundation/relayer-engine": "file:../",
+    "@wormhole-foundation/relayer-engine": "file:../../",
     "koa": "^2.14.1",
     "koa-router": "^12.0.0",
     "node-redis": "^0.1.7",

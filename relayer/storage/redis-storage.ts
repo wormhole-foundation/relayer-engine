@@ -145,7 +145,7 @@ export class RedisStorage implements Storage {
     });
     const retryStrategy = this.opts.exponentialBackoff
       ? {
-          backOff: {
+          backoff: {
             type: "custom",
           },
         }

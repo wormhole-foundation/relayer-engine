@@ -35,7 +35,7 @@
   "dependencies": {
     "@bull-board/api": "^5.8.1",
     "@bull-board/koa": "^5.8.1",
-    "@certusone/wormhole-sdk": "0.10.2",
+    "@certusone/wormhole-sdk": "^0.10.4",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
@@ -55,6 +55,8 @@
   },
   "keywords": [],
   "devDependencies": {
+    "@certusone/wormhole-sdk-proto-node": "^0.0.6",
+    "@cloudnc/grpc-web-testing-toolbox": "^2.2.0",
     "@jest/globals": "^29.6.4",
     "@types/bluebird": "^3.5.38",
     "@types/bs58": "^4.0.1",

@@ -38,6 +38,7 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
   checkInterval?: number;
   // Times a VAA will be tried to be fetched when it's found missing
   fetchVaaRetries?: number;
+  maxLookAhead?: number;
   // Max concurrency used for fetching VAAs from wormscan.
   vaasFetchConcurrency?: number;
   /**
@@ -75,6 +76,10 @@ export async function spawnMissedVaaWorker(
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
   if (!metrics) {
     metrics = opts.registry ? initMetrics(opts.registry) : {};
+  }
+
+  if (!opts.maxLookAhead && opts.maxLookAhead !== 0) {
+    opts.maxLookAhead = 10;
   }
 
   const redisPool = createRedisPool(opts);

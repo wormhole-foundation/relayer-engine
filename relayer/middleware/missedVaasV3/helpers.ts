@@ -1,4 +1,4 @@
-import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
+import { FailFastGrpcTransportFactory } from "../../rpc/fail-fast-grpc-transport.js";
 import {
   ChainId,
   coalesceChainName,
@@ -160,9 +160,9 @@ export async function tryFetchVaa(
       vaaKey.emitterChain as ChainId,
       vaaKey.emitterAddress,
       vaaKey.sequence,
-      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
+      { transport: FailFastGrpcTransportFactory() },
       100,
-      retries,
+      retries * wormholeRpcs.length,
     );
   } catch (error: any) {
     error.stack = new Error().stack;

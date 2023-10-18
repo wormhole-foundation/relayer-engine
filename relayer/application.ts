@@ -31,7 +31,7 @@ import {
   parseVaaWithBytes,
   sleep,
 } from "./utils.js";
-import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
+import { FailFastGrpcTransportFactory } from "./rpc/fail-fast-grpc-transport.js";
 import { defaultLogger } from "./logging.js";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper.js";
 import { RelayJob, Storage } from "./storage/storage.js";
@@ -135,6 +135,47 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    */
   filter(newFilter: FilterFN) {
     this.vaaFilters.push(newFilter);
+  }
+
+  private async shouldProcessVaa(vaa: ParsedVaaWithBytes): Promise<boolean> {
+    if (this.vaaFilters.length === 0) {
+      return true;
+    }
+    const { emitterChain, emitterAddress, sequence } = vaa.id;
+    const id = `${emitterChain}-${emitterAddress}-${sequence}`;
+    if (this.alreadyFilteredCache.get(id)) {
+      return false;
+    }
+    for (let i = 0; i < this.vaaFilters.length; i++) {
+      const { emitterChain, emitterAddress, sequence } = vaa.id;
+      const filter = this.vaaFilters[i];
+      let isOk;
+      try {
+        isOk = await filter(vaa);
+      } catch (e: any) {
+        isOk = false;
+        this.rootLogger.debug(
+          `filter ${i} of ${this.vaaFilters.length} threw an exception`,
+          {
+            emitterChain,
+            emitterAddress,
+            sequence,
+            message: e.message,
+            stack: e.stack,
+            name: e.name,
+          },
+        );
+      }
+      if (!isOk) {
+        this.alreadyFilteredCache.set(id, true);
+        this.rootLogger.debug(
+          `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
+          { emitterChain, emitterAddress, sequence },
+        );
+        return false;
+      }
+    }
+    return true;
   }
 
   on(eventName: RelayerEvents, listener: ListenerFn): this {
@@ -241,7 +282,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       Number(chain) as ChainId,
       emitterAddress.toString("hex"),
       sequence.toString(),
-      { transport: grpcWebNodeHttpTransport.NodeHttpTransport() },
+      { transport: FailFastGrpcTransportFactory() },
       retryTimeout,
       retries,
     );
@@ -274,6 +315,41 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     } else {
       this.emit(RelayerEvents.Added, parsedVaa);
       await this.pushVaaThroughPipeline(vaa, opts);
+    }
+  }
+
+  /**
+   * Pushes a vaa through the pipeline. Unless you're the storage service you probably want to use `processVaa`.
+   * @param vaa
+   * @param opts
+   */
+  private async pushVaaThroughPipeline(
+    vaa: SignedVaa,
+    opts: any,
+  ): Promise<void> {
+    const parsedVaa = parseVaaWithBytes(vaa);
+
+    let ctx: Context = {
+      config: {
+        spyFilters: await this.spyFilters(),
+      },
+      env: this.env,
+      fetchVaa: this.fetchVaa.bind(this),
+      fetchVaas: this.fetchVaas.bind(this),
+      locals: {},
+      on: this.on.bind(this),
+      processVaa: this.processVaa.bind(this),
+      vaa: parsedVaa,
+      vaaBytes: vaa,
+    };
+    Object.assign(ctx, opts);
+    try {
+      await this.pipeline?.(ctx, () => {});
+      this.emit(RelayerEvents.Completed, parsedVaa, opts?.storage?.job);
+    } catch (e) {
+      this.errorPipeline?.(e, ctx, () => {});
+      this.emit(RelayerEvents.Failed, parsedVaa, opts?.storage?.job);
+      throw e;
     }
   }
 
@@ -325,6 +401,18 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     return this;
   }
 
+  private async spyFilters(): Promise<
+    { emitterFilter?: { chainId?: ChainId; emitterAddress?: string } }[]
+  > {
+    const spyFilters = new Set<any>();
+    for (const chainRouter of Object.values(this.chainRouters)) {
+      for (const filter of await chainRouter.spyFilters()) {
+        spyFilters.add(filter);
+      }
+    }
+    return Array.from(spyFilters.values());
+  }
+
   /**
      * Pass in the URL where you have an instance of the spy listening. Usually localhost:7073
      *
@@ -371,6 +459,19 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    */
   useStorage(storage: Storage) {
     this.storage = storage;
+  }
+
+  private generateChainRoutes(): Middleware<ContextT> {
+    return async (ctx: ContextT, next: Next) => {
+      let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
+      if (!router) {
+        this.rootLogger.error(
+          "received a vaa but we don't have a router for it",
+        );
+        return;
+      }
+      await router.process(ctx, next);
+    };
   }
 
   /**
@@ -423,114 +524,6 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     }
   }
 
-  /**
-   * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
-   */
-  stop() {
-    return this.storage.stopWorker();
-  }
-
-  private async shouldProcessVaa(vaa: ParsedVaaWithBytes): Promise<boolean> {
-    if (this.vaaFilters.length === 0) {
-      return true;
-    }
-    const { emitterChain, emitterAddress, sequence } = vaa.id;
-    const id = `${emitterChain}-${emitterAddress}-${sequence}`;
-    if (this.alreadyFilteredCache.get(id)) {
-      return false;
-    }
-    for (let i = 0; i < this.vaaFilters.length; i++) {
-      const { emitterChain, emitterAddress, sequence } = vaa.id;
-      const filter = this.vaaFilters[i];
-      let isOk;
-      try {
-        isOk = await filter(vaa);
-      } catch (e: any) {
-        isOk = false;
-        this.rootLogger.debug(
-          `filter ${i} of ${this.vaaFilters.length} threw an exception`,
-          {
-            emitterChain,
-            emitterAddress,
-            sequence,
-            message: e.message,
-            stack: e.stack,
-            name: e.name,
-          },
-        );
-      }
-      if (!isOk) {
-        this.alreadyFilteredCache.set(id, true);
-        this.rootLogger.debug(
-          `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
-          { emitterChain, emitterAddress, sequence },
-        );
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Pushes a vaa through the pipeline. Unless you're the storage service you probably want to use `processVaa`.
-   * @param vaa
-   * @param opts
-   */
-  private async pushVaaThroughPipeline(
-    vaa: SignedVaa,
-    opts: any,
-  ): Promise<void> {
-    const parsedVaa = parseVaaWithBytes(vaa);
-
-    let ctx: Context = {
-      config: {
-        spyFilters: await this.spyFilters(),
-      },
-      env: this.env,
-      fetchVaa: this.fetchVaa.bind(this),
-      fetchVaas: this.fetchVaas.bind(this),
-      locals: {},
-      on: this.on.bind(this),
-      processVaa: this.processVaa.bind(this),
-      vaa: parsedVaa,
-      vaaBytes: vaa,
-    };
-    Object.assign(ctx, opts);
-    try {
-      await this.pipeline?.(ctx, () => {});
-      this.emit(RelayerEvents.Completed, parsedVaa, opts?.storage?.job);
-    } catch (e) {
-      this.errorPipeline?.(e, ctx, () => {});
-      this.emit(RelayerEvents.Failed, parsedVaa, opts?.storage?.job);
-      throw e;
-    }
-  }
-
-  private async spyFilters(): Promise<
-    { emitterFilter?: { chainId?: ChainId; emitterAddress?: string } }[]
-  > {
-    const spyFilters = new Set<any>();
-    for (const chainRouter of Object.values(this.chainRouters)) {
-      for (const filter of await chainRouter.spyFilters()) {
-        spyFilters.add(filter);
-      }
-    }
-    return Array.from(spyFilters.values());
-  }
-
-  private generateChainRoutes(): Middleware<ContextT> {
-    return async (ctx: ContextT, next: Next) => {
-      let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
-      if (!router) {
-        this.rootLogger.error(
-          "received a vaa but we don't have a router for it",
-        );
-        return;
-      }
-      await router.process(ctx, next);
-    };
-  }
-
   private waitForReady(client: SpyRPCServiceClient): Promise<void> {
     return new Promise((resolve, reject) => {
       const deadline = new Date();
@@ -545,6 +538,13 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         }
       });
     });
+  }
+
+  /**
+   * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
+   */
+  stop() {
+    return this.storage.stopWorker();
   }
 
   private onVaaFromQueue = async (job: RelayJob) => {

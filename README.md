@@ -8,9 +8,11 @@ Once a wormhole message is received, the developer may apply additional logic to
 
 To use the Relayer engine, a developer may specify how to relay wormhole messages for their app using an idiomatic express/koa middleware inspired api then let the library handle all the details!
 
-Checkout the full [example app](https://github.com/wormhole-foundation/relayer-engine/tree/main/example-app) or follow the instructions in the [quickstart](#quick-start)
+Checkout the [quick start](#quick-start) example here, or for a more advanced relayer app, see the [advanced example](./advanced-example.md)
 
 # Quick Start
+
+The source for this example is available [here](https://github.com/wormhole-foundation/relayer-engine/blob/main/examples/simple/src/app.ts)
 
 ## Install Package
 
@@ -137,7 +139,10 @@ export class StandardRelayerApp<
 
 The only field we pass in the `StandardRelayerAppOpts` is the name to help with identifying log messages and reserve a namespace in Redis.
 
-Other options for the `StandardRelayerAppOpts` include:
+<details>
+<summary>
+Other `StandardRelayerAppOpts` options
+</summary>
 
 ```ts
   wormholeRpcs?: string[];  // List of URLs from which to query missed VAAs
@@ -154,6 +159,8 @@ Other options for the `StandardRelayerAppOpts` include:
   redisCluster?: ClusterOptions;
   redis?: RedisOptions;
 ```
+
+</details>
 
 The next meaningful line in the example adds a filter middleware component. This middleware will cause the Relayer app to request a subscription from the Spy for any VAAs that match the criteria and invoke the callback with the VAA.
 
