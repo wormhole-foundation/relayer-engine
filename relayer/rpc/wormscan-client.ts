@@ -33,7 +33,7 @@ export class WormscanClient implements Wormscan {
     opts?: WormscanOptions,
   ): Promise<WormscanResult<WormscanVaa[]>> {
     try {
-      const response = await this.client.get<{ data: WormscanVaa[] }>(
+      const response = await this.client.get<{ data: WormscanVaaResponse[] }>(
         `${
           this.baseUrl
         }api/v1/vaas/${chain}/${emitterAddress}?page=${this.getPage(
@@ -44,8 +44,10 @@ export class WormscanClient implements Wormscan {
 
       return {
         data: response.data.map(v => {
-          v.vaa = Buffer.from(v.vaa.toString(), "base64");
-          return v;
+          return {
+            ...v,
+            vaa: Buffer.from(v.vaa, "base64"),
+          };
         }),
       };
     } catch (err: Error | any) {
@@ -71,13 +73,21 @@ export type WormscanOptions = {
   timeout?: number;
 };
 
-export class WormscanVaa {
+class WormscanVaaResponse {
+  id: string;
+  sequence: bigint;
+  vaa: string;
+  emitterAddr: string;
+  emitterChain: number;
+}
+
+export type WormscanVaa = {
   id: string;
   sequence: bigint;
   vaa: Buffer;
   emitterAddr: string;
   emitterChain: number;
-}
+};
 
 export type WormscanResult<T> = {
   error?: Error;
