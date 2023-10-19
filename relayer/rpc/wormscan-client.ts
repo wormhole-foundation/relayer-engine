@@ -1,5 +1,8 @@
 import { HttpClient, HttpClientError } from "./http-client";
 
+/**
+ * Client for the wormscan API that never throws, but instead returns a WormscanResult that may contain an error.
+ */
 export class WormscanClient {
   private baseUrl: URL;
   private defaultOptions?: WormscanOptions;
@@ -16,9 +19,6 @@ export class WormscanClient {
     });
   }
 
-  /**
-   * @throws {HttpClientError} If the request fails.
-   */
   public async listVaas(
     chain: number,
     emitterAddress: string,
@@ -39,9 +39,6 @@ export class WormscanClient {
     }
   }
 
-  /**
-   * @throws {HttpClientError} If the request fails.
-   */
   public async getVaa(
     chain: number,
     emitterAddress: string,
