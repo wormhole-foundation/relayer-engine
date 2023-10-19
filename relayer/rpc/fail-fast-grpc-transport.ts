@@ -2,7 +2,8 @@ import grpcweb from "@improbable-eng/grpc-web";
 import * as http from "http";
 import * as https from "https";
 
-const grpc = grpcweb.grpc;
+// @ts-ignore
+const grpc: typeof grpcweb.grpc = grpcweb?.grpc ?? grpcweb; // hack to support esm & cjs in the same project
 
 /**
  * Transport factory for grpc-web that applies a timeout.

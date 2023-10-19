@@ -20,7 +20,7 @@ jobs:
           cache-dependency-path: |
             ./package-lock.json
       - name: npm ci
-        run:  npm ci
+        run: npm ci
       - name: typecheck
         run: npm run build
       - name: Run tests
