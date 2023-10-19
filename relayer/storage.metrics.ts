@@ -1,4 +1,4 @@
-import { Counter, Gauge, Histogram, Registry } from "prom-client";
+import { Gauge, Registry } from "prom-client";
 
 export interface StorageMetrics {
   delayedGauge: Gauge<string>;
@@ -6,6 +6,7 @@ export interface StorageMetrics {
   activeGauge: Gauge<string>;
   failedGauge: Gauge<string>;
 }
+
 export function createStorageMetrics(
   storageRegistry: Registry = new Registry(),
 ): { registry: Registry; metrics: StorageMetrics } {

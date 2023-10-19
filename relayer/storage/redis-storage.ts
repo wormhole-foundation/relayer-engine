@@ -1,4 +1,4 @@
-import { Job, Queue, Worker } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import {
@@ -8,13 +8,13 @@ import {
   Redis,
   RedisOptions,
 } from "ioredis";
-import { createStorageMetrics, StorageMetrics } from "../storage.metrics";
+import { createStorageMetrics, StorageMetrics } from "../storage.metrics.js";
 import { Registry } from "prom-client";
-import { sleep } from "../utils";
-import { onJobHandler, RelayJob, Storage } from "./storage";
+import { sleep } from "../utils.js";
+import { onJobHandler, RelayJob, Storage } from "./storage.js";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
 
 function serializeVaa(vaa: ParsedVaa) {
   return {
@@ -90,14 +90,13 @@ const defaultOptions: Partial<StorageOptions> = {
 export class RedisStorage implements Storage {
   logger: Logger;
   vaaQueue: Queue<JobData, string[], string>;
+  public registry: Registry;
+  workerId: string;
   private worker: Worker<JobData, void, string>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
-  public registry: Registry;
   private metrics: StorageMetrics;
   private opts: StorageOptions;
-
-  workerId: string;
 
   constructor(opts: StorageOptions) {
     this.opts = Object.assign({}, defaultOptions, opts);
@@ -176,13 +175,6 @@ export class RedisStorage implements Storage {
       updateProgress: job.updateProgress.bind(job),
       maxAttempts: this.opts.attempts,
     };
-  }
-
-  private vaaId(vaa: ParsedVaa): string {
-    const emitterAddress = vaa.emitterAddress.toString("hex");
-    const hash = vaa.hash.toString("base64").substring(0, 5);
-    let sequence = vaa.sequence.toString();
-    return `${vaa.emitterChain}/${emitterAddress}/${sequence}/${hash}`;
   }
 
   startWorker(handleJob: onJobHandler) {
@@ -270,19 +262,6 @@ export class RedisStorage implements Storage {
     }
   }
 
-  private async updateGauges() {
-    const { active, delayed, waiting, failed } =
-      await this.vaaQueue.getJobCounts();
-    this.metrics.activeGauge.labels({ queue: this.vaaQueue.name }).set(active);
-    this.metrics.delayedGauge
-      .labels({ queue: this.vaaQueue.name })
-      .set(delayed);
-    this.metrics.waitingGauge
-      .labels({ queue: this.vaaQueue.name })
-      .set(waiting);
-    this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
-  }
-
   storageKoaUI(path: string) {
     // UI
     const serverAdapter = new KoaAdapter();
@@ -294,5 +273,25 @@ export class RedisStorage implements Storage {
     });
 
     return serverAdapter.registerPlugin();
+  }
+
+  private vaaId(vaa: ParsedVaa): string {
+    const emitterAddress = vaa.emitterAddress.toString("hex");
+    const hash = vaa.hash.toString("base64").substring(0, 5);
+    let sequence = vaa.sequence.toString();
+    return `${vaa.emitterChain}/${emitterAddress}/${sequence}/${hash}`;
+  }
+
+  private async updateGauges() {
+    const { active, delayed, waiting, failed } =
+      await this.vaaQueue.getJobCounts();
+    this.metrics.activeGauge.labels({ queue: this.vaaQueue.name }).set(active);
+    this.metrics.delayedGauge
+      .labels({ queue: this.vaaQueue.name })
+      .set(delayed);
+    this.metrics.waitingGauge
+      .labels({ queue: this.vaaQueue.name })
+      .set(waiting);
+    this.metrics.failedGauge.labels({ queue: this.vaaQueue.name }).set(failed);
   }
 }

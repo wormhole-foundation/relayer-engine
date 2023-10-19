@@ -1,4 +1,4 @@
-import { Context } from "./context";
+import { Context } from "./context.js";
 
 export type Next = (i?: number) => any;
 export type Middleware<ContextT extends Context = Context> = (
@@ -22,6 +22,7 @@ export function compose<T extends Context>(
       let fn = middleware[i];
       return fn(ctx, callNext.bind(null, i + 1));
     }
+
     return callNext(0);
   };
 }
@@ -42,6 +43,7 @@ export function composeError<T extends Context>(
       let fn = middleware[i];
       return fn(err, ctx, callNext.bind(null, i + 1));
     }
+
     return callNext(0);
   };
 }

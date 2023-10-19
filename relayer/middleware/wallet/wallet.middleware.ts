@@ -1,4 +1,3 @@
-import * as util from "util";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
@@ -10,15 +9,15 @@ import {
   EVMChainId,
 } from "@certusone/wormhole-sdk";
 import * as sui from "@mysten/sui.js";
-import { WalletToolBox } from "./walletToolBox";
-import { Middleware } from "../../compose.middleware";
-import { spawnWalletWorker } from "./wallet.worker";
+import { WalletToolBox } from "./walletToolBox.js";
+import { Middleware } from "../../compose.middleware.js";
+import { spawnWalletWorker } from "./wallet.worker.js";
 import { Queue } from "@datastructures-js/queue";
-import { ProviderContext, UntypedProvider } from "../providers.middleware";
+import { ProviderContext, UntypedProvider } from "../providers.middleware.js";
 import { Logger } from "winston";
-import { TokensByChain, startWalletManagement } from "./wallet-management";
+import { startWalletManagement, TokensByChain } from "./wallet-management.js";
 import { Registry } from "prom-client";
-import { Environment } from "../../environment";
+import { Environment } from "../../environment.js";
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
 
 export type EVMWallet = ethers.Wallet;
@@ -67,9 +66,13 @@ export interface WorkerInfo {
 
 export interface ActionExecutor {
   <T, W extends Wallet>(chaindId: ChainId, f: ActionFunc<T, W>): Promise<T>;
+
   onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
+
   onEVM<T>(chainId: EVMChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
+
   onSei<T>(f: ActionFunc<T, SeiWallet>): Promise<T>;
+
   onSui<T>(f: ActionFunc<T, SuiWallet>): Promise<T>;
 }
 

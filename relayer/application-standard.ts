@@ -1,31 +1,34 @@
-import { RelayerApp, RelayerAppOpts } from "./application";
+import { RelayerApp, RelayerAppOpts } from "./application.js";
 import {
   logging,
   LoggingContext,
-  spawnMissedVaaWorker,
   providers,
   ProvidersOpts,
   sourceTx,
   SourceTxContext,
+  spawnMissedVaaWorker,
   stagingArea,
   StagingAreaContext,
   TokenBridgeContext,
   tokenBridgeContracts,
   WalletContext,
   wallets,
-} from "./middleware";
+} from "./middleware/index.js";
 import { Logger } from "winston";
-import { StorageContext } from "./storage/storage";
-import { ExponentialBackoffOpts, RedisStorage } from "./storage/redis-storage";
+import { StorageContext } from "./storage/storage.js";
+import {
+  ExponentialBackoffOpts,
+  RedisStorage,
+} from "./storage/redis-storage.js";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
-import { mergeDeep } from "./utils";
-import { defaultLogger } from "./logging";
-import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
+import { mergeDeep } from "./utils.js";
+import { defaultLogger } from "./logging.js";
+import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
-import { Environment } from "./environment";
-import { TokensByChain } from "./middleware/wallet/wallet-management";
+import { Environment } from "./environment.js";
+import { TokensByChain } from "./middleware/wallet/wallet-management.js";
 import { Registry } from "prom-client";
 
 export interface StandardMissedVaaOpts {
@@ -81,6 +84,7 @@ export class StandardRelayerApp<
 > extends RelayerApp<ContextT> {
   private readonly store: RedisStorage;
   private readonly mergedRegistry: Registry;
+
   constructor(env: Environment, opts: StandardRelayerAppOpts) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger ?? defaultLogger;
