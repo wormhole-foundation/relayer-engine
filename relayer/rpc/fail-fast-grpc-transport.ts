@@ -1,9 +1,6 @@
-import grpcweb from "@improbable-eng/grpc-web";
+import { grpc } from "@improbable-eng/grpc-web";
 import * as http from "http";
 import * as https from "https";
-
-// @ts-ignore
-const grpc: typeof grpcweb.grpc = grpcweb?.grpc ?? grpcweb; // hack to support esm & cjs in the same project
 
 /**
  * Transport factory for grpc-web that applies a timeout.
@@ -17,22 +14,22 @@ const grpc: typeof grpcweb.grpc = grpcweb?.grpc ?? grpcweb; // hack to support e
 export function FailFastGrpcTransportFactory(
   timeoutMs: number = 10_000,
   httpOptions?: http.RequestOptions,
-): grpcweb.grpc.TransportFactory {
-  return function (opts: grpcweb.grpc.TransportOptions) {
+): grpc.TransportFactory {
+  return function (opts: grpc.TransportOptions) {
     return new TimeoutableTransport(opts, timeoutMs, httpOptions);
   };
 }
 
 export class TimeoutError extends Error {}
 
-class TimeoutableTransport implements grpcweb.grpc.Transport {
+class TimeoutableTransport implements grpc.Transport {
   private readonly timeoutMs: number;
-  private readonly options: grpcweb.grpc.TransportOptions;
+  private readonly options: grpc.TransportOptions;
   private readonly httpOptions?: http.RequestOptions;
   private request?: http.ClientRequest;
 
   constructor(
-    opts: grpcweb.grpc.TransportOptions,
+    opts: grpc.TransportOptions,
     timeoutMs: number,
     httpOptions?: http.RequestOptions,
   ) {
@@ -41,7 +38,7 @@ class TimeoutableTransport implements grpcweb.grpc.Transport {
     this.httpOptions = httpOptions;
   }
 
-  start(metadata: grpcweb.grpc.Metadata): void {
+  start(metadata: grpc.Metadata): void {
     const headers: Record<string, string> = {};
     metadata.forEach(function (key: string, values: string[]) {
       headers[key] = values.join(", ");

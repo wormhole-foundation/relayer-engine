@@ -12,7 +12,7 @@ import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana
 import { zeroPad } from "ethers/lib/utils.js";
 import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
-import bluebird from "bluebird";
+import * as bluebird from "bluebird";
 
 // @ts-ignore disgusting fix to support commonJS and esm
 const map = bluebird.map ?? bluebird.default.map;
