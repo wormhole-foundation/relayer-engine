@@ -196,12 +196,12 @@ export async function mapConcurrent(
   fn: (...args: any[]) => Promise<any>,
   concurrency: number = 5,
 ) {
-  async function evaluateNext () {
-      if (arr.length === 0) return;
-      const args = arr.shift();
-      await fn(args);
-      // If any pending promise is resolved, then evaluate next
-      await evaluateNext();
+  async function evaluateNext() {
+    if (arr.length === 0) return;
+    const args = arr.shift();
+    await fn(args);
+    // If any pending promise is resolved, then evaluate next
+    await evaluateNext();
   }
   // Promises that will be executed parallely, with a maximum of `concurrency` at a time
   const promises = new Array(concurrency).fill(0).map(evaluateNext);
