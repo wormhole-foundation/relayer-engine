@@ -4,7 +4,7 @@ import {
   EngineInitFn,
   Plugin,
   WorkflowOptions,
-} from "./legacy-plugin-definition";
+} from "./legacy-plugin-definition.js";
 import * as fs from "fs";
 import * as nodePath from "path";
 import {
@@ -14,11 +14,11 @@ import {
   assertStr,
   EngineError,
   nnull,
-} from "../../utils";
-import { StandardRelayerApp } from "../../application-standard";
-import { defaultLogger } from "../../logging";
-import { legacyPluginCompat } from "./legacy-plugin.middleware";
-import { Environment } from "../../environment";
+} from "../../utils.js";
+import { StandardRelayerApp } from "../../application-standard.js";
+import { defaultLogger } from "../../logging.js";
+import { legacyPluginCompat } from "./legacy-plugin.middleware.js";
+import { Environment } from "../../environment.js";
 
 type RelayerEngineConfigs = {
   commonEnv: CommonEnv;
@@ -35,6 +35,7 @@ export enum Mode {
   EXECUTOR = "EXECUTOR",
   BOTH = "BOTH",
 }
+
 type NodeURI = string;
 
 interface RedisConfig {
@@ -64,6 +65,7 @@ export interface CommonEnv {
   supportedChains: ChainConfigInfo[];
   defaultWorkflowOptions: WorkflowOptions;
 }
+
 // assert CommonEnv is superset of CommonPluginEnv
 
 export type ListenerEnv = {
@@ -79,6 +81,7 @@ export type ExecutorEnv = {
 };
 
 export type CommonEnvRun = Omit<CommonEnv, "mode">;
+
 export interface RunArgs {
   // for configs, provide file path or config objects
   configs:
@@ -347,6 +350,7 @@ function validatePrivateKeys(
 }
 
 type Keys<T> = { [k in keyof T]: any };
+
 function validateStringEnum<B>(enumObj: Object, value: string | undefined): B {
   if (Object.values(enumObj).includes(value)) {
     return value as unknown as B;

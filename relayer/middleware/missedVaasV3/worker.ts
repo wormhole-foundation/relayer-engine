@@ -1,4 +1,4 @@
-import Redis, { Cluster } from "ioredis";
+import { Cluster, Redis } from "ioredis";
 import { Registry } from "prom-client";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { createPool, Pool } from "generic-pool";
@@ -8,26 +8,28 @@ import {
   defaultWormholeRpcs,
   defaultWormscanUrl,
   RelayerApp,
-} from "../../application";
-import { mapConcurrent, sleep } from "../../utils";
-import { RedisConnectionOpts } from "../../storage/redis-storage";
-import { initMetrics, MissedVaaMetrics } from "./metrics";
-import { updateMetrics } from "./helpers";
+} from "../../application.js";
+import { mapConcurrent, sleep } from "../../utils.js";
+import { RedisConnectionOpts } from "../../storage/redis-storage.js";
+import { initMetrics, MissedVaaMetrics } from "./metrics.js";
 import {
+  calculateSequenceStats,
+  MissedVaaRunStats,
+  updateMetrics,
+} from "./helpers.js";
+import {
+  checkForMissedVaas,
   ProcessVaaFn,
   refreshSeenSequences,
   registerEventListeners,
-  checkForMissedVaas,
-} from "./check";
+} from "./check.js";
 
 import {
+  tryGetExistingFailedSequences,
   tryGetLastSafeSequence,
   trySetLastSafeSequence,
-  tryGetExistingFailedSequences,
-} from "./storage";
-
-import { MissedVaaRunStats, calculateSequenceStats } from "./helpers";
-import { Wormscan, WormscanClient } from "../../rpc/wormscan-client";
+} from "./storage.js";
+import { Wormscan, WormscanClient } from "../../rpc/wormscan-client.js";
 
 const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 

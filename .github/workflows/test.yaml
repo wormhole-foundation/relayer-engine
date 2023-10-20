@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=2500"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
