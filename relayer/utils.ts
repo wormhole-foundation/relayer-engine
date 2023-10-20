@@ -12,10 +12,6 @@ import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana
 import { zeroPad } from "ethers/lib/utils.js";
 import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
-import * as bluebird from "bluebird";
-
-// @ts-ignore disgusting fix to support commonJS and esm
-const map = bluebird.map ?? bluebird.default.map;
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -195,10 +191,19 @@ export function dbg<T>(x: T, msg?: string): T {
   return x;
 }
 
-export function mapConcurrent(
+export async function mapConcurrent(
   arr: any[],
-  fn: (...args: any[]) => any,
+  fn: (...args: any[]) => Promise<any>,
   concurrency: number = 5,
 ) {
-  return map(arr, fn, { concurrency });
+  async function evaluateNext () {
+      if (arr.length === 0) return;
+      const args = arr.shift();
+      await fn(args);
+      // If any pending promise is resolved, then evaluate next
+      await evaluateNext();
+  }
+  // Promises that will be executed parallely, with a maximum of `concurrency` at a time
+  const promises = new Array(concurrency).fill(0).map(evaluateNext);
+  await Promise.all(promises);
 }
