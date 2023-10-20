@@ -19,16 +19,16 @@ import {
 } from "@certusone/wormhole-sdk";
 
 import {
+  CHAIN_ID_ARBITRUM,
   CHAIN_ID_AVAX,
   CHAIN_ID_BASE,
   CHAIN_ID_FANTOM,
+  CHAIN_ID_OPTIMISM,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SEI,
   CHAIN_ID_SUI,
-  CHAIN_ID_ARBITRUM,
-  CHAIN_ID_OPTIMISM,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { Environment } from "../../environment";
+} from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
+import { Environment } from "../../environment.js";
 
 const networks = {
   [Environment.MAINNET]: {

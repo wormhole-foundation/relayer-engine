@@ -1,7 +1,4 @@
 import * as wormholeSdk from "@certusone/wormhole-sdk";
-import { bech32 } from "bech32";
-import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import { zeroPad } from "ethers/lib/utils";
 import {
   ChainId,
   EVMChainId,
@@ -10,9 +7,11 @@ import {
   parseVaa,
   SignedVaa,
 } from "@certusone/wormhole-sdk";
-import { ParsedVaaWithBytes } from "./application";
+import { bech32 } from "bech32";
+import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/index.js";
+import { zeroPad } from "ethers/lib/utils.js";
+import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
-import { map } from "bluebird";
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -192,10 +191,19 @@ export function dbg<T>(x: T, msg?: string): T {
   return x;
 }
 
-export function mapConcurrent(
+export async function mapConcurrent(
   arr: any[],
-  fn: (...args: any[]) => any,
+  fn: (...args: any[]) => Promise<any>,
   concurrency: number = 5,
 ) {
-  return map(arr, fn, { concurrency });
+  async function evaluateNext() {
+    if (arr.length === 0) return;
+    const args = arr.shift();
+    await fn(args);
+    // If any pending promise is resolved, then evaluate next
+    await evaluateNext();
+  }
+  // Promises that will be executed parallely, with a maximum of `concurrency` at a time
+  const promises = new Array(concurrency).fill(0).map(evaluateNext);
+  await Promise.all(promises);
 }

@@ -6,6 +6,7 @@ export interface RelayerMetrics {
   vaasViaSpyTotal: Counter<string>;
   spySubscribedFilters: Gauge<string>;
 }
+
 export function createRelayerMetrics(
   relayerRegistry: Registry = new Registry(),
 ): { registry: Registry; metrics: RelayerMetrics } {

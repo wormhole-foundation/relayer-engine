@@ -1,4 +1,4 @@
-import { HttpClient, HttpClientError } from "./http-client";
+import { HttpClient, HttpClientError } from "./http-client.js";
 
 /**
  * Client for the wormscan API that never throws, but instead returns a WormscanResult that may contain an error.

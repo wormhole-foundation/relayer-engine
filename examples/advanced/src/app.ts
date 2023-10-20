@@ -1,5 +1,5 @@
 import yargs from "yargs";
-import * as Koa from "koa";
+import Koa from "koa";
 import {
   Context,
   Environment,
@@ -17,12 +17,12 @@ import {
   Storage,
   RelayJob,
   onJobHandler,
+  RedisStorage,
 } from "@wormhole-foundation/relayer-engine";
 import { CHAIN_ID_SOLANA, SignedVaa } from "@certusone/wormhole-sdk";
-import { rootLogger } from "./log";
-import { Controller } from "./controller";
+import { rootLogger } from "./log.js";
+import { Controller } from "./controller.js";
 import { Logger } from "winston";
-import { RedisStorage } from "../../../relayer/storage/redis-storage";
 
 export class TestStorage extends RedisStorage {
   startWorker(cb: onJobHandler): void {

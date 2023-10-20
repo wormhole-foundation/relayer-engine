@@ -1,21 +1,26 @@
 import {
-  ChainId,
   CHAIN_ID_SOLANA,
+  ChainId,
   EVMChainId,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
-import { ParsedVaaWithBytes, RelayerApp } from "../../application";
+import { ParsedVaaWithBytes, RelayerApp } from "../../application.js";
+import * as legacy from "./legacy-plugin-definition.js";
 import {
   Plugin,
   Providers as LegacyProviders,
-} from "./legacy-plugin-definition";
-import * as legacy from "./legacy-plugin-definition";
-import { StorageContext } from "../../storage/storage";
-import { LoggingContext } from "../logger.middleware";
-import { StagingAreaContext } from "../staging-area.middleware";
-import { ProviderContext, Providers } from "../providers.middleware";
-import { SolanaWallet, Wallet, WalletContext } from "../wallet";
-import { EVMWallet, WalletToolBox } from "../wallet";
+} from "./legacy-plugin-definition.js";
+import { StorageContext } from "../../storage/storage.js";
+import { LoggingContext } from "../logger.middleware.js";
+import { StagingAreaContext } from "../staging-area.middleware.js";
+import { ProviderContext, Providers } from "../providers.middleware.js";
+import {
+  EVMWallet,
+  SolanaWallet,
+  Wallet,
+  WalletContext,
+  WalletToolBox,
+} from "../wallet/index.js";
 import { Connection } from "@solana/web3.js";
 import { JsonRpcProvider } from "@mysten/sui.js";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";

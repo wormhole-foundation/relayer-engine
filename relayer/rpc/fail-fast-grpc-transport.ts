@@ -40,7 +40,7 @@ class TimeoutableTransport implements grpc.Transport {
 
   start(metadata: grpc.Metadata): void {
     const headers: Record<string, string> = {};
-    metadata.forEach(function (key, values) {
+    metadata.forEach(function (key: string, values: string[]) {
       headers[key] = values.join(", ");
     });
     const url = new URL(this.options.url);

@@ -1,7 +1,6 @@
 /// <reference lib="dom" />
-import { Middleware } from "../compose.middleware";
-import { Context } from "../context";
-import { sleep } from "../utils";
+import { Middleware } from "../compose.middleware.js";
+import { Context } from "../context.js";
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_SOLANA,
@@ -9,10 +8,10 @@ import {
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
-import { Environment } from "../environment";
+import { Environment } from "../environment.js";
 import { LRUCache } from "lru-cache";
 import { ParsedVaaWithBytes } from "../application.js";
-import { WormscanClient } from "../rpc/wormscan-client";
+import { WormscanClient } from "../rpc/wormscan-client.js";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;

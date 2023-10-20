@@ -1,14 +1,14 @@
-import { FailFastGrpcTransportFactory } from "../../rpc/fail-fast-grpc-transport";
+import { FailFastGrpcTransportFactory } from "../../rpc/fail-fast-grpc-transport.js";
 import {
-  coalesceChainName,
   ChainId,
+  coalesceChainName,
   getSignedVAAWithRetry,
 } from "@certusone/wormhole-sdk";
-import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
+import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc.js";
 
-import { SerializableVaaId } from "../../application";
-import { FilterIdentifier } from "./worker";
-import { MissedVaaMetrics } from "./metrics";
+import { SerializableVaaId } from "../../application.js";
+import { FilterIdentifier } from "./worker.js";
+import { MissedVaaMetrics } from "./metrics.js";
 
 export type MissedVaaRunStats = {
   processed: string[];

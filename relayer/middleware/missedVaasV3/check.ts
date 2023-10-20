@@ -1,26 +1,26 @@
-import Redis, { Cluster } from "ioredis";
+import { Cluster, Redis } from "ioredis";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { Pool } from "generic-pool";
-import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc";
+import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc.js";
 import {
   ParsedVaaWithBytes,
   RelayerApp,
   RelayerEvents,
-} from "../../application";
-import { SerializableVaaId } from "../../application";
-import { mapConcurrent } from "../../utils";
-import { MissedVaaRunStats, tryFetchVaa } from "./helpers";
+  SerializableVaaId,
+} from "../../application.js";
+import { mapConcurrent } from "../../utils.js";
+import { MissedVaaRunStats, tryFetchVaa } from "./helpers.js";
 import {
-  getAllProcessedSeqsInOrder,
-  calculateStartingIndex,
   batchMarkAsFailedToRecover,
   batchMarkAsSeen,
-  markVaaAsSeen,
+  calculateStartingIndex,
   deleteExistingSeenVAAsData,
+  getAllProcessedSeqsInOrder,
+  markVaaAsSeen,
   updateSeenSequences,
-} from "./storage";
-import { FilterIdentifier, MissedVaaOpts } from "./worker";
+} from "./storage.js";
+import { FilterIdentifier, MissedVaaOpts } from "./worker.js";
 
 export type ProcessVaaFn = (x: Buffer) => Promise<void>;
 

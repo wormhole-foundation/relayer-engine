@@ -1,8 +1,8 @@
 import { Cluster, Redis } from "ioredis";
 import { Logger } from "winston";
 
-import { SerializableVaaId } from "../../application";
-import { MissedVaaOpts, FilterIdentifier } from "./worker";
+import { SerializableVaaId } from "../../application.js";
+import { FilterIdentifier } from "./worker.js";
 
 export async function markVaaAsSeen(
   redis: Cluster | Redis,
@@ -267,6 +267,7 @@ function parseStorageVaaKey(key: string) {
 }
 
 const CURSOR_IDENTIFIER = "0";
+
 async function scanNextBatchAndUpdateSeenSequences(
   redis: Redis | Cluster,
   filter: FilterIdentifier,

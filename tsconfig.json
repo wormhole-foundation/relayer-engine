@@ -1,10 +1,8 @@
 {
   "compilerOptions": {
-    "outDir": "lib",
-    "target": "ESNext",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "lib": ["ES2021"],
+    "target": "ES2022",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
     "declaration": true,
     "skipLibCheck": true,
     "allowJs": true,
@@ -14,12 +12,12 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "downlevelIteration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": ["relayer"],
   "exclude": [
     "node_modules",
-    "relayer/lib/**/*",
     "**/__tests__/*",
     "relayer/**/*.test.ts",
     "test/*"
