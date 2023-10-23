@@ -1,12 +1,12 @@
 import { beforeEach, beforeAll, afterAll, describe } from "@jest/globals";
-import { WormholescanClient } from "../../relayer/rpc/wormscan-client";
+import { WormholescanClient } from "../../relayer/rpc/wormholescan-client";
 import { WormholeMock } from "../infrastructure/mock-wormscan-api";
 import { HttpClientError } from "../../relayer/rpc/http-client";
 
 let client: WormholescanClient;
 let timeout: number = 100; // 100ms
 
-describe("wormscan-client", () => {
+describe("wormholescan-client", () => {
   const server = new WormholeMock();
   let url: string;
 

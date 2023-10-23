@@ -69,7 +69,7 @@ export function sourceTx(
   optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
-  let wormscan: WormholescanClient;
+  let wormholescan: WormholescanClient;
   const alreadyFetchedHashes = new LRUCache({ max: 1_000 });
 
   return async (ctx, next) => {
@@ -77,8 +77,8 @@ export function sourceTx(
       // initialize options now that we know the environment from context
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
     }
-    if (!wormscan) {
-      wormscan = new WormholescanClient(new URL(opts.wormscanEndpoint), {
+    if (!wormholescan) {
+      wormholescan = new WormholescanClient(new URL(opts.wormscanEndpoint), {
         retries: opts.retries,
         initialDelay: opts.initialDelay,
         maxDelay: opts.maxDelay,
@@ -105,7 +105,7 @@ export function sourceTx(
       emitterAddress,
       sequence,
       ctx.logger,
-      wormscan,
+      wormholescan,
     );
     if (txHash === "") {
       ctx.logger?.debug("Could not retrieve tx hash.");
@@ -126,9 +126,9 @@ export async function fetchVaaHash(
   emitterAddress: Buffer,
   sequence: bigint,
   logger: Logger,
-  wormscan: WormholescanClient,
+  wormholescan: WormholescanClient,
 ) {
-  const response = await wormscan.getVaa(
+  const response = await wormholescan.getVaa(
     emitterChain,
     emitterAddress.toString("hex"),
     sequence,

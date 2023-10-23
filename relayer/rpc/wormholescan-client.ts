@@ -1,14 +1,14 @@
 import { HttpClient, HttpClientError } from "./http-client.js";
 
 /**
- * Client for the wormscan API that never throws, but instead returns a WormscanResult that may contain an error.
+ * Client for the wormholescan API that never throws, but instead returns a WormholescanResult that may contain an error.
  */
 export class WormholescanClient {
   private baseUrl: URL;
-  private defaultOptions?: WormscanOptions;
+  private defaultOptions?: WormholescanOptions;
   private client: HttpClient;
 
-  constructor(baseUrl: URL, defaultOptions?: WormscanOptions) {
+  constructor(baseUrl: URL, defaultOptions?: WormholescanOptions) {
     this.baseUrl = baseUrl;
     this.defaultOptions = defaultOptions;
     this.client = new HttpClient({
@@ -22,10 +22,10 @@ export class WormholescanClient {
   public async listVaas(
     chain: number,
     emitterAddress: string,
-    opts?: WormscanOptions,
-  ): Promise<WormscanResult<WormscanVaa[]>> {
+    opts?: WormholescanOptions,
+  ): Promise<WormholescanResult<WormholescanVaa[]>> {
     try {
-      const response = await this.client.get<{ data: WormscanVaa[] }>(
+      const response = await this.client.get<{ data: WormholescanVaa[] }>(
         `${
           this.baseUrl
         }api/v1/vaas/${chain}/${emitterAddress}?page=${this.getPage(
@@ -43,10 +43,10 @@ export class WormholescanClient {
     chain: number,
     emitterAddress: string,
     sequence: bigint,
-    opts?: WormscanOptions,
-  ): Promise<WormscanResult<WormscanVaa>> {
+    opts?: WormholescanOptions,
+  ): Promise<WormholescanResult<WormholescanVaa>> {
     try {
-      const response = await this.client.get<{ data: WormscanVaa }>(
+      const response = await this.client.get<{ data: WormholescanVaa }>(
         `${
           this.baseUrl
         }api/v1/vaas/${chain}/${emitterAddress}/${sequence.toString()}`,
@@ -66,16 +66,16 @@ export class WormholescanClient {
     return { error: new HttpClientError(err.message) };
   }
 
-  private getPage(opts?: WormscanOptions) {
+  private getPage(opts?: WormholescanOptions) {
     return opts?.page ?? this.defaultOptions?.page ?? 0;
   }
 
-  private getPageSize(opts?: WormscanOptions) {
+  private getPageSize(opts?: WormholescanOptions) {
     return opts?.pageSize ?? this.defaultOptions?.pageSize ?? 10;
   }
 }
 
-export type WormscanOptions = {
+export type WormholescanOptions = {
   pageSize?: number;
   page?: number;
   retries?: number;
@@ -84,7 +84,7 @@ export type WormscanOptions = {
   timeout?: number;
 };
 
-export type WormscanVaa = {
+export type WormholescanVaa = {
   id: string;
   sequence: bigint;
   vaa: Buffer;
@@ -93,7 +93,7 @@ export type WormscanVaa = {
   txHash?: string;
 };
 
-export type WormscanResult<T> = {
+export type WormholescanResult<T> = {
   error?: HttpClientError;
   data?: T;
 };
