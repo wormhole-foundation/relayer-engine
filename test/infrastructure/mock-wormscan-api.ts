@@ -7,6 +7,8 @@ type WormholeMockConfig = {
   uri: string;
 };
 
+const httpAddress = "http://localhost:559" + Math.floor(Math.random() * 10);
+
 /**
  * A mock for Wormholescan API.
  */
@@ -21,7 +23,6 @@ export class WormholeMock {
   }> = [];
 
   public async start(): Promise<WormholeMockConfig> {
-    const httpAddress = "http://localhost:55899";
     if (this.started) {
       return Promise.resolve({ uri: httpAddress });
     }
@@ -60,11 +61,11 @@ export class WormholeMock {
             data: [
               {
                 sequence: 10,
-                vaa: Buffer.from(""),
+                vaa: "MQ==",
               },
               {
                 sequence: 9,
-                vaa: Buffer.from(""),
+                vaa: "Mg==",
               },
             ],
           }),

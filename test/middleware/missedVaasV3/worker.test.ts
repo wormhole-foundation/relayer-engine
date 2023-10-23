@@ -15,6 +15,10 @@ import { runMissedVaaCheck } from "../../../relayer/middleware/missedVaasV3/work
 
 import { Redis } from "ioredis";
 import { Logger } from "winston";
+import {
+  Wormholescan,
+  WormholescanVaa,
+} from "../../../relayer/rpc/wormholescan-client";
 
 jest.mock("../../../relayer/middleware/missedVaasV3/storage");
 jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
@@ -41,6 +45,11 @@ const tryGetExistingFailedSequencesMock =
 
 const calculateSequenceStatsMock =
   calculateSequenceStats as jest.MockedFunction<typeof calculateSequenceStats>;
+
+const workingWormscanClient = {
+  listVaas: jest.fn(() => Promise.resolve({ data: [] })),
+  getVaa: jest.fn(() => Promise.resolve({ data: {} as WormholescanVaa })),
+};
 
 describe("MissedVaaV3.worker", () => {
   afterEach(() => {
@@ -94,6 +103,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(checkForMissedVaasMock).toHaveBeenCalledTimes(1);
@@ -107,6 +117,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(updateSeenSequencesMock).toHaveBeenCalledTimes(0);
@@ -123,11 +134,12 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(checkForMissedVaasMock).toHaveBeenCalledTimes(1);
       const args = checkForMissedVaasMock.mock.calls[0];
-      expect(args[5]).toEqual(mockSafeSequence);
+      expect(args[6]).toEqual(mockSafeSequence);
     });
 
     test("If there's not previous safe sequence, it will the lastSafeSequence as safe sequence", async () => {
@@ -142,6 +154,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(trySetLastSafeSequenceMock).toHaveBeenCalledTimes(1);
@@ -164,6 +177,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(trySetLastSafeSequenceMock).toHaveBeenCalledTimes(1);
@@ -186,6 +200,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
       );
 
       expect(trySetLastSafeSequenceMock).toHaveBeenCalledTimes(0);
@@ -210,6 +225,7 @@ describe("MissedVaaV3.worker", () => {
         processVaaMock,
         opts,
         prefix,
+        workingWormscanClient,
         loggerMock as unknown as Logger,
       );
 

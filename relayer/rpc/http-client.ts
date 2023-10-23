@@ -8,12 +8,14 @@ export class HttpClient {
   private maxDelay: number = 60_000;
   private retries: number = 0;
   private timeout: number = 5_000;
+  private cache: RequestCache = "default";
 
   constructor(options?: HttpClientOptions) {
     options?.initialDelay && (this.initialDelay = options.initialDelay);
     options?.maxDelay && (this.maxDelay = options.maxDelay);
     options?.retries && (this.retries = options.retries);
     options?.timeout && (this.timeout = options.timeout);
+    options?.cache && (this.cache = options.cache);
   }
 
   public async get<T>(url: string, opts?: HttpClientOptions): Promise<T> {
@@ -30,6 +32,7 @@ export class HttpClient {
       response = await fetch(url, {
         method: method,
         signal: AbortSignal.timeout(opts?.timeout ?? this.timeout),
+        cache: opts?.cache ?? this.cache,
       });
     } catch (err) {
       // Connection / timeout error:
@@ -83,6 +86,7 @@ export type HttpClientOptions = {
   maxDelay?: number;
   retries?: number;
   timeout?: number;
+  cache?: RequestCache;
 };
 
 export class HttpClientError extends Error {
@@ -92,9 +96,9 @@ export class HttpClientError extends Error {
 
   constructor(message?: string, response?: Response, data?: any) {
     super(message ?? `Unexpected status code: ${response?.status}`);
-    this.status = response.status;
+    this.status = response?.status;
     this.data = data;
-    this.headers = response.headers;
+    this.headers = response?.headers;
     Error.captureStackTrace(this, this.constructor);
   }
 
