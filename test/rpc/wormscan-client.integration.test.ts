@@ -1,4 +1,4 @@
-import { beforeEach, beforeAll, afterAll, describe } from "@jest/globals";
+import { beforeEach, beforeAll, afterAll, describe, test } from "@jest/globals";
 import { WormscanClient } from "../../relayer/rpc/wormscan-client";
 import { WormholeMock } from "../infrastructure/mock-wormscan-api";
 import { HttpClientError } from "../../relayer/rpc/http-client";
@@ -30,6 +30,7 @@ describe("wormscan-client", () => {
     );
     expect(vaasResponse?.data).toBeDefined();
     expect(vaasResponse?.data?.length).toBeGreaterThan(0);
+    expect(vaasResponse?.data[0].vaa.toString()).not.toContain("object");
   });
 
   test("should fail if request fails and no retries set", async () => {
@@ -41,9 +42,18 @@ describe("wormscan-client", () => {
   });
 
   test("should work if request fails and then works", async () => {
-    const expectedData = [{ sequence: 10, vaa: Buffer.from("") }];
+    const response = [
+      {
+        sequence: 10,
+        vaa: "AQAAAAABAE1EmozfPWDzAhFd3fJGgvl/uIDlfRQRZK/UKhR+1rH5ROhWlnasC7LaxdkMDE45y5xewLkB5YiNdT2JLulA+5EAZS3I4AAAAAAAAgAAAAAAAAAAAAAAAAppFGcWs6IWIih++hYHQkxmMGmkAAAAAAAAAKPIAQAAAAAAAAAAAAAAAAeGXG6HufcCVTd+AkrOZjDB6qN/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfQAAAAAAAAAAQAAAAAAA5jMAAAAAAAAAAAAAAAAWRXzMU91NFot/YVAi27AFKbyA70AAAAAAAAAAAAAAAB3W+72vA94iLCi+Qbr/j6n29d3mwA/d29ybWhvbGVEZXBvc2l0AAAAAAAAAAAAAAAAWRXzMU91NFot/YVAi27AFKbyA70AAAAAAAAAAAAAAAAZwjdU",
+      },
+    ];
+    const expectedData = response.map(v => ({
+      ...v,
+      vaa: Buffer.from(v.vaa, "base64"),
+    }));
     server.respondWith(500, { message: "Internal Server Error" });
-    server.respondWith(200, { data: expectedData });
+    server.respondWith(200, { data: response });
 
     const vaasResponse = await client.listVaas(8, "1000", { retries: 2 });
 

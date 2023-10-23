@@ -1,6 +1,14 @@
 import { HttpClient } from "./http-client.js";
 
-export class WormscanClient {
+export interface Wormscan {
+  listVaas(
+    chain: number,
+    emitterAddress: string,
+    opts?: WormscanOptions,
+  ): Promise<WormscanResult<WormscanVaa[]>>;
+}
+
+export class WormscanClient implements Wormscan {
   private baseUrl: URL;
   private defaultOptions?: WormscanOptions;
   private client: HttpClient;
@@ -13,6 +21,7 @@ export class WormscanClient {
       retries: defaultOptions?.retries,
       initialDelay: defaultOptions?.initialDelay,
       maxDelay: defaultOptions?.maxDelay,
+      cache: defaultOptions?.noCache ? "no-cache" : "default",
     });
   }
 
@@ -25,7 +34,7 @@ export class WormscanClient {
     opts?: WormscanOptions,
   ): Promise<WormscanResult<WormscanVaa[]>> {
     try {
-      const response = await this.client.get<{ data: WormscanVaa[] }>(
+      const response = await this.client.get<{ data: WormscanVaaResponse[] }>(
         `${
           this.baseUrl
         }api/v1/vaas/${chain}/${emitterAddress}?page=${this.getPage(
@@ -33,9 +42,17 @@ export class WormscanClient {
         )}&pageSize=${this.getPageSize(opts)}`,
         opts,
       );
-      return { data: response.data };
+
+      return {
+        data: response.data.map(v => {
+          return {
+            ...v,
+            vaa: Buffer.from(v.vaa, "base64"),
+          };
+        }),
+      };
     } catch (err: Error | any) {
-      return { error: err };
+      return { error: err, data: [] };
     }
   }
 
@@ -55,7 +72,16 @@ export type WormscanOptions = {
   initialDelay?: number;
   maxDelay?: number;
   timeout?: number;
+  noCache?: boolean;
 };
+
+class WormscanVaaResponse {
+  id: string;
+  sequence: bigint;
+  vaa: string;
+  emitterAddr: string;
+  emitterChain: number;
+}
 
 export type WormscanVaa = {
   id: string;
@@ -67,5 +93,5 @@ export type WormscanVaa = {
 
 export type WormscanResult<T> = {
   error?: Error;
-  data?: T;
+  data: T;
 };

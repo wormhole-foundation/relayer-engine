@@ -30,6 +30,7 @@ import { createBullBoard } from "@bull-board/api";
 import { Environment } from "./environment.js";
 import { TokensByChain } from "./middleware/wallet/wallet-management.js";
 import { Registry } from "prom-client";
+import Koa from "koa";
 
 export interface StandardMissedVaaOpts {
   concurrency?: number;
@@ -192,7 +193,9 @@ export class StandardRelayerApp<
    * A UI that you can mount in a KOA app to show the status of the queue / jobs.
    * @param path
    */
-  storageKoaUI(path: string) {
+  storageKoaUI(
+    path: string,
+  ): Koa.Middleware<Koa.DefaultState, Koa.DefaultContext, any> {
     // UI
     const serverAdapter = new KoaAdapter();
     serverAdapter.setBasePath(path);

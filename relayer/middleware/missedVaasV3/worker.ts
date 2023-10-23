@@ -4,7 +4,11 @@ import { ChainId } from "@certusone/wormhole-sdk";
 import { createPool, Pool } from "generic-pool";
 import { Logger } from "winston";
 
-import { defaultWormholeRpcs, RelayerApp } from "../../application.js";
+import {
+  defaultWormholeRpcs,
+  defaultWormscanUrl,
+  RelayerApp,
+} from "../../application.js";
 import { mapConcurrent, sleep } from "../../utils.js";
 import { RedisConnectionOpts } from "../../storage/redis-storage.js";
 import { initMetrics, MissedVaaMetrics } from "./metrics.js";
@@ -25,6 +29,7 @@ import {
   tryGetLastSafeSequence,
   trySetLastSafeSequence,
 } from "./storage.js";
+import { Wormscan, WormscanClient } from "../../rpc/wormscan-client.js";
 
 const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 
@@ -32,6 +37,7 @@ export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
   logger?: Logger;
   wormholeRpcs?: string[];
+  wormscanUrl?: string;
   // How many "source" chains will be scanned for missed VAAs concurrently.
   concurrency?: number;
   // Interval at which the worker will check for missed VAAs.
@@ -74,6 +80,7 @@ export async function spawnMissedVaaWorker(
   opts: MissedVaaOpts,
 ): Promise<void> {
   opts.wormholeRpcs = opts.wormholeRpcs ?? defaultWormholeRpcs[app.env];
+  opts.wormscanUrl = opts.wormscanUrl ?? defaultWormscanUrl[app.env];
   if (!metrics) {
     metrics = opts.registry ? initMetrics(opts.registry) : {};
   }
@@ -83,6 +90,10 @@ export async function spawnMissedVaaWorker(
   }
 
   const redisPool = createRedisPool(opts);
+  const wormscan = new WormscanClient(new URL(opts.wormscanUrl), {
+    maxDelay: 60_000,
+    noCache: true,
+  });
 
   if (!app.filters.length) {
     opts.logger?.warn(
@@ -127,6 +138,7 @@ export async function spawnMissedVaaWorker(
             app.processVaa.bind(app),
             opts,
             prefix,
+            wormscan,
             filterLogger,
           );
           updateMetrics(
@@ -160,6 +172,7 @@ export async function runMissedVaaCheck(
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
   storagePrefix: string,
+  wormscan: Wormscan,
   logger?: Logger,
 ) {
   const { emitterChain, emitterAddress } = filter;
@@ -178,6 +191,7 @@ export async function runMissedVaaCheck(
     processVaa,
     opts,
     storagePrefix,
+    wormscan,
     previousSafeSequence,
     logger,
   );
