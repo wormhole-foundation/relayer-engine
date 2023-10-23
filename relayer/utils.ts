@@ -196,9 +196,10 @@ export async function mapConcurrent(
   fn: (...args: any[]) => Promise<any>,
   concurrency: number = 5,
 ) {
+  const pendingArgs = [...arr];
   async function evaluateNext() {
-    if (arr.length === 0) return;
-    const args = arr.shift();
+    if (pendingArgs.length === 0) return;
+    const args = pendingArgs.shift();
     await fn(args);
     // If any pending promise is resolved, then evaluate next
     await evaluateNext();
