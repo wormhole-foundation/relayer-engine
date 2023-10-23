@@ -1,6 +1,8 @@
-import { grpc } from "@improbable-eng/grpc-web";
+import * as pkg from "@improbable-eng/grpc-web";
 import * as http from "http";
 import * as https from "https";
+
+const grpc = pkg.grpc ?? pkg;
 
 /**
  * Transport factory for grpc-web that applies a timeout.
@@ -14,22 +16,22 @@ import * as https from "https";
 export function FailFastGrpcTransportFactory(
   timeoutMs: number = 10_000,
   httpOptions?: http.RequestOptions,
-): grpc.TransportFactory {
-  return function (opts: grpc.TransportOptions) {
+): pkg.grpc.TransportFactory {
+  return function (opts: pkg.grpc.TransportOptions) {
     return new TimeoutableTransport(opts, timeoutMs, httpOptions);
   };
 }
 
 export class TimeoutError extends Error {}
 
-class TimeoutableTransport implements grpc.Transport {
+class TimeoutableTransport implements pkg.grpc.Transport {
   private readonly timeoutMs: number;
-  private readonly options: grpc.TransportOptions;
+  private readonly options: pkg.grpc.TransportOptions;
   private readonly httpOptions?: http.RequestOptions;
   private request?: http.ClientRequest;
 
   constructor(
-    opts: grpc.TransportOptions,
+    opts: pkg.grpc.TransportOptions,
     timeoutMs: number,
     httpOptions?: http.RequestOptions,
   ) {
@@ -38,7 +40,7 @@ class TimeoutableTransport implements grpc.Transport {
     this.httpOptions = httpOptions;
   }
 
-  start(metadata: grpc.Metadata): void {
+  start(metadata: pkg.grpc.Metadata): void {
     const headers: Record<string, string> = {};
     metadata.forEach(function (key: string, values: string[]) {
       headers[key] = values.join(", ");
@@ -71,6 +73,7 @@ class TimeoutableTransport implements grpc.Transport {
 
   responseCallback(response: http.IncomingMessage): void {
     const headers = this.filterHeadersForUndefined(response.headers);
+    // @ts-ignore (typing problem with @improbable-eng/grpc-web that they won't fix due to deprecation)
     this.options.onHeaders(new grpc.Metadata(headers), response.statusCode);
     response.on("data", chunk => {
       this.options.onChunk(this.toArrayBuffer(chunk));
