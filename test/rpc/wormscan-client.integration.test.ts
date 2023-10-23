@@ -1,9 +1,9 @@
 import { beforeEach, beforeAll, afterAll, describe } from "@jest/globals";
-import { WormscanClient } from "../../relayer/rpc/wormscan-client";
+import { WormholescanClient } from "../../relayer/rpc/wormscan-client";
 import { WormholeMock } from "../infrastructure/mock-wormscan-api";
 import { HttpClientError } from "../../relayer/rpc/http-client";
 
-let client: WormscanClient;
+let client: WormholescanClient;
 let timeout: number = 100; // 100ms
 
 describe("wormscan-client", () => {
@@ -12,7 +12,7 @@ describe("wormscan-client", () => {
 
   beforeAll(async () => {
     url = (await server.start()).uri;
-    client = new WormscanClient(new URL(url), { retries: 0, timeout });
+    client = new WormholescanClient(new URL(url), { retries: 0, timeout });
   }, 10_000);
 
   beforeEach(async () => {

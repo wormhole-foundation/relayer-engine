@@ -3,7 +3,7 @@ import { HttpClient, HttpClientError } from "./http-client.js";
 /**
  * Client for the wormscan API that never throws, but instead returns a WormscanResult that may contain an error.
  */
-export class WormscanClient {
+export class WormholescanClient {
   private baseUrl: URL;
   private defaultOptions?: WormscanOptions;
   private client: HttpClient;

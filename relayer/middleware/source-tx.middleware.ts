@@ -11,7 +11,7 @@ import { Logger } from "winston";
 import { Environment } from "../environment.js";
 import { LRUCache } from "lru-cache";
 import { ParsedVaaWithBytes } from "../application.js";
-import { WormscanClient } from "../rpc/wormscan-client.js";
+import { WormholescanClient } from "../rpc/wormholescan-client.js";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -69,7 +69,7 @@ export function sourceTx(
   optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
-  let wormscan: WormscanClient;
+  let wormscan: WormholescanClient;
   const alreadyFetchedHashes = new LRUCache({ max: 1_000 });
 
   return async (ctx, next) => {
@@ -78,7 +78,7 @@ export function sourceTx(
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
     }
     if (!wormscan) {
-      wormscan = new WormscanClient(new URL(opts.wormscanEndpoint), {
+      wormscan = new WormholescanClient(new URL(opts.wormscanEndpoint), {
         retries: opts.retries,
         initialDelay: opts.initialDelay,
         maxDelay: opts.maxDelay,
@@ -126,7 +126,7 @@ export async function fetchVaaHash(
   emitterAddress: Buffer,
   sequence: bigint,
   logger: Logger,
-  wormscan: WormscanClient,
+  wormscan: WormholescanClient,
 ) {
   const response = await wormscan.getVaa(
     emitterChain,
