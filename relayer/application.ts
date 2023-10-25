@@ -64,6 +64,12 @@ export const defaultWormholeRpcs = {
   [Environment.DEVNET]: [""],
 };
 
+export const defaultWormscanUrl = {
+  [Environment.MAINNET]: "https://api.wormholescan.io",
+  [Environment.TESTNET]: "https://api.testnet.wormholescan.io",
+  [Environment.DEVNET]: "https://api.testnet.wormholescan.io",
+};
+
 const defaultOpts = (env: Environment): RelayerAppOpts => ({
   wormholeRpcs: defaultWormholeRpcs[env],
   concurrency: 1,

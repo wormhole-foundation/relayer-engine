@@ -2,7 +2,6 @@ import { Cluster, Redis } from "ioredis";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { Pool } from "generic-pool";
-import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc.js";
 import {
   ParsedVaaWithBytes,
   RelayerApp,
@@ -21,6 +20,7 @@ import {
   updateSeenSequences,
 } from "./storage.js";
 import { FilterIdentifier, MissedVaaOpts } from "./worker.js";
+import { Wormscan } from "../../rpc/wormscan-client.js";
 
 export type ProcessVaaFn = (x: Buffer) => Promise<void>;
 
@@ -30,6 +30,7 @@ export async function checkForMissedVaas(
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
   prefix: string,
+  wormscan: Wormscan,
   previousSafeSequence?: bigint | null,
   logger?: Logger,
 ): Promise<MissedVaaRunStats> {
@@ -134,7 +135,7 @@ export async function checkForMissedVaas(
   // look ahead of greatest seen sequence in case the next vaa was missed
   // continue looking ahead until a vaa can't be fetched
   const lastSeq = seenSequences[seenSequences.length - 1]
-    ? seenSequences[seenSequences.length - 1] + 1n
+    ? seenSequences[seenSequences.length - 1]
     : null;
 
   let lookAheadSequence =
@@ -151,7 +152,7 @@ export async function checkForMissedVaas(
   } = await lookAhead(
     lookAheadSequence,
     filter,
-    opts.wormholeRpcs,
+    wormscan,
     opts.fetchVaaRetries,
     opts.maxLookAhead,
     processVaa,
@@ -258,9 +259,9 @@ export async function registerEventListeners(
 }
 
 async function lookAhead(
-  lookAheadSequence: bigint,
+  lastSeenSequence: bigint,
   filter: FilterIdentifier,
-  wormholeRpcs: string[],
+  wormscan: Wormscan,
   maxRetries: number,
   maxLookAhead: number = 10,
   processVaa: ProcessVaaFn,
@@ -268,8 +269,8 @@ async function lookAhead(
 ) {
   const lookAheadSequences: string[] = [];
   const processed: string[] = [];
-  const failedToRecover: string[] = [];
-  if (!lookAheadSequence) {
+  let failedToRecover: string[] = [];
+  if (!lastSeenSequence) {
     logger?.warn(
       `No VAAs seen and no starting sequence was configured. Won't look ahead for missed VAAs.`,
     );
@@ -278,72 +279,63 @@ async function lookAhead(
   }
 
   logger?.info(
-    `Looking ahead for missed VAAs from sequence: ${lookAheadSequence}`,
+    `Looking ahead for missed VAAs from sequence: ${lastSeenSequence}`,
   );
 
-  let vaasNotFound: string[] = [];
+  let latestVaas = await wormscan.listVaas(
+    filter.emitterChain,
+    filter.emitterAddress,
+    { pageSize: maxLookAhead, retries: maxRetries },
+  );
+  if (latestVaas.error) {
+    logger?.error(
+      `Error FETCHING Look Ahead VAAs. Error: ${latestVaas.error.message}`,
+      latestVaas.error,
+    );
+    throw latestVaas.error;
+  }
 
-  for (let seq = lookAheadSequence; true; seq++) {
-    const vaaKey = {
-      ...filter,
-      sequence: seq.toString(),
-    } as SerializableVaaId;
+  // latestVaas.data is sorted DESC based on timestamp, so we sort ASC by sequence
+  const vaas = latestVaas.data
+    .filter(vaa => vaa.sequence > lastSeenSequence)
+    .sort((a, b) => Number(a.sequence - b.sequence));
 
-    let vaa: GetSignedVAAResponse | null = null;
-    try {
-      vaa = await tryFetchVaa(vaaKey, wormholeRpcs, maxRetries);
-      // reset failure counter if we successfully fetched a vaa
-      if (vaa) {
-        if (vaasNotFound.length > 0) {
-          logger?.warn(
-            `Look Ahead existing VAAs not found in the guardian: [${vaasNotFound.join(
-              ", ",
-            )}]`,
-          );
-          failedToRecover.push(...vaasNotFound);
-        }
-        vaasNotFound = [];
-      }
-    } catch (error) {
-      let message = "unknown";
-      if (error instanceof Error) {
-        message = error.message;
-      }
-      logger?.error(
-        `Error FETCHING Look Ahead VAA. Sequence ${seq}. Error: ${message} `,
-        error,
+  if (vaas.length === 0) {
+    logger?.debug(`No Look Ahead VAAs found.`);
+    return { lookAheadSequences, processed, failedToRecover };
+  }
+
+  logger?.debug(
+    `Found ${vaas.length} Look Ahead VAAs. From ${vaas[0].sequence} to ${
+      vaas[vaas.length - 1].sequence
+    }`,
+  );
+
+  let lastVisitedSequence: bigint = lastSeenSequence;
+
+  for (const vaa of vaas) {
+    lookAheadSequences.push(vaa.sequence.toString());
+    const sequenceGap = BigInt(vaa.sequence) - BigInt(lastVisitedSequence);
+    if (sequenceGap > 0) {
+      const missing = Array.from({ length: Number(sequenceGap - 1n) }, (_, i) =>
+        (lastVisitedSequence + BigInt(i + 1)).toString(),
       );
-      throw error;
+      failedToRecover = failedToRecover.concat(missing);
     }
-
-    if (!vaa && vaasNotFound.length < maxLookAhead) {
-      logger?.debug(`Look Ahead VAA not found. Sequence: ${seq.toString()}`);
-      vaasNotFound.push(seq.toString());
-      continue;
-    }
-
-    if (!vaa && vaasNotFound.length >= maxLookAhead) {
-      logger?.debug(
-        `Look Ahead VAA reached max look ahead. Sequence: ${seq.toString()}`,
-      );
-      break;
-    }
-
-    lookAheadSequences.push(seq.toString());
-
-    logger?.debug(`Found Look Ahead VAA. Sequence: ${seq.toString()}`);
 
     try {
       // since we add this VAA to the queue, there's no need to mark it as seen
       // (it will be automatically marked as seen when the "added" event is fired)
-      await processVaa(Buffer.from(vaa.vaaBytes));
-      processed.push(seq.toString());
+      await processVaa(vaa.vaa);
+      processed.push(vaa.sequence.toString());
     } catch (error) {
       logger?.error(
-        `Error PROCESSING Look Ahead VAA. Sequence: ${seq.toString()}. Error:`,
+        `Error PROCESSING Look Ahead VAA. Sequence: ${vaa.sequence.toString()}. Error:`,
         error,
       );
     }
+
+    lastVisitedSequence = vaa.sequence;
   }
 
   return { lookAheadSequences, processed, failedToRecover };

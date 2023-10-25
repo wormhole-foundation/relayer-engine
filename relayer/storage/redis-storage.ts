@@ -12,6 +12,7 @@ import { createStorageMetrics, StorageMetrics } from "../storage.metrics.js";
 import { Registry } from "prom-client";
 import { sleep } from "../utils.js";
 import { onJobHandler, RelayJob, Storage } from "./storage.js";
+import Koa from "koa";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
@@ -262,7 +263,9 @@ export class RedisStorage implements Storage {
     }
   }
 
-  storageKoaUI(path: string) {
+  storageKoaUI(
+    path: string,
+  ): Koa.Middleware<Koa.DefaultState, Koa.DefaultContext, any> {
     // UI
     const serverAdapter = new KoaAdapter();
     serverAdapter.setBasePath(path);
