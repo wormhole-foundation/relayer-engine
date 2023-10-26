@@ -2,7 +2,8 @@ import * as pkg from "@improbable-eng/grpc-web";
 import * as http from "http";
 import * as https from "https";
 
-const grpc = pkg.grpc ?? pkg;
+// @ts-ignore https://github.com/improbable-eng/grpc-web/issues/1171
+const grpc = pkg.grpc ?? pkg.default.grpc;
 
 /**
  * Transport factory for grpc-web that applies a timeout.
