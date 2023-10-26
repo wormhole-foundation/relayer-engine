@@ -74,7 +74,7 @@ class TimeoutableTransport implements pkg.grpc.Transport {
   responseCallback(response: http.IncomingMessage): void {
     const headers = this.filterHeadersForUndefined(response.headers);
     // @ts-ignore (typing problem with @improbable-eng/grpc-web that they won't fix due to deprecation)
-    this.options.onHeaders(new grpc.Metadata(headers), response.statusCode);
+    this.options.onHeaders(new pkg.Metadata(headers), response.statusCode);
     response.on("data", chunk => {
       this.options.onChunk(this.toArrayBuffer(chunk));
     });
