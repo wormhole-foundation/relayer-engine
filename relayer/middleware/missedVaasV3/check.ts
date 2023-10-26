@@ -61,13 +61,22 @@ export async function checkForMissedVaas(
   let missingSequences: bigint[] = [];
 
   if (seenSequences.length) {
-    const first = seenSequences[0];
+    const first =
+      previousSafeSequence !== null && previousSafeSequence < seenSequences[0]
+        ? previousSafeSequence
+        : seenSequences[0];
     const last = seenSequences[seenSequences.length - 1];
     logger?.info(
       `Scanning sequences from ${first} to ${last} for missing sequences`,
     );
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
+    if (
+      previousSafeSequence !== null &&
+      previousSafeSequence < seenSequences[0]
+    ) {
+      seenSequences.unshift(previousSafeSequence);
+    }
     missingSequences = scanForSequenceLeaps(seenSequences);
 
     await mapConcurrent(
@@ -171,15 +180,13 @@ export async function checkForMissedVaas(
       failedToRecover,
     );
 
-  const allSeenVaas = processed.concat(failedToRecover);
-
-  if (allSeenVaas.length)
+  if (processed.length)
     await batchMarkAsSeen(
       redis,
       prefix,
       emitterChain,
       emitterAddress,
-      allSeenVaas,
+      processed,
     );
 
   return {
@@ -311,11 +318,11 @@ async function lookAhead(
     }`,
   );
 
-  let lastVisitedSequence: bigint = lastSeenSequence;
+  let lastVisitedSequence = BigInt(lastSeenSequence);
 
   for (const vaa of vaas) {
     lookAheadSequences.push(vaa.sequence.toString());
-    const sequenceGap = BigInt(vaa.sequence) - BigInt(lastVisitedSequence);
+    const sequenceGap = BigInt(vaa.sequence) - lastVisitedSequence;
     if (sequenceGap > 0) {
       const missing = Array.from({ length: Number(sequenceGap - 1n) }, (_, i) =>
         (lastVisitedSequence + BigInt(i + 1)).toString(),
@@ -335,7 +342,7 @@ async function lookAhead(
       );
     }
 
-    lastVisitedSequence = vaa.sequence;
+    lastVisitedSequence = BigInt(vaa.sequence);
   }
 
   return { lookAheadSequences, processed, failedToRecover };
