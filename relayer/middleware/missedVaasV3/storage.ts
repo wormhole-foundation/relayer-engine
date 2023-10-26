@@ -22,11 +22,18 @@ export function batchMarkAsSeen(
   emitterAddress: string,
   sequences: string[],
 ) {
-  return batchAddToSet(
-    redis,
-    getSeenVaaKey(prefix, emitterChain, emitterAddress),
-    sequences,
-  );
+  return Promise.all([
+    batchAddToSet(
+      redis,
+      getSeenVaaKey(prefix, emitterChain, emitterAddress),
+      sequences,
+    ),
+    batchRemoveFromSet(
+      redis,
+      getFailedToFetchKey(prefix, emitterChain, emitterAddress),
+      sequences,
+    )
+  ]);
 }
 
 export function batchMarkAsFailedToRecover(
@@ -330,4 +337,18 @@ async function batchAddToSet(
   }
 
   await pipeline.exec();
+}
+
+async function batchRemoveFromSet(
+  redis: Cluster | Redis,
+  key: string,
+  sequences: string[],
+) {
+  const pipeline = redis.pipeline();
+
+  for (const sequence of sequences) {
+    pipeline.zrem(key, sequence);
+  }
+
+  return pipeline.exec();
 }
