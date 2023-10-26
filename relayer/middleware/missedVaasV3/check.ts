@@ -309,11 +309,11 @@ async function lookAhead(
     }`,
   );
 
-  let lastVisitedSequence: bigint = lastSeenSequence;
+  let lastVisitedSequence: bigint = BigInt(lastSeenSequence);
 
   for (const vaa of vaas) {
     lookAheadSequences.push(vaa.sequence.toString());
-    const sequenceGap = BigInt(vaa.sequence) - BigInt(lastVisitedSequence);
+    const sequenceGap = BigInt(vaa.sequence) - lastVisitedSequence;
     if (sequenceGap > 0) {
       const missing = Array.from({ length: Number(sequenceGap - 1n) }, (_, i) =>
         (lastVisitedSequence + BigInt(i + 1)).toString(),
@@ -333,7 +333,7 @@ async function lookAhead(
       );
     }
 
-    lastVisitedSequence = vaa.sequence;
+    lastVisitedSequence = BigInt(vaa.sequence);
   }
 
 
