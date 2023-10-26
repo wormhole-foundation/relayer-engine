@@ -61,14 +61,20 @@ export async function checkForMissedVaas(
   let missingSequences: bigint[] = [];
 
   if (seenSequences.length) {
-    const first = (previousSafeSequence !== null && previousSafeSequence < seenSequences[0]) ? previousSafeSequence : seenSequences[0];
+    const first =
+      previousSafeSequence !== null && previousSafeSequence < seenSequences[0]
+        ? previousSafeSequence
+        : seenSequences[0];
     const last = seenSequences[seenSequences.length - 1];
     logger?.info(
       `Scanning sequences from ${first} to ${last} for missing sequences`,
     );
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
-    if (previousSafeSequence !== null && previousSafeSequence < seenSequences[0]) {
+    if (
+      previousSafeSequence !== null &&
+      previousSafeSequence < seenSequences[0]
+    ) {
       seenSequences.unshift(previousSafeSequence);
     }
     missingSequences = scanForSequenceLeaps(seenSequences);
@@ -338,8 +344,6 @@ async function lookAhead(
 
     lastVisitedSequence = BigInt(vaa.sequence);
   }
-
-
 
   return { lookAheadSequences, processed, failedToRecover };
 }

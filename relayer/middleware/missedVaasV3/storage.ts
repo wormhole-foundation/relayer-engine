@@ -32,7 +32,7 @@ export function batchMarkAsSeen(
       redis,
       getFailedToFetchKey(prefix, emitterChain, emitterAddress),
       sequences,
-    )
+    ),
   ]);
 }
 
