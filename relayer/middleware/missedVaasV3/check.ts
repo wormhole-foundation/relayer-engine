@@ -171,15 +171,13 @@ export async function checkForMissedVaas(
       failedToRecover,
     );
 
-  const allSeenVaas = processed.concat(failedToRecover);
-
-  if (allSeenVaas.length)
+  if (processed.length)
     await batchMarkAsSeen(
       redis,
       prefix,
       emitterChain,
       emitterAddress,
-      allSeenVaas,
+      processed,
     );
 
   return {
@@ -337,6 +335,8 @@ async function lookAhead(
 
     lastVisitedSequence = vaa.sequence;
   }
+
+
 
   return { lookAheadSequences, processed, failedToRecover };
 }
