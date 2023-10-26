@@ -225,8 +225,8 @@ describe("MissedVaaV3.check", () => {
 
       const markedSeen = batchMarkAsSeenMock.mock.calls[0][4];
 
-      // VAAs marked as failed to recover are marked as seen
-      expect(markedSeen.length).toEqual(2);
+      // VAAs marked as failed to recover are NOT marked as seen
+      expect(markedSeen.length).toEqual(1);
     });
 
     test("If a sequence fails to be reprocessed it won't be marked as seen and won't interrupt the processing of other seqs", async () => {
