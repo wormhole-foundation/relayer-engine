@@ -318,7 +318,7 @@ async function lookAhead(
     }`,
   );
 
-  let lastVisitedSequence: bigint = BigInt(lastSeenSequence);
+  let lastVisitedSequence = BigInt(lastSeenSequence);
 
   for (const vaa of vaas) {
     lookAheadSequences.push(vaa.sequence.toString());
