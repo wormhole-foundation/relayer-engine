@@ -15,6 +15,10 @@ import { runMissedVaaCheck } from "../../../relayer/middleware/missedVaasV3/work
 
 import { Redis } from "ioredis";
 import { Logger } from "winston";
+import {
+  Wormholescan,
+  WormholescanVaa,
+} from "../../../relayer/rpc/wormholescan-client";
 
 jest.mock("../../../relayer/middleware/missedVaasV3/storage");
 jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
@@ -44,6 +48,7 @@ const calculateSequenceStatsMock =
 
 const workingWormscanClient = {
   listVaas: jest.fn(() => Promise.resolve({ data: [] })),
+  getVaa: jest.fn(() => Promise.resolve({ data: {} as WormholescanVaa })),
 };
 
 describe("MissedVaaV3.worker", () => {

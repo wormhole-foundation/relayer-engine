@@ -29,7 +29,10 @@ import {
   tryGetLastSafeSequence,
   trySetLastSafeSequence,
 } from "./storage.js";
-import { Wormscan, WormscanClient } from "../../rpc/wormscan-client.js";
+import {
+  Wormholescan,
+  WormholescanClient,
+} from "../../rpc/wormholescan-client.js";
 
 const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 
@@ -90,7 +93,7 @@ export async function spawnMissedVaaWorker(
   }
 
   const redisPool = createRedisPool(opts);
-  const wormscan = new WormscanClient(new URL(opts.wormscanUrl), {
+  const wormholescan = new WormholescanClient(new URL(opts.wormscanUrl), {
     maxDelay: 60_000,
     noCache: true,
   });
@@ -138,7 +141,7 @@ export async function spawnMissedVaaWorker(
             app.processVaa.bind(app),
             opts,
             prefix,
-            wormscan,
+            wormholescan,
             filterLogger,
           );
           updateMetrics(
@@ -172,7 +175,7 @@ export async function runMissedVaaCheck(
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
   storagePrefix: string,
-  wormscan: Wormscan,
+  wormholescan: Wormholescan,
   logger?: Logger,
 ) {
   const { emitterChain, emitterAddress } = filter;
@@ -191,7 +194,7 @@ export async function runMissedVaaCheck(
     processVaa,
     opts,
     storagePrefix,
-    wormscan,
+    wormholescan,
     previousSafeSequence,
     logger,
   );

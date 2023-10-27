@@ -20,7 +20,7 @@ import {
   updateSeenSequences,
 } from "./storage.js";
 import { FilterIdentifier, MissedVaaOpts } from "./worker.js";
-import { Wormscan } from "../../rpc/wormscan-client.js";
+import { Wormholescan } from "../../rpc/wormholescan-client.js";
 
 export type ProcessVaaFn = (x: Buffer) => Promise<void>;
 
@@ -30,7 +30,7 @@ export async function checkForMissedVaas(
   processVaa: ProcessVaaFn,
   opts: MissedVaaOpts,
   prefix: string,
-  wormscan: Wormscan,
+  wormholescan: Wormholescan,
   previousSafeSequence?: bigint | null,
   logger?: Logger,
 ): Promise<MissedVaaRunStats> {
@@ -161,7 +161,7 @@ export async function checkForMissedVaas(
   } = await lookAhead(
     lookAheadSequence,
     filter,
-    wormscan,
+    wormholescan,
     opts.fetchVaaRetries,
     opts.maxLookAhead,
     processVaa,
@@ -268,7 +268,7 @@ export async function registerEventListeners(
 async function lookAhead(
   lastSeenSequence: bigint,
   filter: FilterIdentifier,
-  wormscan: Wormscan,
+  wormholescan: Wormholescan,
   maxRetries: number,
   maxLookAhead: number = 10,
   processVaa: ProcessVaaFn,
@@ -289,7 +289,7 @@ async function lookAhead(
     `Looking ahead for missed VAAs from sequence: ${lastSeenSequence}`,
   );
 
-  let latestVaas = await wormscan.listVaas(
+  let latestVaas = await wormholescan.listVaas(
     filter.emitterChain,
     filter.emitterAddress,
     { pageSize: maxLookAhead, retries: maxRetries },

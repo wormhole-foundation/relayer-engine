@@ -1,7 +1,6 @@
 /// <reference lib="dom" />
 import { Middleware } from "../compose.middleware.js";
 import { Context } from "../context.js";
-import { sleep } from "../utils.js";
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_SOLANA,
@@ -12,10 +11,14 @@ import { Logger } from "winston";
 import { Environment } from "../environment.js";
 import { LRUCache } from "lru-cache";
 import { ParsedVaaWithBytes } from "../application.js";
+import { WormholescanClient } from "../rpc/wormholescan-client.js";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
   retries: number;
+  initialDelay: number;
+  maxDelay: number;
+  timeout: number;
 }
 
 export interface SourceTxContext extends Context {
@@ -32,14 +35,23 @@ const defaultOptsByEnv: { [k in Environment]: Partial<SourceTxOpts> } = {
   [Environment.MAINNET]: {
     wormscanEndpoint: wormscanEndpoints[Environment.MAINNET],
     retries: 5,
+    initialDelay: 1_000,
+    maxDelay: 45_000,
+    timeout: 5_000,
   },
   [Environment.TESTNET]: {
     wormscanEndpoint: wormscanEndpoints[Environment.TESTNET],
     retries: 3,
+    initialDelay: 1_000,
+    maxDelay: 30_000,
+    timeout: 3_000,
   },
   [Environment.DEVNET]: {
     wormscanEndpoint: wormscanEndpoints[Environment.DEVNET],
     retries: 3,
+    initialDelay: 500,
+    maxDelay: 10_000,
+    timeout: 2_000,
   },
 };
 
@@ -57,6 +69,7 @@ export function sourceTx(
   optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
+  let wormholescan: WormholescanClient;
   const alreadyFetchedHashes = new LRUCache({ max: 1_000 });
 
   return async (ctx, next) => {
@@ -64,6 +77,15 @@ export function sourceTx(
       // initialize options now that we know the environment from context
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
     }
+    if (!wormholescan) {
+      wormholescan = new WormholescanClient(new URL(opts.wormscanEndpoint), {
+        retries: opts.retries,
+        initialDelay: opts.initialDelay,
+        maxDelay: opts.maxDelay,
+        timeout: opts.timeout,
+      });
+    }
+
     const vaaId = `${ctx.vaa.id.emitterChain}-${ctx.vaa.id.emitterAddress}-${ctx.vaa.id.sequence}`;
     const txHashFromCache = alreadyFetchedHashes.get(vaaId) as
       | string
@@ -83,9 +105,7 @@ export function sourceTx(
       emitterAddress,
       sequence,
       ctx.logger,
-      ctx.env,
-      opts.retries,
-      opts.wormscanEndpoint,
+      wormholescan,
     );
     if (txHash === "") {
       ctx.logger?.debug("Could not retrieve tx hash.");
@@ -106,41 +126,20 @@ export async function fetchVaaHash(
   emitterAddress: Buffer,
   sequence: bigint,
   logger: Logger,
-  env: Environment,
-  retries: number = 3,
-  baseEndpoint: string = wormscanEndpoints[env],
+  wormholescan: WormholescanClient,
 ) {
-  let attempt = 0;
-  let txHash = "";
-  do {
-    let body;
-    try {
-      const res = await fetch(
-        `${baseEndpoint}/api/v1/vaas/${emitterChain}/${emitterAddress.toString(
-          "hex",
-        )}/${sequence.toString()}`,
-      );
-      if (res.status === 404) {
-        throw new Error("Not found yet.");
-      }
+  const response = await wormholescan.getVaa(
+    emitterChain,
+    emitterAddress.toString("hex"),
+    sequence,
+  );
 
-      // Note that we're assuming the response is UTF8 encoded here.
-      body = await res.text();
-      if (!res.ok) {
-        throw new Error(`Unexpected HTTP response. Status: ${res.status}`);
-      }
+  if (response.error) {
+    logger.error("Error fetching tx hash: " + response.error);
+    throw response.error;
+  }
 
-      // TODO: consider restricting this code path further to just status 200 and a few others.
-      txHash = JSON.parse(body).data?.txHash;
-    } catch (error) {
-      const httpBodyText =
-        body !== undefined ? `\nHTTP response body: ${body}` : "";
-      const errorMessage = `could not obtain txHash, attempt: ${attempt} of ${retries}.${httpBodyText}
-Error: ${error}`;
-      logger?.error(errorMessage);
-      await sleep((attempt + 1) * 200); // linear wait
-    }
-  } while (++attempt < retries && !txHash);
+  let txHash = response.data?.txHash || "";
 
   if (
     isEVMChain(emitterChain as ChainId) &&

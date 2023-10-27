@@ -11,7 +11,11 @@ import {
 } from "../../../relayer/middleware/missedVaasV3/storage";
 import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers";
 import { Redis } from "ioredis";
-import { Wormscan, WormscanVaa } from "../../../relayer/rpc/wormscan-client";
+import {
+  Wormholescan,
+  WormholescanVaa,
+} from "../../../relayer/rpc/wormholescan-client";
+import { HttpClientError } from "../../../relayer/rpc/http-client";
 
 jest.mock("../../../relayer/middleware/missedVaasV3/storage");
 jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
@@ -30,16 +34,18 @@ const getAllProcessedSeqsInOrderMock =
 
 const tryFetchVaaMock = tryFetchVaa as jest.MockedFunction<typeof tryFetchVaa>;
 
-let listVaaResponse: WormscanVaa[] = [];
+let listVaaResponse: WormholescanVaa[] = [];
 
-const failingWormscanClient: Wormscan = {
+const failingWormscanClient: Wormholescan = {
   listVaas: jest.fn(() =>
-    Promise.resolve({ data: [], error: new Error("foo") }),
+    Promise.resolve({ data: [], error: new HttpClientError("foo") }),
   ),
+  getVaa: jest.fn(() => Promise.resolve({ error: new HttpClientError("foo") })),
 };
 
-const workingWormscanClient: Wormscan = {
+const workingWormscanClient: Wormholescan = {
   listVaas: jest.fn(() => Promise.resolve({ data: listVaaResponse })),
+  getVaa: jest.fn(() => Promise.resolve({ data: listVaaResponse[0] })),
 };
 
 describe("MissedVaaV3.check", () => {

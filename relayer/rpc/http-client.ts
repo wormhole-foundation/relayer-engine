@@ -98,7 +98,7 @@ export class HttpClientError extends Error {
     super(message ?? `Unexpected status code: ${response?.status}`);
     this.status = response?.status;
     this.data = data;
-    this.headers = response.headers;
+    this.headers = response?.headers;
     Error.captureStackTrace(this, this.constructor);
   }
 
