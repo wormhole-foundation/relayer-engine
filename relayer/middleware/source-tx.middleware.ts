@@ -26,8 +26,8 @@ export interface SourceTxContext extends Context {
 }
 
 export const wormscanEndpoints: { [k in Environment]: string | undefined } = {
-  [Environment.MAINNET]: "https://api.wormscan.io",
-  [Environment.TESTNET]: "https://api.testnet.wormscan.io",
+  [Environment.MAINNET]: "https://api.wormholescan.io",
+  [Environment.TESTNET]: "https://api.testnet.wormholescan.io",
   [Environment.DEVNET]: undefined,
 };
 
@@ -65,25 +65,18 @@ function ifVAAFinalized(vaa: ParsedVaaWithBytes) {
   return consistencyLevel !== 200 && consistencyLevel !== 201;
 }
 
+let wormholescan: WormholescanClient;
+
 export function sourceTx(
   optsWithoutDefaults?: SourceTxOpts,
 ): Middleware<SourceTxContext> {
   let opts: SourceTxOpts;
-  let wormholescan: WormholescanClient;
   const alreadyFetchedHashes = new LRUCache({ max: 1_000 });
 
   return async (ctx, next) => {
     if (!opts) {
       // initialize options now that we know the environment from context
       opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
-    }
-    if (!wormholescan) {
-      wormholescan = new WormholescanClient(new URL(opts.wormscanEndpoint), {
-        retries: opts.retries,
-        initialDelay: opts.initialDelay,
-        maxDelay: opts.maxDelay,
-        timeout: opts.timeout,
-      });
     }
 
     const vaaId = `${ctx.vaa.id.emitterChain}-${ctx.vaa.id.emitterAddress}-${ctx.vaa.id.sequence}`;
@@ -105,7 +98,8 @@ export function sourceTx(
       emitterAddress,
       sequence,
       ctx.logger,
-      wormholescan,
+      ctx.env,
+      opts,
     );
     if (txHash === "") {
       ctx.logger?.debug("Could not retrieve tx hash.");
@@ -126,8 +120,19 @@ export async function fetchVaaHash(
   emitterAddress: Buffer,
   sequence: bigint,
   logger: Logger,
-  wormholescan: WormholescanClient,
+  env: Environment,
+  sourceTxOpts?: SourceTxOpts,
 ) {
+  if (!wormholescan) {
+    const opts = sourceTxOpts || defaultOptsByEnv[env];
+    wormholescan = new WormholescanClient(new URL(opts.wormscanEndpoint), {
+      retries: opts.retries,
+      initialDelay: opts.initialDelay,
+      maxDelay: opts.maxDelay,
+      timeout: opts.timeout,
+    });
+  }
+
   const response = await wormholescan.getVaa(
     emitterChain,
     emitterAddress.toString("hex"),
