@@ -12,6 +12,7 @@ import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana
 import { zeroPad } from "ethers/lib/utils.js";
 import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
+import { inspect } from "util";
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -207,4 +208,21 @@ export async function mapConcurrent(
   // Promises that will be executed parallely, with a maximum of `concurrency` at a time
   const promises = new Array(concurrency).fill(0).map(evaluateNext);
   await Promise.all(promises);
+}
+
+export function printError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error?.stack || error.message}`;
+  }
+
+  // Prints nested properties until a depth of 2 by default.
+  return inspect(error);
+}
+
+export function min(lhs: bigint, rhs: bigint): bigint {
+  return lhs < rhs ? lhs : rhs;
+}
+
+export function max(lhs: bigint, rhs: bigint): bigint {
+  return lhs < rhs ? rhs : lhs;
 }

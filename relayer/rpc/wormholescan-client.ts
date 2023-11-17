@@ -115,14 +115,21 @@ export type WormholescanOptions = {
   noCache?: boolean;
 };
 
-class WormholescanVaaResponse {
+/**
+ * Raw response model.
+ */
+interface WormholescanVaaResponse {
   id: string;
   sequence: bigint;
   vaa: string;
   emitterAddr: string;
   emitterChain: number;
+  txHash?: string;
 }
 
+/**
+ * Parsed response model.
+ */
 export type WormholescanVaa = {
   id: string;
   sequence: bigint;
@@ -133,6 +140,7 @@ export type WormholescanVaa = {
 };
 
 export type WormholescanResult<T> = {
-  error?: HttpClientError;
-  data?: T;
+  error: HttpClientError;
+} | {
+  data: T;
 };

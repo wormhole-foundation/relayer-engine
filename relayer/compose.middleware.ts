@@ -40,10 +40,16 @@ export function composeError<T extends Context>(
       if (i === middleware.length) {
         return next();
       }
-      let fn = middleware[i];
+      const fn = middleware[i];
       return fn(err, ctx, callNext.bind(null, i + 1));
     }
 
     return callNext(0);
   };
+}
+
+export function isErrorMiddlewareList<T extends Context>(list: any[]): list is ErrorMiddleware<T>[] {
+  return list.every((f) => {
+    return f.length > 2;
+  });
 }

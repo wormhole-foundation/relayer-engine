@@ -186,13 +186,13 @@ export async function calculateStartingIndex(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  lastSafeSequence?: bigint | null,
+  lastSafeSequence?: bigint,
 ) {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
   let indexToStartFrom: number | null = null;
 
-  if (lastSafeSequence) {
+  if (lastSafeSequence !== undefined) {
     indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
   }
 

@@ -8,7 +8,7 @@ import {
   RelayerEvents,
   SerializableVaaId,
 } from "../../application.js";
-import { mapConcurrent } from "../../utils.js";
+import { mapConcurrent, max } from "../../utils.js";
 import { MissedVaaRunStats, tryFetchVaa } from "./helpers.js";
 import {
   batchMarkAsFailedToRecover,
@@ -31,7 +31,7 @@ export async function checkForMissedVaas(
   opts: MissedVaaOpts,
   prefix: string,
   wormholescan: Wormholescan,
-  previousSafeSequence?: bigint | null,
+  previousSafeSequence?: bigint,
   logger?: Logger,
 ): Promise<MissedVaaRunStats> {
   const { emitterChain, emitterAddress } = filter;
@@ -60,9 +60,9 @@ export async function checkForMissedVaas(
   const failedToReprocess: string[] = [];
   let missingSequences: bigint[] = [];
 
-  if (seenSequences.length) {
+  if (seenSequences.length > 0) {
     const first =
-      previousSafeSequence !== null && previousSafeSequence < seenSequences[0]
+      previousSafeSequence !== undefined && previousSafeSequence < seenSequences[0]
         ? previousSafeSequence
         : seenSequences[0];
     const last = seenSequences[seenSequences.length - 1];
@@ -72,7 +72,7 @@ export async function checkForMissedVaas(
     // Check if there is any leap between the sequences seen,
     // and try reprocessing them if any:
     if (
-      previousSafeSequence !== null &&
+      previousSafeSequence !== undefined &&
       previousSafeSequence < seenSequences[0]
     ) {
       seenSequences.unshift(previousSafeSequence);
@@ -143,15 +143,13 @@ export async function checkForMissedVaas(
 
   // look ahead of greatest seen sequence in case the next vaa was missed
   // continue looking ahead until a vaa can't be fetched
-  const lastSeq = seenSequences[seenSequences.length - 1]
+  const lastSeq = seenSequences.length > 0
     ? seenSequences[seenSequences.length - 1]
     : null;
 
-  let lookAheadSequence =
-    lastSeq && startingSeqConfig
-      ? lastSeq > startingSeqConfig
-        ? lastSeq
-        : startingSeqConfig // same as Math.max, which doesn't support bigint
+  const lookAheadSequence =
+    lastSeq !== null && startingSeqConfig !== undefined
+      ? max(lastSeq, startingSeqConfig)
       : lastSeq || startingSeqConfig;
 
   const {
@@ -289,12 +287,12 @@ async function lookAhead(
     `Looking ahead for missed VAAs from sequence: ${lastSeenSequence}`,
   );
 
-  let latestVaas = await wormholescan.listVaas(
+  const latestVaas = await wormholescan.listVaas(
     filter.emitterChain,
     filter.emitterAddress,
     { pageSize: maxLookAhead, retries: maxRetries },
   );
-  if (latestVaas.error) {
+  if ("error" in latestVaas) {
     logger?.error(
       `Error FETCHING Look Ahead VAAs. Error: ${latestVaas.error.message}`,
       latestVaas.error,

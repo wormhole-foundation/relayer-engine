@@ -14,12 +14,12 @@ import {
   compose,
   composeError,
   ErrorMiddleware,
+  isErrorMiddlewareList,
   Middleware,
   Next,
 } from "./compose.middleware.js";
 import { Context } from "./context.js";
 import { Logger } from "winston";
-import { BigNumber } from "ethers";
 import {
   createSpyRPCServiceClient,
   subscribeSignedVAA,
@@ -29,7 +29,6 @@ import {
   encodeEmitterAddress,
   mergeDeep,
   parseVaaWithBytes,
-  sleep,
 } from "./utils.js";
 import { FailFastGrpcTransportFactory } from "./rpc/fail-fast-grpc-transport.js";
 import { defaultLogger } from "./logging.js";
@@ -41,12 +40,13 @@ import { Environment } from "./environment.js";
 import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy.js";
 import { Registry } from "prom-client";
 import { createRelayerMetrics, RelayerMetrics } from "./application.metrics.js";
+import { FetchVaaFn } from "./context.js";
 
 export { UnrecoverableError };
 
 export interface RelayerAppOpts {
-  wormholeRpcs?: string[];
-  concurrency?: number;
+  wormholeRpcs: string[];
+  concurrency: number;
 }
 
 export type FetchaVaasOpts = {
@@ -101,15 +101,15 @@ export enum RelayerEvents {
 export type ListenerFn = (vaa: ParsedVaaWithBytes, job?: RelayJob) => void;
 
 export class RelayerApp<ContextT extends Context> extends EventEmitter {
-  storage: Storage;
+  storage?: Storage;
   filters: {
     emitterFilter?: { chainId?: ChainId; emitterAddress?: string };
   }[] = [];
-  private pipeline?: Middleware;
-  private errorPipeline?: ErrorMiddleware;
+  private pipeline?: Middleware<ContextT>;
+  private errorPipeline?: ErrorMiddleware<ContextT>;
   private chainRouters: Partial<Record<ChainId, ChainRouter<ContextT>>> = {};
   private spyUrl?: string;
-  private rootLogger: Logger;
+  private rootLogger?: Logger;
   private opts: RelayerAppOpts;
   private vaaFilters: FilterFN[] = [];
   private alreadyFilteredCache = new LRUCache<string, boolean>({ max: 1000 });
@@ -118,7 +118,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
 
   constructor(
     public env: Environment = Environment.TESTNET,
-    opts: RelayerAppOpts = {},
+    opts: Partial<RelayerAppOpts> = {},
   ) {
     super();
     this.opts = mergeDeep({}, [defaultOpts(env), opts]);
@@ -160,7 +160,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
         isOk = await filter(vaa);
       } catch (e: any) {
         isOk = false;
-        this.rootLogger.debug(
+        this.rootLogger?.debug(
           `filter ${i} of ${this.vaaFilters.length} threw an exception`,
           {
             emitterChain,
@@ -174,7 +174,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       }
       if (!isOk) {
         this.alreadyFilteredCache.set(id, true);
-        this.rootLogger.debug(
+        this.rootLogger?.debug(
           `Vaa was skipped by filter ${i + 1} of ${this.vaaFilters.length}`,
           { emitterChain, emitterAddress, sequence },
         );
@@ -231,26 +231,29 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param middleware
    */
   use(...middleware: Middleware<ContextT>[] | ErrorMiddleware<ContextT>[]) {
-    if (!middleware.length) {
+    if (middleware.length === 0) {
       return;
     }
 
+    // TODO: actually check that we don't receive a mixed list of middleware?
+    // Only useful if we think we have JS only consumers
+
     // adding error middleware
-    if (middleware[0].length > 2) {
+    if (isErrorMiddlewareList<ContextT>(middleware)) {
       if (this.errorPipeline) {
-        (middleware as ErrorMiddleware<ContextT>[]).unshift(this.errorPipeline);
+        middleware.unshift(this.errorPipeline);
       }
       this.errorPipeline = composeError(
-        middleware as ErrorMiddleware<ContextT>[],
+        middleware,
       );
       return;
     }
 
     // adding regular middleware
-    if (this.pipeline) {
-      (middleware as Middleware<ContextT>[]).unshift(this.pipeline);
+    if (this.pipeline !== undefined) {
+      middleware.unshift(this.pipeline);
     }
-    this.pipeline = compose(middleware as Middleware<ContextT>[]);
+    this.pipeline = compose(middleware);
   }
 
   fetchVaas(opts: FetchaVaasOpts): Promise<ParsedVaaWithBytes[]> {
@@ -271,14 +274,15 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param retryTimeout backoff between retries
    * @param retries number of attempts
    */
-  async fetchVaa(
-    chain: ChainId | string,
-    emitterAddress: Buffer | string,
-    sequence: bigint | string | BigNumber,
+  public readonly fetchVaa: FetchVaaFn = async function fetchVaa(
+    this: RelayerApp<ContextT>,
+    chain,
+    emitterAddress,
+    sequence,
     {
       retryTimeout = 100,
       retries = 2,
-    }: { retryTimeout: number; retries: number } = {
+    } = {
       retryTimeout: 100,
       retries: 2,
     },
@@ -335,7 +339,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   ): Promise<void> {
     const parsedVaa = parseVaaWithBytes(vaa);
 
-    let ctx: Context = {
+    const ctx: Context = {
       config: {
         spyFilters: await this.spyFilters(),
       },
@@ -348,12 +352,12 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       vaa: parsedVaa,
       vaaBytes: vaa,
     };
-    Object.assign(ctx, opts);
+    const ctxt = Object.assign(ctx, opts) as ContextT;
     try {
-      await this.pipeline?.(ctx, () => {});
+      await this.pipeline?.(ctxt, () => {});
       this.emit(RelayerEvents.Completed, parsedVaa, opts?.storage?.job);
     } catch (e) {
-      this.errorPipeline?.(e, ctx, () => {});
+      this.errorPipeline?.(e as Error, ctxt, () => {});
       this.emit(RelayerEvents.Failed, parsedVaa, opts?.storage?.job);
       throw e;
     }
@@ -398,10 +402,14 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       const chainName = coalesceChainName(chainIdOrName);
       const chainId = coalesceChainId(chainIdOrName);
       const env = this.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET";
-      let address =
+      const address =
         chainId === CHAIN_ID_SUI
           ? emitterCapByEnv[this.env] // sui is different from evm in that you can't use the package id or state id, you have to use the emitter cap
           : CONTRACTS[env][chainName].token_bridge;
+
+      if (address === undefined) {
+        throw new Error("Could not find token bridge address.");
+      }
       this.chain(chainId).address(address, ...handlers);
     }
     return this;
@@ -412,7 +420,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
   > {
     const spyFilters = new Set<any>();
     for (const chainRouter of Object.values(this.chainRouters)) {
-      for (const filter of await chainRouter.spyFilters()) {
+      for (const filter of chainRouter.spyFilters()) {
         spyFilters.add(filter);
       }
     }
@@ -469,9 +477,12 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
 
   private generateChainRoutes(): Middleware<ContextT> {
     return async (ctx: ContextT, next: Next) => {
-      let router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
+      if (ctx.vaa === undefined) {
+        throw new Error("No VAA in context.");
+      }
+      const router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
       if (!router) {
-        this.rootLogger.error(
+        this.rootLogger?.error(
           "received a vaa but we don't have a router for it",
         );
         return;
@@ -550,7 +561,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * Stop the worker from grabbing more jobs and wait until it finishes with the ones that it has.
    */
   stop() {
-    return this.storage.stopWorker();
+    return this.storage?.stopWorker();
   }
 
   private onVaaFromQueue = async (job: RelayJob) => {
@@ -607,10 +618,10 @@ class ChainRouter<ContextT extends Context> {
 /**
  * Translates seconds into human readable format of seconds, minutes, hours, days, and years
  *
- * @param  {number} seconds The number of seconds to be processed
- * @return {string}         The phrase describing the amount of time
+ * @param  seconds The number of seconds to be processed
+ * @return         The phrase describing the amount of time
  */
-function secondsToHuman(seconds: number) {
+function secondsToHuman(seconds: number): string {
   const levels: [number, string][] = [
     [Math.floor(seconds / 31536000), "years"],
     [Math.floor((seconds % 31536000) / 86400), "days"],

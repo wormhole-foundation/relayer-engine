@@ -44,7 +44,7 @@ export interface StandardMissedVaaOpts {
 
 export interface StandardRelayerAppOpts extends RelayerAppOpts {
   name: string;
-  spyEndpoint?: string;
+  spyEndpoint: string;
   logger?: Logger;
   privateKeys?: Partial<{
     [k in ChainId]: any[];
@@ -64,14 +64,14 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   maxFailedQueueSize?: number;
 }
 
-const defaultOpts: Partial<StandardRelayerAppOpts> = {
+const defaultOpts = {
   spyEndpoint: "localhost:7073",
   workflows: {
     retries: 3,
   },
   fetchSourceTxhash: true,
   logger: defaultLogger,
-};
+} satisfies Partial<StandardRelayerAppOpts>;
 
 export type StandardRelayerContext = LoggingContext &
   StorageContext &
@@ -80,18 +80,20 @@ export type StandardRelayerContext = LoggingContext &
   WalletContext &
   SourceTxContext;
 
+type MakeOptional<T1, T2> = Omit<T1, keyof T2> & Partial<T2>;
+
 export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext,
 > extends RelayerApp<ContextT> {
   private readonly store: RedisStorage;
   private readonly mergedRegistry: Registry;
 
-  constructor(env: Environment, opts: StandardRelayerAppOpts) {
+  constructor(env: Environment, opts: MakeOptional<StandardRelayerAppOpts, typeof defaultOpts>) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger ?? defaultLogger;
     delete opts.logger;
     // now we can merge
-    opts = mergeDeep({}, [defaultOpts, opts]);
+    const options = mergeDeep<StandardRelayerAppOpts>({}, [defaultOpts, opts]);
 
     const {
       privateKeys,
@@ -105,14 +107,14 @@ export class StandardRelayerApp<
       retryBackoffOptions,
       maxCompletedQueueSize,
       maxFailedQueueSize,
-    } = opts;
-    super(env, opts);
+    } = options;
+    super(env, options);
 
     this.store = new RedisStorage({
       redis,
       redisClusterEndpoints,
       redisCluster,
-      attempts: opts.workflows.retries ?? 3,
+      attempts: options.workflows?.retries ?? 3,
       namespace: name,
       queueName: `${name}-relays`,
       exponentialBackoff: retryBackoffOptions,
@@ -131,13 +133,13 @@ export class StandardRelayerApp<
         redisCluster,
         redisClusterEndpoints,
         wormholeRpcs,
-        concurrency: opts.missedVaaOptions?.concurrency,
-        checkInterval: opts.missedVaaOptions?.checkInterval,
-        fetchVaaRetries: opts.missedVaaOptions?.fetchVaaRetries,
-        vaasFetchConcurrency: opts.missedVaaOptions?.vaasFetchConcurrency,
+        concurrency: options.missedVaaOptions?.concurrency,
+        checkInterval: options.missedVaaOptions?.checkInterval,
+        fetchVaaRetries: options.missedVaaOptions?.fetchVaaRetries,
+        vaasFetchConcurrency: options.missedVaaOptions?.vaasFetchConcurrency,
         storagePrefix: this.store.getPrefix(),
-        startingSequenceConfig: opts.missedVaaOptions?.startingSequenceConfig,
-        forceSeenKeysReindex: opts.missedVaaOptions?.forceSeenKeysReindex,
+        startingSequenceConfig: options.missedVaaOptions?.startingSequenceConfig,
+        forceSeenKeysReindex: options.missedVaaOptions?.forceSeenKeysReindex,
       });
     }
 
@@ -149,9 +151,11 @@ export class StandardRelayerApp<
     this.spy(spyEndpoint);
     this.useStorage(this.store);
     this.logger(logger);
-    this.use(logging(logger)); // <-- logging middleware
-    this.use(providers(opts.providers, Object.keys(opts.privateKeys ?? {})));
-    if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
+    this.use(logging(logger));
+    this.use(providers(options.providers, Object.keys(privateKeys ?? {})));
+
+    // You need valid private keys to turn on the wallet middleware
+    if (privateKeys !== undefined && Object.keys(privateKeys).length > 0) {
       this.use(
         wallets(env, {
           logger,
@@ -160,7 +164,7 @@ export class StandardRelayerApp<
           tokensByChain,
           metrics: { enabled: true, registry: this.metricsRegistry },
         }),
-      ); // <-- you need valid private keys to turn on this middleware
+      );
     }
     this.use(tokenBridgeContracts());
     this.use(
@@ -171,7 +175,7 @@ export class StandardRelayerApp<
         redisClusterEndpoints,
       }),
     );
-    if (opts.fetchSourceTxhash) {
+    if (options.fetchSourceTxhash) {
       this.use(sourceTx());
     }
   }
