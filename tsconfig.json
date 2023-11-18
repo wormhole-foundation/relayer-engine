@@ -13,6 +13,7 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "sourceMap": true,
+    "strict": true,
     "allowSyntheticDefaultImports": true
   },
   "include": ["relayer"],
