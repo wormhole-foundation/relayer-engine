@@ -136,11 +136,15 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     }
     // User might or might not use sui, so a provider for sui
     // might not be present.
-    if (!suiState && ctx.providers.sui[0]) {
-      suiState = await getObjectFields(
+    if (suiState === undefined && ctx.providers.sui.length > 0) {
+      const fields = await getObjectFields(
         ctx.providers.sui[0],
-        CONTRACTS[ctx.env.toUpperCase() as "MAINNET"].sui.token_bridge,
+        CONTRACTS[ctx.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"].sui.token_bridge,
       );
+      if (fields === null) {
+        throw new UnrecoverableError("Couldn't read ")
+      }
+      suiState = fields;
       tokenBridgeEmitterCapSui = suiState?.emitter_cap.fields.id.id;
     }
     if (!evmContracts) {

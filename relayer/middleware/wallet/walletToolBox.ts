@@ -44,6 +44,8 @@ export async function createWalletToolbox(
       const seiPkBuf = Buffer.from(privateKey, "hex");
       return createSeiWalletToolBox(providers, seiPkBuf);
   }
+
+  throw new Error(`Unknown chain id ${chainId}`);
 }
 
 function createEVMWalletToolBox(
@@ -51,7 +53,11 @@ function createEVMWalletToolBox(
   privateKey: string,
   chainId: wh.EVMChainId,
 ): WalletToolBox<EVMWallet> {
-  const wallet = new ethers.Wallet(privateKey, providers.evm[chainId][0]);
+  const chainProviders = providers.evm[chainId];
+  if (chainProviders === undefined || chainProviders.length === 0) {
+    throw new Error(`No provider found for chain ${chainId}`);
+  }
+  const wallet = new ethers.Wallet(privateKey, chainProviders[0]);
   return {
     ...providers,
     wallet: wallet,

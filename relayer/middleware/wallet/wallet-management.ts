@@ -30,6 +30,8 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
 import { Environment } from "../../environment.js";
 
+export type MetricsOptions = (WalletManagerFullConfig["options"] & {}) ["metrics"] & {};
+
 const networks = {
   [Environment.MAINNET]: {
     [CHAIN_ID_ETH]: "mainnet",
@@ -140,7 +142,7 @@ export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
-  metricsOpts?: WalletManagerFullConfig["options"]["metrics"],
+  metricsOpts?: MetricsOptions,
   logger?: Logger,
 ): IClientWalletManager | ILibraryWalletManager {
   const wallets = buildWalletsConfig(env, privateKeys, tokensByChain);
