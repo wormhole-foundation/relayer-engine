@@ -1,4 +1,4 @@
-import { RelayerApp, RelayerAppOpts } from "./application.js";
+import { RelayerApp, RelayerAppOpts, defaultOpts } from "./application.js";
 import {
   logging,
   LoggingContext,
@@ -22,7 +22,7 @@ import {
 } from "./storage/redis-storage.js";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
-import { mergeDeep } from "./utils.js";
+import { MakeOptional, mergeDeep } from "./utils.js";
 import { defaultLogger } from "./logging.js";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
 import { KoaAdapter } from "@bull-board/koa";
@@ -64,7 +64,7 @@ export interface StandardRelayerAppOpts extends RelayerAppOpts {
   maxFailedQueueSize?: number;
 }
 
-const defaultOpts = {
+const defaultStdOpts = {
   spyEndpoint: "localhost:7073",
   workflows: {
     retries: 3,
@@ -73,6 +73,8 @@ const defaultOpts = {
   logger: defaultLogger,
 } satisfies Partial<StandardRelayerAppOpts>;
 
+type FullDefaultOpts = typeof defaultStdOpts & ReturnType<typeof defaultOpts>;
+
 export type StandardRelayerContext = LoggingContext &
   StorageContext &
   TokenBridgeContext &
@@ -80,20 +82,18 @@ export type StandardRelayerContext = LoggingContext &
   WalletContext &
   SourceTxContext;
 
-type MakeOptional<T1, T2> = Omit<T1, keyof T2> & Partial<T2>;
-
 export class StandardRelayerApp<
   ContextT extends StandardRelayerContext = StandardRelayerContext,
 > extends RelayerApp<ContextT> {
   private readonly store: RedisStorage;
   private readonly mergedRegistry: Registry;
 
-  constructor(env: Environment, opts: MakeOptional<StandardRelayerAppOpts, typeof defaultOpts>) {
+  constructor(env: Environment, opts: MakeOptional<StandardRelayerAppOpts, FullDefaultOpts>) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger ?? defaultLogger;
     delete opts.logger;
     // now we can merge
-    const options = mergeDeep<StandardRelayerAppOpts>({}, [defaultOpts, opts]);
+    const options = mergeDeep<StandardRelayerAppOpts>({}, [defaultStdOpts, opts]);
 
     const {
       privateKeys,

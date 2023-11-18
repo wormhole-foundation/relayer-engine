@@ -32,6 +32,7 @@ import { Environment } from "../environment.js";
 import { getCosmWasmClient } from "@sei-js/core";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { Logger } from "winston";
+import { printError } from "../utils.js";
 
 export interface Providers {
   evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
@@ -245,8 +246,8 @@ async function buildProviders(
         providers.sui = endpoints.map((url, i) => {
           let conn = new sui.Connection({
             fullnode: url,
-            faucet: (faucets && faucets[i]) || faucets[0], // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
-            websocket: (websockets && websockets[i]) || websockets[0], // same as above
+            faucet: faucets?.at(i) || faucets?.at(0), // try to map to the same index, otherwise use the first (if user only provided one faucet but multiple endpoints)
+            websocket: websockets?.at(i) || websockets?.at(0), // same as above
           });
           return new sui.JsonRpcProvider(conn);
         });
@@ -259,13 +260,14 @@ async function buildProviders(
         providers.untyped[chainId] = endpoints.map(c => ({ rpcUrl: c }));
       }
     } catch (error) {
-      error.originalStack = error.stack;
-      error.stack = new Error().stack;
+      if (error instanceof Error) {
+        (error as any).originalStack = error.stack;
+        Error.captureStackTrace(error);
+      }
       logger?.error(
         `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${maskRPCEndpoints(
           endpoints,
-        )}. Error: `,
-        error,
+        )}. Error: ${printError(error)}`
       );
       throw error;
     }
