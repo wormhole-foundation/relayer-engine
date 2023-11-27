@@ -114,12 +114,12 @@ function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
 
 function tryToParseTokenTransferVaa(
   vaaBytes: SignedVaa,
-): ParsedTokenTransferVaa | null {
+): ParsedTokenTransferVaa | undefined {
   try {
     return parseTokenTransferVaa(vaaBytes);
   } catch (e) {
     // it may not be a token transfer vaa. TODO Maybe we want to do something to support attestations etc.
-    return null;
+    return undefined;
   }
 }
 
@@ -152,11 +152,20 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
       evmContracts = instantiateReadEvmContracts(ctx.env, ctx.providers.evm);
       ctx.logger?.debug(`Token Bridge Contracts initialized`);
     }
-    let parsedTokenTransferVaa = null;
-    let payload = null;
+
+    // TODO: should we actually allow these fields to be undefined in the context type?
+    if (ctx.vaa === undefined) {
+      throw new UnrecoverableError("Parsed VAA is undefined.");
+    }
+    if (ctx.vaaBytes === undefined) {
+      throw new UnrecoverableError("Raw VAA is undefined.");
+    }
+
+    let parsedTokenTransferVaa;
+    let payload;
     if (isTokenBridgeVaa(ctx.env, ctx.vaa)) {
       parsedTokenTransferVaa = tryToParseTokenTransferVaa(ctx.vaaBytes);
-      if (parsedTokenTransferVaa) {
+      if (parsedTokenTransferVaa !== undefined) {
         payload = {
           payloadType: parsedTokenTransferVaa.payloadType,
           amount: parsedTokenTransferVaa.amount,
@@ -180,7 +189,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         },
       },
       vaa: parsedTokenTransferVaa,
-      payload: payload,
+      payload,
     };
     ctx.logger?.debug("Token Bridge contracts attached to context");
     await next();

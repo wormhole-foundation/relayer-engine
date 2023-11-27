@@ -12,7 +12,7 @@ export async function spawnWalletWorker(
   actionQueue: Queue<ActionWithCont<any, any>>,
   providers: Providers,
   workerInfo: WorkerInfo,
-  logger: Logger,
+  logger?: Logger,
 ): Promise<void> {
   const workerIntervalMS = DEFAULT_WORKER_INTERVAL_MS;
   const walletToolBox = await createWalletToolbox(
@@ -35,16 +35,16 @@ export async function spawnWalletWorker(
           walletToolBox,
           workerInfo.targetChainId,
         );
-        logger.debug(`Action ${actionWithCont.pluginName} completed`, {
+        logger?.debug(`Action ${actionWithCont.pluginName} completed`, {
           action: actionWithCont,
         });
         actionWithCont.resolve(result);
       } catch (e) {
-        logger.error(`Unexpected error while executing chain action:`, e);
+        logger?.error(`Unexpected error while executing chain action:`, e);
         actionWithCont.reject(e);
       }
     } catch (e) {
-      logger.error("", e);
+      logger?.error("", e);
       // wait longer between loop iterations on error
       await sleep(DEFAULT_WORKER_RESTART_MS);
     }

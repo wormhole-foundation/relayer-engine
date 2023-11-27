@@ -61,7 +61,7 @@ export function sleep(ms: number) {
  * @param item
  * @returns {boolean}
  */
-export function isObject(item: any) {
+export function isObject<T>(item: T): item is T & ({} | null) {
   return item && typeof item === "object" && !Array.isArray(item);
 }
 
@@ -93,9 +93,17 @@ export function mergeDeep<T>(
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (isObject(source[key])) {
-        if (!target[key]) Object.assign(target, { [key]: {} });
-        mergeDeep(target[key], [source[key]], maxDepth - 1);
+      const sourceProp = source[key];
+      if (isObject(sourceProp)) {
+        // We need to cast because the narrowed type for the key is lost in the object.
+        const targetProp: T[Extract<keyof T, string>] =
+          target[key] || ({ [key]: {} } as T[Extract<keyof T, string>]);
+        if (target[key] === undefined) target[key] = targetProp;
+        mergeDeep<T[Extract<keyof T, string>]>(
+          targetProp,
+          [sourceProp],
+          maxDepth - 1,
+        );
       } else {
         Object.assign(target, { [key]: source[key] });
       }
