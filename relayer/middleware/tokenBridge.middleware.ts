@@ -142,7 +142,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         CONTRACTS[ctx.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"].sui.token_bridge,
       );
       if (fields === null) {
-        throw new UnrecoverableError("Couldn't read ")
+        throw new UnrecoverableError("Couldn't read Sui object field");
       }
       suiState = fields;
       tokenBridgeEmitterCapSui = suiState?.emitter_cap.fields.id.id;
