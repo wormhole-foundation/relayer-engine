@@ -25,11 +25,7 @@ import {
   subscribeSignedVAA,
 } from "@certusone/wormhole-spydk";
 import { UnrecoverableError } from "bullmq";
-import {
-  encodeEmitterAddress,
-  mergeDeep,
-  parseVaaWithBytes,
-} from "./utils.js";
+import { encodeEmitterAddress, mergeDeep, parseVaaWithBytes } from "./utils.js";
 import { FailFastGrpcTransportFactory } from "./rpc/fail-fast-grpc-transport.js";
 import { defaultLogger } from "./logging.js";
 import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper.js";
@@ -243,9 +239,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       if (this.errorPipeline) {
         middleware.unshift(this.errorPipeline);
       }
-      this.errorPipeline = composeError(
-        middleware,
-      );
+      this.errorPipeline = composeError(middleware);
       return;
     }
 
@@ -279,10 +273,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     chain,
     emitterAddress,
     sequence,
-    {
-      retryTimeout = 100,
-      retries = 2,
-    } = {
+    { retryTimeout = 100, retries = 2 } = {
       retryTimeout: 100,
       retries: 2,
     },
@@ -298,7 +289,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     );
 
     return parseVaaWithBytes(res.vaaBytes);
-  }
+  };
 
   /**
    * processVaa allows you to put a VAA through the pipeline leveraging storage if needed.

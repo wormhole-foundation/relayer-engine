@@ -31,14 +31,15 @@ export function stagingArea(
   const options = {
     redis: { host: "localhost", port: 6379 },
     ...opts,
-  }
+  };
 
   // TODO: maybe refactor redis pool for all plugins that rely on it.
   const factory = {
     create: async function () {
-      const redis = "redisCluster" in opts
-        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
-        : new Redis(options.redis);
+      const redis =
+        "redisCluster" in opts
+          ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
+          : new Redis(options.redis);
       return redis;
     },
     destroy: async function () {

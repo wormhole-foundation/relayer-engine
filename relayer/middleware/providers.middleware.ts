@@ -267,7 +267,7 @@ async function buildProviders(
       logger?.error(
         `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${maskRPCEndpoints(
           endpoints,
-        )}. Error: ${printError(error)}`
+        )}. Error: ${printError(error)}`,
       );
       throw error;
     }

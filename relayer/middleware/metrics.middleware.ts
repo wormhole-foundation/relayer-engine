@@ -175,7 +175,9 @@ export function metrics<C extends StorageContext>(
       await next();
     } catch (e) {
       if (e === undefined) {
-        failure = new Error("Got thrown undefined while calling next metrics middleware.");
+        failure = new Error(
+          "Got thrown undefined while calling next metrics middleware.",
+        );
       } else {
         failure = e;
       }

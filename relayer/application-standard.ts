@@ -88,12 +88,18 @@ export class StandardRelayerApp<
   private readonly store: RedisStorage;
   private readonly mergedRegistry: Registry;
 
-  constructor(env: Environment, opts: MakeOptional<StandardRelayerAppOpts, FullDefaultOpts>) {
+  constructor(
+    env: Environment,
+    opts: MakeOptional<StandardRelayerAppOpts, FullDefaultOpts>,
+  ) {
     // take logger out before merging because of recursive call stack
     const logger = opts.logger ?? defaultLogger;
     delete opts.logger;
     // now we can merge
-    const options = mergeDeep<StandardRelayerAppOpts>({}, [defaultStdOpts, opts]);
+    const options = mergeDeep<StandardRelayerAppOpts>({}, [
+      defaultStdOpts,
+      opts,
+    ]);
 
     const {
       privateKeys,
@@ -138,7 +144,8 @@ export class StandardRelayerApp<
         fetchVaaRetries: options.missedVaaOptions?.fetchVaaRetries,
         vaasFetchConcurrency: options.missedVaaOptions?.vaasFetchConcurrency,
         storagePrefix: this.store.getPrefix(),
-        startingSequenceConfig: options.missedVaaOptions?.startingSequenceConfig,
+        startingSequenceConfig:
+          options.missedVaaOptions?.startingSequenceConfig,
         forceSeenKeysReindex: options.missedVaaOptions?.forceSeenKeysReindex,
       });
     }

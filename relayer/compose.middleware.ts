@@ -48,8 +48,10 @@ export function composeError<T extends Context>(
   };
 }
 
-export function isErrorMiddlewareList<T extends Context>(list: any[]): list is ErrorMiddleware<T>[] {
-  return list.every((f) => {
+export function isErrorMiddlewareList<T extends Context>(
+  list: any[],
+): list is ErrorMiddleware<T>[] {
+  return list.every(f => {
     return f.length > 2;
   });
 }

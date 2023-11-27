@@ -139,8 +139,10 @@ export type WormholescanVaa = {
   txHash?: string;
 };
 
-export type WormholescanResult<T> = {
-  error: HttpClientError;
-} | {
-  data: T;
-};
+export type WormholescanResult<T> =
+  | {
+      error: HttpClientError;
+    }
+  | {
+      data: T;
+    };

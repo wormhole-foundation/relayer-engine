@@ -62,7 +62,8 @@ export async function checkForMissedVaas(
 
   if (seenSequences.length > 0) {
     const first =
-      previousSafeSequence !== undefined && previousSafeSequence < seenSequences[0]
+      previousSafeSequence !== undefined &&
+      previousSafeSequence < seenSequences[0]
         ? previousSafeSequence
         : seenSequences[0];
     const last = seenSequences[seenSequences.length - 1];
@@ -143,9 +144,8 @@ export async function checkForMissedVaas(
 
   // look ahead of greatest seen sequence in case the next vaa was missed
   // continue looking ahead until a vaa can't be fetched
-  const lastSeq = seenSequences.length > 0
-    ? seenSequences[seenSequences.length - 1]
-    : null;
+  const lastSeq =
+    seenSequences.length > 0 ? seenSequences[seenSequences.length - 1] : null;
 
   const lookAheadSequence =
     lastSeq !== null && startingSeqConfig !== undefined

@@ -14,7 +14,9 @@ import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
 import { inspect } from "util";
 
-export type MakeOptional<T1, T2> = Omit<T1, keyof T2> & Partial<Omit<T1, keyof Omit<T1, keyof T2>>> & Partial<Omit<T2, keyof T1>>;
+export type MakeOptional<T1, T2> = Omit<T1, keyof T2> &
+  Partial<Omit<T1, keyof Omit<T1, keyof T2>>> &
+  Partial<Omit<T2, keyof T1>>;
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,

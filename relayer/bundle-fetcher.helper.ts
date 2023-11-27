@@ -1,9 +1,17 @@
 import { ChainId, ParsedVaa } from "@certusone/wormhole-sdk";
 import { FetchVaaFn } from "./context.js";
-import { EngineError, MakeOptional, parseVaaWithBytes, sleep } from "./utils.js";
+import {
+  EngineError,
+  MakeOptional,
+  parseVaaWithBytes,
+  sleep,
+} from "./utils.js";
 import { ParsedVaaWithBytes } from "./application.js";
 
-export type VaaId = Pick<ParsedVaa, "emitterChain" | "emitterAddress" | "sequence">;
+export type VaaId = Pick<
+  ParsedVaa,
+  "emitterChain" | "emitterAddress" | "sequence"
+>;
 
 export type SerializedBatchFetcher = {
   vaaBytes: string[];
@@ -30,10 +38,13 @@ export class VaaBundleFetcher {
   private readonly fetchErrors: Record<string, Error> = {};
   private opts: VaaBundlerOpts;
 
-  constructor(private fetchVaa: FetchVaaFn, opts: MakeOptional<VaaBundlerOpts, typeof defaultOpts>) {
+  constructor(
+    private fetchVaa: FetchVaaFn,
+    opts: MakeOptional<VaaBundlerOpts, typeof defaultOpts>,
+  ) {
     this.opts = {
       ...defaultOpts,
-      ...opts
+      ...opts,
     };
 
     for (const id of this.opts.vaaIds) {

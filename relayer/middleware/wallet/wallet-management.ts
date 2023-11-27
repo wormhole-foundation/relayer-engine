@@ -30,7 +30,8 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
 import { Environment } from "../../environment.js";
 
-export type MetricsOptions = (WalletManagerFullConfig["options"] & {}) ["metrics"] & {};
+export type MetricsOptions =
+  (WalletManagerFullConfig["options"] & {})["metrics"] & {};
 
 const networks = {
   [Environment.MAINNET]: {

@@ -139,7 +139,8 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     if (suiState === undefined && ctx.providers.sui.length > 0) {
       const fields = await getObjectFields(
         ctx.providers.sui[0],
-        CONTRACTS[ctx.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"].sui.token_bridge,
+        CONTRACTS[ctx.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"].sui
+          .token_bridge,
       );
       if (fields === null) {
         throw new UnrecoverableError("Couldn't read Sui object field");
