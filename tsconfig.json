@@ -14,6 +14,7 @@
     "downlevelIteration": true,
     "sourceMap": true,
     "strict": true,
+    "composite": true,
     "allowSyntheticDefaultImports": true
   },
   "include": ["relayer"],
