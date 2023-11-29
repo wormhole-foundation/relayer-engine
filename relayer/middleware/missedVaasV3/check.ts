@@ -264,10 +264,10 @@ export async function registerEventListeners(
 }
 
 async function lookAhead(
-  lastSeenSequence: bigint,
+  lastSeenSequence: bigint | undefined,
   filter: FilterIdentifier,
   wormholescan: Wormholescan,
-  maxRetries: number,
+  maxRetries: number | undefined,
   maxLookAhead: number = 10,
   processVaa: ProcessVaaFn,
   logger?: Logger,
@@ -275,7 +275,7 @@ async function lookAhead(
   const lookAheadSequences: string[] = [];
   const processed: string[] = [];
   let failedToRecover: string[] = [];
-  if (!lastSeenSequence) {
+  if (lastSeenSequence === undefined) {
     logger?.warn(
       `No VAAs seen and no starting sequence was configured. Won't look ahead for missed VAAs.`,
     );

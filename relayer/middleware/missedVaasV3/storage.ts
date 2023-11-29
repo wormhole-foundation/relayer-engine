@@ -139,7 +139,7 @@ export async function tryGetLastSafeSequence(
   emitterChain: number,
   emitterAddress: string,
   logger?: Logger,
-): Promise<bigint | null> {
+): Promise<bigint | undefined> {
   // since safe sequence is not critical, we'll swallow the error
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
   let lastSafeSequence: string | null;
@@ -150,10 +150,10 @@ export async function tryGetLastSafeSequence(
       `Error getting last safe sequence for chain: ${emitterChain}`,
       error,
     );
-    return null;
+    return undefined;
   }
 
-  return lastSafeSequence ? BigInt(lastSafeSequence) : null;
+  return lastSafeSequence !== null ? BigInt(lastSafeSequence) : undefined;
 }
 
 export async function tryGetExistingFailedSequences(
