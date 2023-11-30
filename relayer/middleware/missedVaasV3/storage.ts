@@ -153,7 +153,9 @@ export async function tryGetLastSafeSequence(
     return undefined;
   }
 
-  return lastSafeSequence !== null && lastSafeSequence !== undefined ? BigInt(lastSafeSequence) : undefined;
+  return lastSafeSequence !== null && lastSafeSequence !== undefined
+    ? BigInt(lastSafeSequence)
+    : undefined;
 }
 
 export async function tryGetExistingFailedSequences(
