@@ -4,14 +4,14 @@ import {
   MetricLabelsOpts,
   metrics,
   MetricsOpts,
-} from "../../relayer/middleware/metrics.middleware";
-import { Middleware, Next } from "../../relayer/compose.middleware";
+} from "../../relayer/middleware/metrics.middleware.js";
+import { Middleware, Next } from "../../relayer/compose.middleware.js";
 import { parseVaa } from "@certusone/wormhole-sdk";
-import { StorageContext } from "../../relayer/storage/storage";
-import { ParsedVaaWithBytes } from "../../relayer/application";
-import { Environment } from "../../relayer/environment";
-import { sleep } from "../../relayer/utils";
-import { VaaFactory } from "../vaa-factory";
+import { StorageContext } from "../../relayer/storage/storage.js";
+import { ParsedVaaWithBytes } from "../../relayer/application.js";
+import { Environment } from "../../relayer/environment.js";
+import { sleep } from "../../relayer/utils.js";
+import { VaaFactory } from "../vaa-factory.js";
 
 type TestContext = StorageContext & { target?: string };
 

@@ -9,7 +9,7 @@ import {
   tryGetExistingFailedSequences,
   getAllProcessedSeqsInOrder,
   calculateStartingIndex,
-} from "../../../relayer/middleware/missedVaasV3/storage";
+} from "../../../relayer/middleware/missedVaasV3/storage.js";
 import { Logger } from "winston";
 
 describe("MissedVaaV3.storage", () => {

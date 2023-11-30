@@ -3,19 +3,19 @@ import { jest, describe, test, beforeEach } from "@jest/globals";
 import {
   ProcessVaaFn,
   checkForMissedVaas,
-} from "../../../relayer/middleware/missedVaasV3/check";
+} from "../../../relayer/middleware/missedVaasV3/check.js";
 import {
   batchMarkAsSeen,
   batchMarkAsFailedToRecover,
   getAllProcessedSeqsInOrder,
-} from "../../../relayer/middleware/missedVaasV3/storage";
-import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers";
+} from "../../../relayer/middleware/missedVaasV3/storage.js";
+import { tryFetchVaa } from "../../../relayer/middleware/missedVaasV3/helpers.js";
 import { Redis } from "ioredis";
 import {
   Wormholescan,
   WormholescanVaa,
-} from "../../../relayer/rpc/wormholescan-client";
-import { HttpClientError } from "../../../relayer/rpc/http-client";
+} from "../../../relayer/rpc/wormholescan-client.js";
+import { HttpClientError } from "../../../relayer/rpc/http-client.js";
 
 jest.mock("../../../relayer/middleware/missedVaasV3/storage");
 jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
@@ -91,6 +91,7 @@ describe("MissedVaaV3.check", () => {
         storagePrefix: prefix,
         startingSequenceConfig: {},
         maxLookAhead: 10,
+        wormholeRpcs: [],
       };
 
       return {

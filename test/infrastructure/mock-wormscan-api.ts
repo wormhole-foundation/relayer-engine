@@ -1,7 +1,7 @@
 import * as http from "http";
 import { setTimeout } from "timers/promises";
 import { grpcResponseToBuffer } from "@cloudnc/grpc-web-testing-toolbox/base";
-import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-node/lib/cjs/publicrpc/v1/publicrpc";
+import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-node/lib/esm/publicrpc/v1/publicrpc.js";
 
 type WormholeMockConfig = {
   uri: string;

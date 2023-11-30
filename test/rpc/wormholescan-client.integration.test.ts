@@ -1,10 +1,21 @@
 import { beforeEach, beforeAll, afterAll, describe, test } from "@jest/globals";
-import { WormholescanClient } from "../../relayer/rpc/wormholescan-client";
-import { WormholeMock } from "../infrastructure/mock-wormscan-api";
-import { HttpClientError } from "../../relayer/rpc/http-client";
+import { WormholescanClient } from "../../relayer/rpc/wormholescan-client.js";
+import { WormholeMock } from "../infrastructure/mock-wormscan-api.js";
+import { HttpClientError } from "../../relayer/rpc/http-client.js";
+import tassert from "typed-assert";
 
 let client: WormholescanClient;
 let timeout: number = 100; // 100ms
+
+function assertPropertyIsDefined<T, K extends string>(
+  x: T,
+  prop: K,
+  message: string,
+): asserts x is Extract<T, { [key in K]: unknown }> {
+  if (typeof x !== "object" || x === null || !(prop in x)) {
+    throw new Error(message);
+  }
+}
 
 describe("wormholescan-client", () => {
   const server = new WormholeMock();
@@ -28,9 +39,13 @@ describe("wormholescan-client", () => {
       8,
       "6241ffdc032b693bfb8544858f0403dec86f2e1720af9f34f8d65fe574b6238c",
     );
-    expect(vaasResponse?.data).toBeDefined();
-    expect(vaasResponse?.data?.length).toBeGreaterThan(0);
-    expect(vaasResponse?.data[0].vaa.toString()).not.toContain("object");
+    assertPropertyIsDefined(
+      vaasResponse,
+      "data",
+      "Data field is missing from response.",
+    );
+    expect(vaasResponse.data?.length).toBeGreaterThan(0);
+    expect(vaasResponse.data[0].vaa.toString()).not.toContain("object");
   });
 
   test("should fail if request fails and no retries set", async () => {
@@ -38,6 +53,11 @@ describe("wormholescan-client", () => {
     server.respondWith(expectedStatus, { message: "Internal Server Error" });
     const vaasResponse = await client.listVaas(8, "100", { retries: 0 });
 
+    assertPropertyIsDefined(
+      vaasResponse,
+      "error",
+      "Expected an internal server error.",
+    );
     expect((vaasResponse.error as HttpClientError).status).toBe(expectedStatus);
   });
 
@@ -57,7 +77,7 @@ describe("wormholescan-client", () => {
 
     const vaasResponse = await client.listVaas(8, "1000", { retries: 2 });
 
-    expect(vaasResponse.error).toBeUndefined();
+    assertPropertyIsDefined(vaasResponse, "data", "Expected a valid response.");
     expect(JSON.stringify(vaasResponse.data)).toBe(
       JSON.stringify(expectedData),
     );
@@ -75,6 +95,11 @@ describe("wormholescan-client", () => {
       maxDelay: 500,
     });
 
+    assertPropertyIsDefined(
+      vaasResponse,
+      "error",
+      "Expected a 'too many requests' error.",
+    );
     expect((vaasResponse.error as HttpClientError).status).toBe(429);
   });
 });
