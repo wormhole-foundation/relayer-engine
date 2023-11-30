@@ -2,7 +2,7 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "rootDir": "..",
-    "outDir": "out",
+    "outDir": "../test-out",
     "module": "NodeNext"
   },
   "include": [".", "../relayer"],
