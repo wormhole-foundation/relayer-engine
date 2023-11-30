@@ -142,7 +142,7 @@ export async function tryGetLastSafeSequence(
 ): Promise<bigint | undefined> {
   // since safe sequence is not critical, we'll swallow the error
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
-  let lastSafeSequence: string | null;
+  let lastSafeSequence: string | null | undefined;
   try {
     lastSafeSequence = await redis.get(key);
   } catch (error) {
@@ -153,7 +153,7 @@ export async function tryGetLastSafeSequence(
     return undefined;
   }
 
-  return lastSafeSequence !== null ? BigInt(lastSafeSequence) : undefined;
+  return lastSafeSequence !== null && lastSafeSequence !== undefined ? BigInt(lastSafeSequence) : undefined;
 }
 
 export async function tryGetExistingFailedSequences(
