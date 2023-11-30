@@ -3,5 +3,12 @@
   "compilerOptions": {
     "outDir": "./lib/esm",
     "module": "NodeNext"
-  }
+  },
+  "include": ["relayer"],
+  "exclude": [
+    "node_modules",
+    "**/__tests__/*",
+    "relayer/**/*.test.ts",
+    "test/*"
+  ]
 }
