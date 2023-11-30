@@ -5,7 +5,7 @@ import {
   WalletManagerFullConfig,
 } from "@xlabs-xyz/wallet-monitor";
 import { Logger } from "winston";
-import * as bs58 from "bs58";
+import { ethers } from "ethers";
 
 import {
   CHAIN_ID_BSC,
@@ -106,7 +106,7 @@ function buildWalletsConfig(
         try {
           secretKey = new Uint8Array(JSON.parse(key));
         } catch (e) {
-          secretKey = bs58.decode(key);
+          secretKey = ethers.utils.base58.decode(key);
         }
 
         chainWallets.push({
