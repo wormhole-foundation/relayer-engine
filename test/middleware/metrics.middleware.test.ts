@@ -1,4 +1,4 @@
-import { beforeEach, describe, test } from "@jest/globals";
+import { beforeEach, describe, test, jest } from "@jest/globals";
 import { MetricValue, Registry } from "prom-client";
 import {
   MetricLabelsOpts,

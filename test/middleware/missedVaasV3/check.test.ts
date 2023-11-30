@@ -1,4 +1,4 @@
-import { jest, describe, test, beforeEach } from "@jest/globals";
+import { jest, describe, test, afterEach, beforeEach } from "@jest/globals";
 
 import {
   ProcessVaaFn,
@@ -17,8 +17,8 @@ import {
 } from "../../../relayer/rpc/wormholescan-client.js";
 import { HttpClientError } from "../../../relayer/rpc/http-client.js";
 
-jest.mock("../../../relayer/middleware/missedVaasV3/storage");
-jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
+jest.mock("../../../relayer/middleware/missedVaasV3/storage.js");
+jest.mock("../../../relayer/middleware/missedVaasV3/helpers.js");
 
 const batchMarkAsSeenMock = batchMarkAsSeen as jest.MockedFunction<
   typeof batchMarkAsSeen

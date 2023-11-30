@@ -1,7 +1,7 @@
 import * as http from "http";
 import { setTimeout } from "timers/promises";
 import { grpcResponseToBuffer } from "@cloudnc/grpc-web-testing-toolbox/base";
-import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-node/lib/esm/publicrpc/v1/publicrpc.js";
+import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-node/lib/cjs/publicrpc/v1/publicrpc.js";
 
 type WormholeMockConfig = {
   uri: string;
@@ -50,6 +50,7 @@ export class WormholeMock {
             }).finish(),
           }),
         );
+        return;
       }
 
       if (req.url?.includes("api/v1/vaas") && req.url?.includes("pageSize")) {
@@ -70,6 +71,7 @@ export class WormholeMock {
             ],
           }),
         );
+        return;
       }
 
       res.writeHead(404);
