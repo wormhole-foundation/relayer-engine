@@ -8,7 +8,7 @@
   "scripts": {
     "redis": "docker run --rm -p 6379:6379 --name redis-docker -d redis",
     "test-redis": "docker run --rm -p 6301:6379 --name relayer-engine-test -d redis; npm run test; docker kill relayer-engine-test",
-    "test": "jest --silent=false",
+    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --silent=false",
     "test-watch": "jest --silent=false --watch",
     "build": "tsc --build ./tsconfig.cjs.json && tsc --build ./tsconfig.esm.json && bin/create-package.json.sh",
     "watch": "tsc --watch --project ./tsconfig.esm.json",
