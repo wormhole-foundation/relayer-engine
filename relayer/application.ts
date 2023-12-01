@@ -69,7 +69,7 @@ export const defaultWormscanUrl = {
 export const defaultOpts = (env: Environment) => ({
   wormholeRpcs: defaultWormholeRpcs[env],
   concurrency: 1,
-});
+} satisfies RelayerAppOpts);
 
 export interface SerializableVaaId {
   emitterChain: ChainId;
