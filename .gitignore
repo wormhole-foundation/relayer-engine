@@ -82,4 +82,4 @@ jspm_packages/
 .vscode
 
 # Test typescript output
-test/out
+test-out
