@@ -1,4 +1,4 @@
-import { jest, describe, test } from "@jest/globals";
+import { jest, describe, test, afterEach } from "@jest/globals";
 import { Redis } from "ioredis";
 
 import {
@@ -9,7 +9,7 @@ import {
   tryGetExistingFailedSequences,
   getAllProcessedSeqsInOrder,
   calculateStartingIndex,
-} from "../../../relayer/middleware/missedVaasV3/storage";
+} from "../../../relayer/middleware/missedVaasV3/storage.js";
 import { Logger } from "winston";
 
 describe("MissedVaaV3.storage", () => {
@@ -263,8 +263,8 @@ describe("MissedVaaV3.storage", () => {
   describe("tryGetLastSafeSequence", () => {
     const redis = { get: jest.fn() };
 
-    function prepareTest(getResult?: string, overrides: any = {}) {
-      redis.get.mockImplementation(async () => getResult || undefined);
+    function prepareTest(getResult?: string | null, overrides: any = {}) {
+      redis.get.mockImplementation(async () => getResult);
 
       const prefix = "foo";
       const emitterChain = "bar";
@@ -295,8 +295,8 @@ describe("MissedVaaV3.storage", () => {
       expect(safeSequence).toEqual(BigInt(safeSequenceMock));
     });
 
-    test("It returns null if there is no safe sequence on redis", async () => {
-      const safeSequenceMock: undefined = undefined;
+    test("It returns undefined if there is no safe sequence on redis", async () => {
+      const safeSequenceMock: null = null;
 
       const { prefix, emitterChain, emitterAddress } =
         prepareTest(safeSequenceMock);
@@ -309,7 +309,7 @@ describe("MissedVaaV3.storage", () => {
       );
 
       expect(redis.get).toHaveBeenCalledTimes(1);
-      expect(safeSequence).toEqual(null);
+      expect(safeSequence).toEqual(undefined);
     });
 
     test("It returns null if redis throws", async () => {
@@ -328,7 +328,7 @@ describe("MissedVaaV3.storage", () => {
       );
 
       expect(redis.get).toHaveBeenCalledTimes(1);
-      expect(safeSequence).toEqual(null);
+      expect(safeSequence).toEqual(undefined);
     });
   });
 

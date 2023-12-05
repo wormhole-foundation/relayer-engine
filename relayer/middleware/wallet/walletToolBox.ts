@@ -1,5 +1,4 @@
 import * as wh from "@certusone/wormhole-sdk";
-import * as bs58 from "bs58";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import { Providers } from "../providers.middleware.js";
@@ -32,7 +31,7 @@ export async function createWalletToolbox(
     case wh.CHAIN_ID_SOLANA:
       let secretKey;
       try {
-        secretKey = bs58.decode(privateKey);
+        secretKey = ethers.utils.base58.decode(privateKey);
       } catch (e) {
         secretKey = new Uint8Array(JSON.parse(privateKey));
       }
@@ -44,6 +43,8 @@ export async function createWalletToolbox(
       const seiPkBuf = Buffer.from(privateKey, "hex");
       return createSeiWalletToolBox(providers, seiPkBuf);
   }
+
+  throw new Error(`Unknown chain id ${chainId}`);
 }
 
 function createEVMWalletToolBox(
@@ -51,7 +52,11 @@ function createEVMWalletToolBox(
   privateKey: string,
   chainId: wh.EVMChainId,
 ): WalletToolBox<EVMWallet> {
-  const wallet = new ethers.Wallet(privateKey, providers.evm[chainId][0]);
+  const chainProviders = providers.evm[chainId];
+  if (chainProviders === undefined || chainProviders.length === 0) {
+    throw new Error(`No provider found for chain ${chainId}`);
+  }
+  const wallet = new ethers.Wallet(privateKey, chainProviders[0]);
   return {
     ...providers,
     wallet: wallet,

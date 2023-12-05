@@ -12,6 +12,11 @@ import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana
 import { zeroPad } from "ethers/lib/utils.js";
 import { ParsedVaaWithBytes } from "./application.js";
 import { ethers } from "ethers";
+import { inspect } from "util";
+
+export type MakeOptional<T1, T2> = Omit<T1, keyof T2> &
+  Partial<Omit<T1, keyof Omit<T1, keyof T2>>> &
+  Partial<Omit<T2, keyof T1>>;
 
 export function encodeEmitterAddress(
   chainId: wormholeSdk.ChainId,
@@ -58,7 +63,7 @@ export function sleep(ms: number) {
  * @param item
  * @returns {boolean}
  */
-export function isObject(item: any) {
+export function isObject<T>(item: T): item is T & ({} | null) {
   return item && typeof item === "object" && !Array.isArray(item);
 }
 
@@ -90,9 +95,17 @@ export function mergeDeep<T>(
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (isObject(source[key])) {
-        if (!target[key]) Object.assign(target, { [key]: {} });
-        mergeDeep(target[key], [source[key]], maxDepth - 1);
+      const sourceProp = source[key];
+      if (isObject(sourceProp)) {
+        // We need to cast because the narrowed type for the key is lost in the object.
+        const targetProp: T[Extract<keyof T, string>] =
+          target[key] || ({ [key]: {} } as T[Extract<keyof T, string>]);
+        if (target[key] === undefined) target[key] = targetProp;
+        mergeDeep<T[Extract<keyof T, string>]>(
+          targetProp,
+          [sourceProp],
+          maxDepth - 1,
+        );
       } else {
         Object.assign(target, { [key]: source[key] });
       }
@@ -207,4 +220,21 @@ export async function mapConcurrent(
   // Promises that will be executed parallely, with a maximum of `concurrency` at a time
   const promises = new Array(concurrency).fill(0).map(evaluateNext);
   await Promise.all(promises);
+}
+
+export function printError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error?.stack || error.message}`;
+  }
+
+  // Prints nested properties until a depth of 2 by default.
+  return inspect(error);
+}
+
+export function min(lhs: bigint, rhs: bigint): bigint {
+  return lhs < rhs ? lhs : rhs;
+}
+
+export function max(lhs: bigint, rhs: bigint): bigint {
+  return lhs < rhs ? rhs : lhs;
 }

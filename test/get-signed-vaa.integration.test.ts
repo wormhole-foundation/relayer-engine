@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, test } from "@jest/globals";
 import { getSignedVAA } from "@certusone/wormhole-sdk";
-import { FailFastGrpcTransportFactory } from "../relayer/rpc/fail-fast-grpc-transport";
-import { WormholeMock } from "./infrastructure/mock-wormscan-api";
+import { FailFastGrpcTransportFactory } from "../relayer/rpc/fail-fast-grpc-transport.js";
+import { WormholeMock } from "./infrastructure/mock-wormscan-api.js";
 
 describe("getSignedVaa", () => {
   const server = new WormholeMock();

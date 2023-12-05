@@ -10,8 +10,9 @@ import {
 import { Logger } from "winston";
 import { Environment } from "../environment.js";
 import { LRUCache } from "lru-cache";
-import { ParsedVaaWithBytes } from "../application.js";
+import { ParsedVaaWithBytes, defaultWormscanUrl } from "../application.js";
 import { WormholescanClient } from "../rpc/wormholescan-client.js";
+import { printError } from "../utils.js";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -25,35 +26,29 @@ export interface SourceTxContext extends Context {
   sourceTxHash?: string;
 }
 
-export const wormscanEndpoints: { [k in Environment]: string | undefined } = {
-  [Environment.MAINNET]: "https://api.wormholescan.io",
-  [Environment.TESTNET]: "https://api.testnet.wormholescan.io",
-  [Environment.DEVNET]: undefined,
-};
-
-const defaultOptsByEnv: { [k in Environment]: Partial<SourceTxOpts> } = {
+const defaultOptsByEnv = {
   [Environment.MAINNET]: {
-    wormscanEndpoint: wormscanEndpoints[Environment.MAINNET],
+    wormscanEndpoint: defaultWormscanUrl[Environment.MAINNET],
     retries: 5,
     initialDelay: 1_000,
     maxDelay: 45_000,
     timeout: 5_000,
   },
   [Environment.TESTNET]: {
-    wormscanEndpoint: wormscanEndpoints[Environment.TESTNET],
+    wormscanEndpoint: defaultWormscanUrl[Environment.TESTNET],
     retries: 3,
     initialDelay: 1_000,
     maxDelay: 30_000,
     timeout: 3_000,
   },
   [Environment.DEVNET]: {
-    wormscanEndpoint: wormscanEndpoints[Environment.DEVNET],
+    wormscanEndpoint: defaultWormscanUrl[Environment.DEVNET],
     retries: 3,
     initialDelay: 500,
     maxDelay: 10_000,
     timeout: 2_000,
   },
-};
+} satisfies { [k in Environment]: Partial<SourceTxOpts> };
 
 function ifVAAFinalized(vaa: ParsedVaaWithBytes) {
   const { consistencyLevel, emitterChain } = vaa;
@@ -76,7 +71,16 @@ export function sourceTx(
   return async (ctx, next) => {
     if (!opts) {
       // initialize options now that we know the environment from context
-      opts = Object.assign({}, defaultOptsByEnv[ctx.env], optsWithoutDefaults);
+      opts = {
+        ...defaultOptsByEnv[ctx.env],
+        ...optsWithoutDefaults,
+      };
+    }
+
+    if (ctx.vaa === undefined) {
+      ctx.logger?.debug("Didn't get a VAA id. Skipping tx hash fetch.");
+      await next();
+      return;
     }
 
     const vaaId = `${ctx.vaa.id.emitterChain}-${ctx.vaa.id.emitterAddress}-${ctx.vaa.id.sequence}`;
@@ -97,8 +101,8 @@ export function sourceTx(
       emitterChain,
       emitterAddress,
       sequence,
-      ctx.logger,
       ctx.env,
+      ctx.logger,
       opts,
     );
     if (txHash === "") {
@@ -119,8 +123,8 @@ export async function fetchVaaHash(
   emitterChain: number,
   emitterAddress: Buffer,
   sequence: bigint,
-  logger: Logger,
   env: Environment,
+  logger?: Logger,
   sourceTxOpts?: SourceTxOpts,
 ) {
   if (!wormholescan) {
@@ -139,12 +143,12 @@ export async function fetchVaaHash(
     sequence,
   );
 
-  if (response.error) {
-    logger.error("Error fetching tx hash: " + response.error);
+  if ("error" in response) {
+    logger?.error(`Error fetching tx hash: ${printError(response.error)}`);
     throw response.error;
   }
 
-  let txHash = response.data?.txHash || "";
+  let txHash = response.data.txHash || "";
 
   if (
     isEVMChain(emitterChain as ChainId) &&
@@ -154,7 +158,7 @@ export async function fetchVaaHash(
     txHash = `0x${txHash}`;
   }
 
-  logger.debug("Source Transaction Hash: " + txHash || "Not Found");
+  logger?.debug("Source Transaction Hash: " + txHash || "Not Found");
 
   return txHash;
 }

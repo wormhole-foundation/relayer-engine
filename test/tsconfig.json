@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "../test-out",
+    "module": "NodeNext"
+  },
+  "include": [".", "../relayer"],
+  "exclude": []
+}

@@ -1,13 +1,17 @@
 import { ChainId, ParsedVaa } from "@certusone/wormhole-sdk";
 import { FetchVaaFn } from "./context.js";
-import { EngineError, parseVaaWithBytes, sleep } from "./utils.js";
+import {
+  EngineError,
+  MakeOptional,
+  parseVaaWithBytes,
+  sleep,
+} from "./utils.js";
 import { ParsedVaaWithBytes } from "./application.js";
 
-export type VaaId = {
-  emitterChain: ParsedVaa["emitterChain"];
-  emitterAddress: ParsedVaa["emitterAddress"];
-  sequence: ParsedVaa["sequence"];
-};
+export type VaaId = Pick<
+  ParsedVaa,
+  "emitterChain" | "emitterAddress" | "sequence"
+>;
 
 export type SerializedBatchFetcher = {
   vaaBytes: string[];
@@ -18,15 +22,15 @@ export type SerializedBatchFetcher = {
 // If you pass in a hash, go to the blockchain, read logs and transform into array of ids
 // then fetch the vaas corresponding to those ids
 interface VaaBundlerOpts {
-  maxAttempts?: number;
-  delayBetweenAttemptsInMs?: number;
+  maxAttempts: number;
+  delayBetweenAttemptsInMs: number;
   vaaIds: VaaId[];
 }
 
-const defaultOpts: Omit<VaaBundlerOpts, "vaaIds"> = {
+const defaultOpts = {
   maxAttempts: 10,
   delayBetweenAttemptsInMs: 1000,
-};
+} satisfies Partial<VaaBundlerOpts>;
 
 export class VaaBundleFetcher {
   private readonly fetchedVaas: Record<string, ParsedVaaWithBytes> = {};
@@ -34,8 +38,14 @@ export class VaaBundleFetcher {
   private readonly fetchErrors: Record<string, Error> = {};
   private opts: VaaBundlerOpts;
 
-  constructor(private fetchVaa: FetchVaaFn, opts?: VaaBundlerOpts) {
-    this.opts = Object.assign({}, defaultOpts, opts);
+  constructor(
+    private fetchVaa: FetchVaaFn,
+    opts: MakeOptional<VaaBundlerOpts, typeof defaultOpts>,
+  ) {
+    this.opts = {
+      ...defaultOpts,
+      ...opts,
+    };
 
     for (const id of this.opts.vaaIds) {
       this.pendingVaas[this.idToKey(id)] = id;
@@ -118,13 +128,13 @@ export class VaaBundleFetcher {
             id.sequence,
           );
         } catch (e) {
-          this.fetchErrors[this.idToKey(id)] = e;
+          this.fetchErrors[this.idToKey(id)] = e as Error;
           return null;
         }
       }),
     );
 
-    const vaas = fetched.filter(vaa => vaa !== null);
+    const vaas = fetched.filter(vaa => vaa !== null) as ParsedVaaWithBytes[];
     this.addVaaPayloads(vaas);
     return this.isComplete;
   }

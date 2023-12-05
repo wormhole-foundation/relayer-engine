@@ -5,7 +5,7 @@ import {
   WalletManagerFullConfig,
 } from "@xlabs-xyz/wallet-monitor";
 import { Logger } from "winston";
-import * as bs58 from "bs58";
+import { ethers } from "ethers";
 
 import {
   CHAIN_ID_BSC,
@@ -29,6 +29,9 @@ import {
   CHAIN_ID_SUI,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
 import { Environment } from "../../environment.js";
+
+export type MetricsOptions =
+  (WalletManagerFullConfig["options"] & {})["metrics"] & {};
 
 const networks = {
   [Environment.MAINNET]: {
@@ -103,7 +106,7 @@ function buildWalletsConfig(
         try {
           secretKey = new Uint8Array(JSON.parse(key));
         } catch (e) {
-          secretKey = bs58.decode(key);
+          secretKey = ethers.utils.base58.decode(key);
         }
 
         chainWallets.push({
@@ -140,7 +143,7 @@ export function startWalletManagement(
   env: Environment,
   privateKeys: PrivateKeys,
   tokensByChain?: TokensByChain,
-  metricsOpts?: WalletManagerFullConfig["options"]["metrics"],
+  metricsOpts?: MetricsOptions,
   logger?: Logger,
 ): IClientWalletManager | ILibraryWalletManager {
   const wallets = buildWalletsConfig(env, privateKeys, tokensByChain);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { mapConcurrent } from "../../relayer/utils";
+import { mapConcurrent } from "../../relayer/utils.js";
 
 describe("mapConcurrent", () => {
   it("should map when concurrency below array length", async () => {

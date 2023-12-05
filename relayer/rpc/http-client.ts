@@ -1,4 +1,5 @@
 import { setTimeout } from "timers/promises";
+import { printError } from "../utils.js";
 
 /**
  * A simple HTTP client with exponential backoff retries and 429 handling.
@@ -36,11 +37,11 @@ export class HttpClient {
       });
     } catch (err) {
       // Connection / timeout error:
-      throw new HttpClientError(err);
+      throw new HttpClientError(printError(err));
     }
 
     if (!response.ok) {
-      throw new HttpClientError(null, response, await response.json());
+      throw new HttpClientError(undefined, response, await response.json());
     }
 
     return await response.json();
@@ -78,6 +79,7 @@ export class HttpClient {
         throw err;
       }
     }
+    throw new Error("Failed to execute HTTP request.");
   }
 }
 

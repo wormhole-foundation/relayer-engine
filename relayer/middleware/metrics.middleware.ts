@@ -22,7 +22,7 @@ class MeasuredRelayJob {
 
   vaaTimestamp(): number {
     // vaa.timestamp is in seconds
-    return this.job?.data?.parsedVaa?.timestamp * 1000 ?? 0;
+    return (this.job?.data?.parsedVaa?.timestamp ?? 0) * 1000;
   }
 
   relayJobTimestamp(): number {
@@ -167,18 +167,24 @@ export function metrics<C extends StorageContext>(
 
   const metricsMiddleware = async (ctx: C, next: Next) => {
     processedVaasTotal.inc();
-    let failure: Error = null;
+    let failure: unknown;
 
     const startTime = Date.now();
 
     try {
       await next();
     } catch (e) {
-      failure = e;
+      if (e === undefined) {
+        failure = new Error(
+          "Got thrown undefined while calling next metrics middleware.",
+        );
+      } else {
+        failure = e;
+      }
     }
 
     const job = new MeasuredRelayJob(startTime, Date.now(), ctx.storage.job);
-    const labels = await getLabels(ctx, opts, failure !== null);
+    const labels = await getLabels(ctx, opts, failure !== undefined);
 
     processingDuration.labels(labels).observe(job.processingTime());
 
@@ -190,7 +196,7 @@ export function metrics<C extends StorageContext>(
       relayDuration.labels(labels).observe(job.relayingTime());
     }
 
-    if (failure) {
+    if (failure !== undefined) {
       finishedVaasTotal
         .labels({ ...labels, terminal: `${job.hasReachedMaxAttempts()}` })
         .inc();

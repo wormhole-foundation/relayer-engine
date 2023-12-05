@@ -1,24 +1,21 @@
-import { jest, describe, test } from "@jest/globals";
+import { jest, describe, test, afterEach } from "@jest/globals";
 
 import {
   ProcessVaaFn,
   checkForMissedVaas,
-} from "../../../relayer/middleware/missedVaasV3/check";
+} from "../../../relayer/middleware/missedVaasV3/check.js";
 import {
   tryGetLastSafeSequence,
   trySetLastSafeSequence,
   updateSeenSequences,
   tryGetExistingFailedSequences,
-} from "../../../relayer/middleware/missedVaasV3/storage";
-import { calculateSequenceStats } from "../../../relayer/middleware/missedVaasV3/helpers";
-import { runMissedVaaCheck } from "../../../relayer/middleware/missedVaasV3/worker";
+} from "../../../relayer/middleware/missedVaasV3/storage.js";
+import { calculateSequenceStats } from "../../../relayer/middleware/missedVaasV3/helpers.js";
+import { runMissedVaaCheck } from "../../../relayer/middleware/missedVaasV3/worker.js";
 
 import { Redis } from "ioredis";
 import { Logger } from "winston";
-import {
-  Wormholescan,
-  WormholescanVaa,
-} from "../../../relayer/rpc/wormholescan-client";
+import { WormholescanVaa } from "../../../relayer/rpc/wormholescan-client.js";
 
 jest.mock("../../../relayer/middleware/missedVaasV3/storage");
 jest.mock("../../../relayer/middleware/missedVaasV3/helpers");
@@ -87,7 +84,12 @@ describe("MissedVaaV3.worker", () => {
       const emitterChain = 1;
       const emitterAddress = "foo";
       const prefix = "bar";
-      const opts = {};
+      const opts = {
+        storagePrefix: prefix,
+        startingSequenceConfig: {},
+        maxLookAhead: 10,
+        wormholeRpcs: [],
+      };
 
       if (useStoragePrefix) Object.assign(opts, { storagePrefix: prefix });
 

@@ -143,9 +143,9 @@ export async function run(args: RunArgs, env: Environment): Promise<void> {
         }
       : undefined,
     redisClusterEndpoints: redis?.cluster ? [redis.host] : undefined,
-    spyEndpoint: listenerEnv.spyServiceHost,
+    spyEndpoint: listenerEnv?.spyServiceHost,
     logger: defaultLogger,
-    privateKeys: executorEnv.privateKeys,
+    privateKeys: executorEnv?.privateKeys,
   });
 
   const [pluginName, pluginFn] = Object.entries(args.plugins)[0];

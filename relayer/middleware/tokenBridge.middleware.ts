@@ -114,12 +114,12 @@ function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
 
 function tryToParseTokenTransferVaa(
   vaaBytes: SignedVaa,
-): ParsedTokenTransferVaa | null {
+): ParsedTokenTransferVaa | undefined {
   try {
     return parseTokenTransferVaa(vaaBytes);
   } catch (e) {
     // it may not be a token transfer vaa. TODO Maybe we want to do something to support attestations etc.
-    return null;
+    return undefined;
   }
 }
 
@@ -136,11 +136,16 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     }
     // User might or might not use sui, so a provider for sui
     // might not be present.
-    if (!suiState && ctx.providers.sui[0]) {
-      suiState = await getObjectFields(
+    if (suiState === undefined && ctx.providers.sui.length > 0) {
+      const fields = await getObjectFields(
         ctx.providers.sui[0],
-        CONTRACTS[ctx.env.toUpperCase() as "MAINNET"].sui.token_bridge,
+        CONTRACTS[ctx.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"].sui
+          .token_bridge,
       );
+      if (fields === null) {
+        throw new UnrecoverableError("Couldn't read Sui object field");
+      }
+      suiState = fields;
       tokenBridgeEmitterCapSui = suiState?.emitter_cap.fields.id.id;
     }
     if (!evmContracts) {
@@ -148,11 +153,20 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
       evmContracts = instantiateReadEvmContracts(ctx.env, ctx.providers.evm);
       ctx.logger?.debug(`Token Bridge Contracts initialized`);
     }
-    let parsedTokenTransferVaa = null;
-    let payload = null;
+
+    // TODO: should we actually allow these fields to be undefined in the context type?
+    if (ctx.vaa === undefined) {
+      throw new UnrecoverableError("Parsed VAA is undefined.");
+    }
+    if (ctx.vaaBytes === undefined) {
+      throw new UnrecoverableError("Raw VAA is undefined.");
+    }
+
+    let parsedTokenTransferVaa;
+    let payload;
     if (isTokenBridgeVaa(ctx.env, ctx.vaa)) {
       parsedTokenTransferVaa = tryToParseTokenTransferVaa(ctx.vaaBytes);
-      if (parsedTokenTransferVaa) {
+      if (parsedTokenTransferVaa !== undefined) {
         payload = {
           payloadType: parsedTokenTransferVaa.payloadType,
           amount: parsedTokenTransferVaa.amount,
@@ -176,7 +190,7 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
         },
       },
       vaa: parsedTokenTransferVaa,
-      payload: payload,
+      payload,
     };
     ctx.logger?.debug("Token Bridge contracts attached to context");
     await next();

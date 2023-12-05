@@ -14,24 +14,32 @@ export interface StagingAreaContext extends Context {
   kv: StagingAreaKeyLock;
 }
 
-export interface StagingAreaOpts {
-  redisClusterEndpoints?: ClusterNode[];
-  redisCluster?: ClusterOptions;
+export type StagingAreaOpts = (
+  | {
+      redisClusterEndpoints: ClusterNode[];
+      redisCluster: ClusterOptions;
+    }
+  | {}
+) & {
   redis?: RedisOptions;
   namespace?: string;
-}
+};
 
 export function stagingArea(
   opts: StagingAreaOpts = {},
 ): Middleware<StagingAreaContext> {
-  opts.redis = opts.redis || { host: "localhost", port: 6379 };
+  const options = {
+    redis: { host: "localhost", port: 6379 },
+    ...opts,
+  };
 
   // TODO: maybe refactor redis pool for all plugins that rely on it.
   const factory = {
     create: async function () {
-      const redis = opts.redisCluster
-        ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
-        : new Redis(opts.redis);
+      const redis =
+        "redisCluster" in opts
+          ? new Redis.Cluster(opts.redisClusterEndpoints, opts.redisCluster)
+          : new Redis(options.redis);
       return redis;
     },
     destroy: async function () {
@@ -51,8 +59,8 @@ export function stagingArea(
 
     ctx.kv = new DefaultStagingAreaKeyLock(
       redis,
-      ctx.logger,
       opts.namespace ?? "default",
+      ctx.logger,
     );
     try {
       ctx.logger?.debug("Staging area attached to context");
@@ -83,8 +91,8 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
 
   constructor(
     private readonly redis: Redis | Cluster,
-    readonly logger: Logger,
     namespace: string,
+    readonly logger?: Logger,
   ) {
     this.stagingAreaKey = `stagingAreas:${sanitize(namespace)}`;
   }
@@ -117,14 +125,14 @@ class DefaultStagingAreaKeyLock implements StagingAreaKeyLock {
       };
       return tx ? await op((tx as unknown as Tx).redis) : op(this.redis);
     } catch (e) {
-      // Figure out how to catch wath error in ioredis
+      // Figure out how to catch watch error in ioredis
       // if (e instanceof WatchError) {
       //   // todo: retry in this case?
       //   this.logger.warn("Staging area key was mutated while executing");
       // } else {
       //   this.logger.error("Error while reading and writing staging area keys");
       // }
-      this.logger.error(e);
+      this.logger?.error(e);
       throw e;
     }
   }

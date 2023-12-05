@@ -1,10 +1,6 @@
-import { jest, describe, test } from "@jest/globals";
+import { jest, describe, test, afterEach } from "@jest/globals";
 
-import {
-  calculateSequenceStats,
-  MissedVaaRunStats,
-  SequenceStats,
-} from "../../../relayer/middleware/missedVaasV3/helpers";
+import { calculateSequenceStats } from "../../../relayer/middleware/missedVaasV3/helpers.js";
 
 describe("MissedVaaV3.helpers", () => {
   afterEach(() => {
@@ -30,14 +26,14 @@ describe("MissedVaaV3.helpers", () => {
       return { runStats, failedToFetchSequences, previousSafeSequence };
     }
 
-    test("lastSafeSequence: if there are missing sequences, lastSafeSequence is the last sequence sequence failed to fetch", async () => {
+    test("lastSafeSequence: if there are missing sequences, lastSafeSequence is the last sequence sequence failed to fetch", () => {
       const failedToFetchSequenceMock = 100;
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest({
           failedToFetchSequences: [100],
         });
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,
@@ -46,7 +42,7 @@ describe("MissedVaaV3.helpers", () => {
       expect(result.lastSafeSequence).toEqual(failedToFetchSequenceMock - 1);
     });
 
-    test("lastSafeSequence: if sequences failed to recover, lastSafeSequence is the last sequence before the missing sequence", async () => {
+    test("lastSafeSequence: if sequences failed to recover, lastSafeSequence is the last sequence before the missing sequence", () => {
       const missingSequenceMock = 100;
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest({
@@ -56,7 +52,7 @@ describe("MissedVaaV3.helpers", () => {
           },
         });
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,
@@ -65,7 +61,7 @@ describe("MissedVaaV3.helpers", () => {
       expect(result.lastSafeSequence).toEqual(missingSequenceMock - 1);
     });
 
-    test("lastSafeSequence: if sequences failed to re-process, lastSafeSequence is the last sequence before the missing sequence", async () => {
+    test("lastSafeSequence: if sequences failed to re-process, lastSafeSequence is the last sequence before the missing sequence", () => {
       const missingSequenceMock = 100;
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest({
@@ -75,7 +71,7 @@ describe("MissedVaaV3.helpers", () => {
           },
         });
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,
@@ -84,7 +80,7 @@ describe("MissedVaaV3.helpers", () => {
       expect(result.lastSafeSequence).toEqual(missingSequenceMock - 1);
     });
 
-    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead found any vaa it's sequence will be used as the last safe sequence", async () => {
+    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead found any vaa it's sequence will be used as the last safe sequence", () => {
       const greatestLookAheadSequence = 103;
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest({
@@ -93,7 +89,7 @@ describe("MissedVaaV3.helpers", () => {
           },
         });
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,
@@ -102,14 +98,14 @@ describe("MissedVaaV3.helpers", () => {
       expect(result.lastSafeSequence).toEqual(greatestLookAheadSequence);
     });
 
-    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead didnt find vaas but there are seen VAAs we'll use the greatest seen vaa sequence", async () => {
+    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead didnt find vaas but there are seen VAAs we'll use the greatest seen vaa sequence", () => {
       const greatestSeenSequence = 103;
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest({
           runStats: { seenSequences: [101, 102, greatestSeenSequence] },
         });
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,
@@ -118,14 +114,14 @@ describe("MissedVaaV3.helpers", () => {
       expect(result.lastSafeSequence).toEqual(greatestSeenSequence);
     });
 
-    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead didnt find vaas and there are no seen sequences, we'll use the previous safe sequence if there is one", async () => {
+    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead didnt find vaas and there are no seen sequences, we'll use the previous safe sequence if there is one", () => {
       const safeSequenceMock = 105n;
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest({
           previousSafeSequence: safeSequenceMock,
         });
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,
@@ -136,11 +132,11 @@ describe("MissedVaaV3.helpers", () => {
       );
     });
 
-    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead didnt find vaas and there are no seen sequences nor previous safe sequence, we'll set safe sequence to 0", async () => {
+    test("lastSafeSequence: if no sequence present failures (fetch, recover or reprocess) and lookahead didnt find vaas and there are no seen sequences nor previous safe sequence, we'll set safe sequence to 0", () => {
       const { runStats, failedToFetchSequences, previousSafeSequence } =
         prepareTest();
 
-      const result = await calculateSequenceStats(
+      const result = calculateSequenceStats(
         runStats,
         failedToFetchSequences,
         previousSafeSequence,

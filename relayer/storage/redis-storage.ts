@@ -89,11 +89,11 @@ const defaultOptions: Partial<StorageOptions> = {
 };
 
 export class RedisStorage implements Storage {
-  logger: Logger;
+  logger?: Logger;
   vaaQueue: Queue<JobData, string[], string>;
   public registry: Registry;
-  workerId: string;
-  private worker: Worker<JobData, void, string>;
+  workerId?: string;
+  private worker?: Worker<JobData, void, string>;
   private readonly prefix: string;
   private readonly redis: Cluster | Redis;
   private metrics: StorageMetrics;
@@ -109,7 +109,8 @@ export class RedisStorage implements Storage {
     this.opts.redis.maxRetriesPerRequest = null; //Added because of: DEPRECATION WARNING! Your redis options maxRetriesPerRequest must be null. On the next versions having this settings will throw an exception
     this.prefix = `{${this.opts.namespace ?? this.opts.queueName}}`;
     this.redis =
-      this.opts.redisClusterEndpoints?.length > 0
+      this.opts.redisClusterEndpoints !== undefined &&
+      this.opts.redisClusterEndpoints.length > 0
         ? new Redis.Cluster(
             this.opts.redisClusterEndpoints,
             this.opts.redisCluster,
@@ -169,7 +170,7 @@ export class RedisStorage implements Storage {
     return {
       attempts: 0,
       data: { vaaBytes, parsedVaa },
-      id: job.id,
+      id: job.id!,
       name: job.name,
       log: job.log.bind(job),
       receivedAt: startTime,
@@ -218,7 +219,7 @@ export class RedisStorage implements Storage {
             sequence: parsedVaa.sequence.toString(),
           });
         } else {
-          this.logger.debug("Received job with no parsedVaa");
+          this.logger?.debug("Received job with no parsedVaa");
         }
 
         const vaaBytes = Buffer.from(job.data.vaaBytes, "base64");
@@ -228,7 +229,7 @@ export class RedisStorage implements Storage {
             vaaBytes,
             parsedVaa: parseVaa(vaaBytes),
           },
-          id: job.id,
+          id: job.id!,
           maxAttempts: this.opts.attempts,
           name: job.name,
           receivedAt: job.timestamp,
@@ -253,11 +254,11 @@ export class RedisStorage implements Storage {
 
   async stopWorker() {
     await this.worker?.close();
-    this.worker = null;
+    this.worker = undefined;
   }
 
   async spawnGaugeUpdateWorker(ms = 5000) {
-    while (this.worker !== null) {
+    while (this.worker !== undefined) {
       await this.updateGauges();
       await sleep(ms);
     }

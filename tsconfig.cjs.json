@@ -4,5 +4,12 @@
     "outDir": "./lib/cjs",
     "module": "CommonJS",
     "moduleResolution": "node"
-  }
+  },
+  "include": ["relayer"],
+  "exclude": [
+    "node_modules",
+    "**/__tests__/*",
+    "relayer/**/*.test.ts",
+    "test/*"
+  ]
 }

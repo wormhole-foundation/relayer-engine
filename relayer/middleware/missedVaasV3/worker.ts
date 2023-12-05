@@ -39,7 +39,7 @@ const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 export interface MissedVaaOpts extends RedisConnectionOpts {
   registry?: Registry;
   logger?: Logger;
-  wormholeRpcs?: string[];
+  wormholeRpcs: string[];
   wormscanUrl?: string;
   // How many "source" chains will be scanned for missed VAAs concurrently.
   concurrency?: number;

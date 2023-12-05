@@ -121,7 +121,7 @@ function providersShimToLegacy(providers: Providers): LegacyProviders {
     solana:
       providers.solana.length > 0
         ? providers.solana[0]
-        : (undefined as Connection),
+        : (undefined as unknown as Connection),
     untyped: Object.fromEntries(
       Object.entries(providers.untyped).map(([chain, rpcs]) => [
         chain,
@@ -134,11 +134,11 @@ function providersShimToLegacy(providers: Providers): LegacyProviders {
     sui:
       providers.sui.length > 0
         ? providers.sui[0]
-        : (undefined as JsonRpcProvider),
+        : (undefined as unknown as JsonRpcProvider),
     sei:
       providers.sei.length > 0
         ? providers.sei[0]
-        : (undefined as CosmWasmClient),
+        : (undefined as unknown as CosmWasmClient),
   };
 }
 

@@ -1,6 +1,6 @@
-import { describe } from "@jest/globals";
-import { RedisStorage } from "../relayer/storage/redis-storage";
-import { VaaFactory } from "./vaa-factory";
+import { afterEach, describe, jest } from "@jest/globals";
+import { RedisStorage } from "../relayer/storage/redis-storage.js";
+import { VaaFactory } from "./vaa-factory.js";
 
 jest.mock("ioredis", () => {
   const redis = class RedisMock {

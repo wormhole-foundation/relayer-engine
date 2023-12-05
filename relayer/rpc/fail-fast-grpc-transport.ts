@@ -85,6 +85,10 @@ class TimeoutableTransport implements pkg.grpc.Transport {
   }
 
   sendMessage(msgBytes: Uint8Array): void {
+    if (this.request === undefined) {
+      throw new Error("Attempted to send a message without a request context");
+    }
+
     if (
       !this.options.methodDefinition.requestStream &&
       !this.options.methodDefinition.responseStream

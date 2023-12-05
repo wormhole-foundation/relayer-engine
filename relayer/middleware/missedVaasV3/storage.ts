@@ -139,10 +139,10 @@ export async function tryGetLastSafeSequence(
   emitterChain: number,
   emitterAddress: string,
   logger?: Logger,
-): Promise<bigint | null> {
+): Promise<bigint | undefined> {
   // since safe sequence is not critical, we'll swallow the error
   const key = getSafeSequenceKey(prefix, emitterChain, emitterAddress);
-  let lastSafeSequence: string | null;
+  let lastSafeSequence: string | null | undefined;
   try {
     lastSafeSequence = await redis.get(key);
   } catch (error) {
@@ -150,10 +150,12 @@ export async function tryGetLastSafeSequence(
       `Error getting last safe sequence for chain: ${emitterChain}`,
       error,
     );
-    return null;
+    return undefined;
   }
 
-  return lastSafeSequence ? BigInt(lastSafeSequence) : null;
+  return lastSafeSequence !== null && lastSafeSequence !== undefined
+    ? BigInt(lastSafeSequence)
+    : undefined;
 }
 
 export async function tryGetExistingFailedSequences(
@@ -186,13 +188,13 @@ export async function calculateStartingIndex(
   prefix: string,
   emitterChain: number,
   emitterAddress: string,
-  lastSafeSequence?: bigint | null,
+  lastSafeSequence?: bigint,
 ) {
   const key = getSeenVaaKey(prefix, emitterChain, emitterAddress);
 
   let indexToStartFrom: number | null = null;
 
-  if (lastSafeSequence) {
+  if (lastSafeSequence !== undefined) {
     indexToStartFrom = await redis.zrank(key, lastSafeSequence.toString());
   }
 
