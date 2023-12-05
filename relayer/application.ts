@@ -66,10 +66,11 @@ export const defaultWormscanUrl = {
   [Environment.DEVNET]: "https://api.testnet.wormholescan.io",
 };
 
-export const defaultOpts = (env: Environment) => ({
-  wormholeRpcs: defaultWormholeRpcs[env],
-  concurrency: 1,
-} satisfies RelayerAppOpts);
+export const defaultOpts = (env: Environment) =>
+  ({
+    wormholeRpcs: defaultWormholeRpcs[env],
+    concurrency: 1,
+  } satisfies RelayerAppOpts);
 
 export interface SerializableVaaId {
   emitterChain: ChainId;
