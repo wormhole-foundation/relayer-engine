@@ -3,8 +3,8 @@
   "version": "0.3.2",
   "description": "Relayer Engine",
   "type": "module",
-  "main": "lib/cjs/index.js",
-  "types": "lib/cjs/index.d.ts",
+  "main": "lib/cjs/relayer/index.js",
+  "types": "lib/cjs/relayer/index.d.ts",
   "scripts": {
     "redis": "docker run --rm -p 6379:6379 --name redis-docker -d redis",
     "test-redis": "docker run --rm -p 6301:6379 --name relayer-engine-test -d redis; npm run test; docker kill relayer-engine-test",
@@ -20,14 +20,14 @@
   },
   "exports": {
     ".": {
-      "require": "./lib/cjs/index.js",
-      "import": "./lib/esm/index.js",
-      "default": "./lib/esm/index.js"
+      "require": "./lib/cjs/relayer/index.js",
+      "import": "./lib/esm/relayer/index.js",
+      "default": "./lib/esm/relayer/index.js"
     },
     "./*": {
-      "require": "./lib/cjs/*.js",
-      "import": "./lib/esm/*.js",
-      "default": "./lib/esm/*.js"
+      "require": "./lib/cjs/relayer/*.js",
+      "import": "./lib/esm/relayer/*.js",
+      "default": "./lib/esm/relayer/*.js"
     }
   },
   "author": "Joe Howarth, xLabs Inc.",
