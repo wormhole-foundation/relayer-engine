@@ -97,10 +97,10 @@ export function mergeDeep<T>(
     for (const key in source) {
       const sourceProp = source[key];
       if (isObject(sourceProp)) {
+        const targetProp: Partial<T[typeof key]> | T[typeof key] =
+          target[key] || {};
         // We need to cast because the narrowed type for the key is lost in the object.
-        const targetProp: T[Extract<keyof T, string>] =
-          target[key] || ({ [key]: {} } as T[Extract<keyof T, string>]);
-        if (target[key] === undefined) target[key] = targetProp;
+        if (target[key] === undefined) (target[key] as any) = targetProp;
         mergeDeep<T[Extract<keyof T, string>]>(
           targetProp,
           [sourceProp],
