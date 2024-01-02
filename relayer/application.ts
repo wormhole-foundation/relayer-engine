@@ -53,9 +53,7 @@ export type FetchaVaasOpts = {
 
 export const defaultWormholeRpcs = {
   [Environment.MAINNET]: ["https://api.wormholescan.io"],
-  [Environment.TESTNET]: [
-    "https://api.testnet.wormholescan.io",
-  ],
+  [Environment.TESTNET]: ["https://api.testnet.wormholescan.io"],
   [Environment.DEVNET]: [""],
 };
 
