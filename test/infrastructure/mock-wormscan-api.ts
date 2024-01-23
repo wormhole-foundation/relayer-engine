@@ -77,67 +77,70 @@ export class WormholeMock {
       if (req.url?.includes("api/v1/transactions")) {
         // Wormholescan api.
         // Get a transaction.  This will return always the same regardless the input parameters,
-        // but it will suffice for the fix we need.  
+        // but it will suffice for the fix we need.
         // TODO:  make this more realistic (check input)
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-              "id":"8/67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45/6043",
-              "timestamp":"2024-01-23T11:33:26Z",
-              "txHash":"F5SMRRBTH4R325BRVYX2DWD4LPGY42IO6OQNZRK2H4Z4VQ77UUPQ",
-              "emitterChain":8,
-              "emitterAddress":"67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45",
-              "emitterNativeAddress":"M7UT7JWIVROIDGMQVJZUBQGBNNIIVOYRPC7JWMGQES4KYJIZHVCRZEGFRQ",
-              "tokenAmount":"607.082703",
-              "usdAmount":"606.51811608",
-              "symbol":"USDC",
-              "payload":{
-                 "amount":"607082703",
-                 "fee":"0",
-                 "fromAddress":null,
-                 "parsedPayload":null,
-                 "payload":"",
-                 "payloadType":1,
-                 "toAddress":"0000000000000000000000008843f611a7510f139db69541aebb33dd2319c093",
-                 "toChain":6,
-                 "tokenAddress":"000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
-                 "tokenChain":6
+            id: "8/67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45/6043",
+            timestamp: "2024-01-23T11:33:26Z",
+            txHash: "F5SMRRBTH4R325BRVYX2DWD4LPGY42IO6OQNZRK2H4Z4VQ77UUPQ",
+            emitterChain: 8,
+            emitterAddress:
+              "67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45",
+            emitterNativeAddress:
+              "M7UT7JWIVROIDGMQVJZUBQGBNNIIVOYRPC7JWMGQES4KYJIZHVCRZEGFRQ",
+            tokenAmount: "607.082703",
+            usdAmount: "606.51811608",
+            symbol: "USDC",
+            payload: {
+              amount: "607082703",
+              fee: "0",
+              fromAddress: null,
+              parsedPayload: null,
+              payload: "",
+              payloadType: 1,
+              toAddress:
+                "0000000000000000000000008843f611a7510f139db69541aebb33dd2319c093",
+              toChain: 6,
+              tokenAddress:
+                "000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+              tokenChain: 6,
+            },
+            standardizedProperties: {
+              amount: "60708270300",
+              appIds: ["PORTAL_TOKEN_BRIDGE"],
+              fee: "0",
+              feeAddress: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+              feeChain: 6,
+              fromAddress: "",
+              fromChain: 8,
+              toAddress: "0x8843f611a7510f139db69541aebb33dd2319c093",
+              toChain: 6,
+              tokenAddress: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+              tokenChain: 6,
+            },
+            globalTx: {
+              id: "8/67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45/6043",
+              originTx: {
+                txHash: "F5SMRRBTH4R325BRVYX2DWD4LPGY42IO6OQNZRK2H4Z4VQ77UUPQ",
+                from: "BM26KC3NHYQ7BCDWVMP2OM6AWEZZ6ZGYQWKAQFC7XECOUBLP44VOYNBQTA",
+                status: "confirmed",
+                attribute: null,
               },
-              "standardizedProperties":{
-                 "amount":"60708270300",
-                 "appIds":[
-                    "PORTAL_TOKEN_BRIDGE"
-                 ],
-                 "fee":"0",
-                 "feeAddress":"0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
-                 "feeChain":6,
-                 "fromAddress":"",
-                 "fromChain":8,
-                 "toAddress":"0x8843f611a7510f139db69541aebb33dd2319c093",
-                 "toChain":6,
-                 "tokenAddress":"0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
-                 "tokenChain":6
+              destinationTx: {
+                chainId: 6,
+                status: "completed",
+                method: "completeTransfer",
+                txHash:
+                  "c2d6657e1330a50bdc245c4528ca2d61979524263f53f2d65936e92d8f325745",
+                from: "0xc35e155fee378dc514d49d78579625489c4a350e",
+                to: "0x0e082f06ff657d94310cb8ce8b0d9a04541d8052",
+                blockNumber: "40732271",
+                timestamp: "2024-01-23T11:33:42Z",
+                updatedAt: "2024-01-23T11:33:54.75Z",
               },
-              "globalTx":{
-                 "id":"8/67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45/6043",
-                 "originTx":{
-                    "txHash":"F5SMRRBTH4R325BRVYX2DWD4LPGY42IO6OQNZRK2H4Z4VQ77UUPQ",
-                    "from":"BM26KC3NHYQ7BCDWVMP2OM6AWEZZ6ZGYQWKAQFC7XECOUBLP44VOYNBQTA",
-                    "status":"confirmed",
-                    "attribute":null
-                 },
-                 "destinationTx":{
-                    "chainId":6,
-                    "status":"completed",
-                    "method":"completeTransfer",
-                    "txHash":"c2d6657e1330a50bdc245c4528ca2d61979524263f53f2d65936e92d8f325745",
-                    "from":"0xc35e155fee378dc514d49d78579625489c4a350e",
-                    "to":"0x0e082f06ff657d94310cb8ce8b0d9a04541d8052",
-                    "blockNumber":"40732271",
-                    "timestamp":"2024-01-23T11:33:42Z",
-                    "updatedAt":"2024-01-23T11:33:54.75Z"
-                 }
-              }
+            },
           }),
         );
         return;

@@ -101,9 +101,9 @@ export class WormholescanClient implements Wormholescan {
         }api/v1/transactions/${chain}/${emitterAddress}/${sequence.toString()}`,
         opts,
       );
-      
+
       return {
-        data: response
+        data: response,
       };
     } catch (err: Error | any) {
       return this.mapError(err);
@@ -180,7 +180,6 @@ export interface WormholescanTransactionResponse {
   globalTx: GlobalTransaction;
 }
 
-
 export type WormholescanTransaction = {
   id: string;
   timestamp: string;
@@ -194,54 +193,54 @@ export type WormholescanTransaction = {
   payload: Payload;
   standardizedProperties: StandardizedProperties;
   globalTx: GlobalTransaction;
-}
+};
 
 export type GlobalTransaction = {
-    id: string;
-    originTx: {
-        txHash: string;
-        from: string;
-        status: string;
-        attribute: null | string;
-    };
-    destinationTx: {
-        chainId: number;
-        status: string;
-        method: string;
-        txHash: string;
-        from: string;
-        to: string;
-        blockNumber: string;
-        timestamp: string;
-        updatedAt: string;
-    };
-}
+  id: string;
+  originTx: {
+    txHash: string;
+    from: string;
+    status: string;
+    attribute: null | string;
+  };
+  destinationTx: {
+    chainId: number;
+    status: string;
+    method: string;
+    txHash: string;
+    from: string;
+    to: string;
+    blockNumber: string;
+    timestamp: string;
+    updatedAt: string;
+  };
+};
 
 interface StandardizedProperties {
-    amount: string;
-    appIds: string[];
-    fee: string;
-    feeAddress: string;
-    feeChain: number;
-    fromAddress: string;
-    fromChain: number;
-    toAddress: string;
-    toChain: number;
-    tokenAddress: string;
-    tokenChain: number;
+  amount: string;
+  appIds: string[];
+  fee: string;
+  feeAddress: string;
+  feeChain: number;
+  fromAddress: string;
+  fromChain: number;
+  toAddress: string;
+  toChain: number;
+  tokenAddress: string;
+  tokenChain: number;
 }
 
 interface Payload {
-    amount: string;
-    fee: string;
-    fromAddress: null | string;
-    parsedPayload: null | string;
-    payload: string;
-    payloadType: number;
-    toAddress: string;
-    toChain: number;
-    tokenAddress: string;
-    tokenChain: number;
+  amount: string;
+  fee: string;
+  fromAddress: null | string;
+  parsedPayload: null | string;
+  payload: string;
+  payloadType: number;
+  toAddress: string;
+  toChain: number;
+  tokenAddress: string;
+  tokenChain: number;
 }
 
 export type WormholescanResult<T> =
