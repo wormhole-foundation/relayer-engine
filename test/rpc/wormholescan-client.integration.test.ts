@@ -39,13 +39,45 @@ describe("wormholescan-client", () => {
       8,
       "6241ffdc032b693bfb8544858f0403dec86f2e1720af9f34f8d65fe574b6238c",
     );
+
     assertPropertyIsDefined(
       vaasResponse,
       "data",
       "Data field is missing from response.",
     );
+
     expect(vaasResponse.data?.length).toBeGreaterThan(0);
     expect(vaasResponse.data[0].vaa.toString()).not.toContain("object");
+  });
+
+  test("should get transaction", async () => {
+    const txResponse = await client.getTransaction(
+      8,
+      "67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45",
+      6043n,
+    );
+
+    assertPropertyIsDefined(
+      txResponse,
+      "data",
+      "Data field is missing from response.",
+    );
+
+    expect(txResponse.data.payload).toBeDefined();
+    expect(txResponse.data.id).toEqual(
+      "8/67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45/6043",
+    );
+    expect(txResponse.data.globalTx).toBeDefined();
+    expect(txResponse.data.standardizedProperties).toBeDefined();
+    expect(txResponse.data.globalTx.id).toEqual(
+      "8/67e93fa6c8ac5c819990aa7340c0c16b508abb1178be9b30d024b8ac25193d45/6043",
+    );
+    expect(txResponse.data.globalTx.originTx.txHash).toEqual(
+      "F5SMRRBTH4R325BRVYX2DWD4LPGY42IO6OQNZRK2H4Z4VQ77UUPQ",
+    );
+    expect(txResponse.data.globalTx.originTx.from).toEqual(
+      "BM26KC3NHYQ7BCDWVMP2OM6AWEZZ6ZGYQWKAQFC7XECOUBLP44VOYNBQTA",
+    );
   });
 
   test("should fail if request fails and no retries set", async () => {
