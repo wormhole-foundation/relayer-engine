@@ -6,4 +6,5 @@ export * from "./compose.middleware.js";
 export * from "./storage/index.js";
 export * from "./logging.js";
 export * from "./middleware/index.js";
+export * from "./rpc/wormholescan-client.js"
 export * from "./utils.js";
