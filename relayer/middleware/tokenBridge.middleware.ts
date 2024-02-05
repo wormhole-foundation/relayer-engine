@@ -1,8 +1,4 @@
-import {
-  ITokenBridge,
-  ITokenBridge__factory,
-} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/index.js";
-import { getObjectFields } from "@certusone/wormhole-sdk/lib/cjs/sui/index.js";
+import { ethers_contracts as EvmTokenBridgeContracts } from "@wormhole-foundation/connect-sdk-evm-tokenbridge";
 import {
   Chain,
   ChainId,
@@ -11,6 +7,7 @@ import {
   VAA,
   contracts,
   deserialize,
+  toChain,
   toChainId,
 } from "@wormhole-foundation/connect-sdk";
 import { UnrecoverableError } from "bullmq";
@@ -19,6 +16,8 @@ import { Middleware } from "../compose.middleware.js";
 import { Environment } from "../environment.js";
 import { encodeEmitterAddress, envToNetwork } from "../utils.js";
 import { ProviderContext } from "./providers.middleware.js";
+
+type ITokenBridge = EvmTokenBridgeContracts.TokenBridgeContract;
 
 function tokenBridgeMap(network: Network): Record<string, string> {
   return Object.fromEntries(
@@ -59,7 +58,9 @@ export interface TokenBridgeContext extends ProviderContext {
 
 export type TokenBridgeChainConfigInfo = {
   evm: {
-    [k in ChainId]: { contracts: ITokenBridge[] };
+    [k in ChainId]: {
+      contracts: [];
+    };
   };
 };
 
@@ -72,10 +73,11 @@ function instantiateReadEvmContracts(
   }> = {};
   for (const [chainIdStr, chainRpc] of Object.entries(chainRpcs)) {
     const chainId = Number(chainIdStr) as ChainId;
-    // @ts-ignore
-    const address = tokenBridgeAddresses[env][CHAIN_ID_TO_NAME[chainId]];
+    const address = tokenBridgeAddresses[env][toChain(chainId)];
     const contracts = chainRpc.map(rpc =>
-      ITokenBridge__factory.connect(address, rpc),
+      // TODO: ben
+      // @ts-ignore
+      EvmTokenBridgeContracts.Bridge__factory.connect(address, rpc),
     );
     evmChainContracts[chainId] = contracts;
   }
@@ -129,10 +131,12 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     // User might or might not use sui, so a provider for sui
     // might not be present.
     if (suiState === undefined && ctx.providers.sui.length > 0) {
-      const fields = await getObjectFields(
-        ctx.providers.sui[0],
-        contracts.tokenBridge.get(envToNetwork(ctx.env), "Sui")!,
-      );
+      const fields = null;
+      // TODO: ben
+      // await getObjectFields(
+      //   ctx.providers.sui[0],
+      //   contracts.tokenBridge.get(envToNetwork(ctx.env), "Sui")!,
+      // );
       if (fields === null) {
         throw new UnrecoverableError("Couldn't read Sui object field");
       }
@@ -179,7 +183,9 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
 
     ctx.tokenBridge = {
       addresses: tokenBridgeAddresses[ctx.env],
-      contractConstructor: ITokenBridge__factory.connect,
+      // TODO: ben
+      // @ts-ignore
+      contractConstructor: EvmTokenBridgeContracts.Bridge__factory.connect,
       contracts: {
         read: {
           evm: evmContracts,
