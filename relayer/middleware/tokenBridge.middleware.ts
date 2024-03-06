@@ -1,51 +1,44 @@
-import { Middleware } from "../compose.middleware.js";
+import { ethers_contracts as EvmTokenBridgeContracts } from "@wormhole-foundation/sdk-evm-tokenbridge";
 import {
-  CHAIN_ID_SUI,
-  CHAIN_ID_TO_NAME,
+  Chain,
   ChainId,
-  ChainName,
-  coalesceChainName,
-  CONTRACTS,
-  EVMChainId,
-  ParsedTokenTransferVaa,
-  ParsedVaa,
-  parseTokenTransferVaa,
-  SignedVaa,
-  TokenTransfer,
-} from "@certusone/wormhole-sdk";
-import { ethers, Signer } from "ethers";
-import { ProviderContext } from "./providers.middleware.js";
+  Network,
+  TokenBridge,
+  VAA,
+  contracts,
+  deserialize,
+  toChain,
+  toChainId,
+} from "@wormhole-foundation/sdk";
 import { UnrecoverableError } from "bullmq";
-import {
-  ITokenBridge,
-  ITokenBridge__factory,
-} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/index.js";
-import { encodeEmitterAddress } from "../utils.js";
-import { getObjectFields } from "@certusone/wormhole-sdk/lib/cjs/sui/index.js";
+import { Signer, ethers } from "ethers";
+import { Middleware } from "../compose.middleware.js";
 import { Environment } from "../environment.js";
+import { encodeEmitterAddress, envToNetwork } from "../utils.js";
+import { ProviderContext } from "./providers.middleware.js";
 
-function extractTokenBridgeAddressesFromSdk(env: Environment) {
+type ITokenBridge = EvmTokenBridgeContracts.TokenBridgeContract;
+
+function tokenBridgeMap(network: Network): Record<string, string> {
   return Object.fromEntries(
-    Object.entries((CONTRACTS as any)[env.toUpperCase()]).map(
-      ([chainName, addresses]: any[]) => [chainName, addresses.token_bridge],
-    ),
+    contracts
+      .tokenBridgeChains(network)
+      // TODO: ben
+      // @ts-ignore
+      .map(chain => [chain, contracts.tokenBridge(network, chain)]),
   );
 }
 
 const tokenBridgeAddresses = {
-  [Environment.MAINNET]: extractTokenBridgeAddressesFromSdk(
-    Environment.MAINNET,
-  ),
-  [Environment.TESTNET]: extractTokenBridgeAddressesFromSdk(
-    Environment.TESTNET,
-  ),
-  [Environment.DEVNET]: extractTokenBridgeAddressesFromSdk(Environment.DEVNET),
+  [Environment.MAINNET]: tokenBridgeMap("Mainnet"),
+  [Environment.TESTNET]: tokenBridgeMap("Testnet"),
+  [Environment.DEVNET]: tokenBridgeMap("Devnet"),
 };
 
 export interface TokenBridgeContext extends ProviderContext {
   tokenBridge: {
     addresses: {
-      [k in ChainName]?: string;
+      [k in Chain]?: string;
     };
     contractConstructor: (
       address: string,
@@ -54,34 +47,37 @@ export interface TokenBridgeContext extends ProviderContext {
     contracts: {
       read: {
         evm: {
-          [k in EVMChainId]?: ITokenBridge[];
+          [k in ChainId]?: ITokenBridge[];
         };
       };
     };
-    vaa?: ParsedTokenTransferVaa;
-    payload?: TokenTransfer;
+    vaa?: VAA<"TokenBridge:Transfer" | "TokenBridge:TransferWithPayload">;
+    payload?: TokenBridge.Payload;
   };
 }
 
 export type TokenBridgeChainConfigInfo = {
   evm: {
-    [k in EVMChainId]: { contracts: ITokenBridge[] };
+    [k in ChainId]: {
+      contracts: [];
+    };
   };
 };
 
 function instantiateReadEvmContracts(
   env: Environment,
-  chainRpcs: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>,
+  chainRpcs: Partial<Record<Chain, ethers.providers.JsonRpcProvider[]>>,
 ) {
   const evmChainContracts: Partial<{
-    [k in EVMChainId]: ITokenBridge[];
+    [k in ChainId]: ITokenBridge[];
   }> = {};
   for (const [chainIdStr, chainRpc] of Object.entries(chainRpcs)) {
-    const chainId = Number(chainIdStr) as EVMChainId;
-    // @ts-ignore
-    const address = tokenBridgeAddresses[env][CHAIN_ID_TO_NAME[chainId]];
+    const chainId = Number(chainIdStr) as ChainId;
+    const address = tokenBridgeAddresses[env][toChain(chainId)];
     const contracts = chainRpc.map(rpc =>
-      ITokenBridge__factory.connect(address, rpc),
+      // TODO: ben
+      // @ts-ignore
+      EvmTokenBridgeContracts.Bridge__factory.connect(address, rpc),
     );
     evmChainContracts[chainId] = contracts;
   }
@@ -91,20 +87,18 @@ function instantiateReadEvmContracts(
 // initialized when then first vaa comes through
 let tokenBridgeEmitterCapSui = "";
 
-function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
-  let chainId = vaa.emitterChain as ChainId;
-  const chainName = coalesceChainName(chainId);
+function isTokenBridgeVaa(env: Environment, vaa: VAA): boolean {
+  const chainId = toChainId(vaa.emitterChain);
 
-  // @ts-ignore TODO remove
   let tokenBridgeLocalAddress =
-    vaa.emitterChain === CHAIN_ID_SUI
+    vaa.emitterChain === "Sui"
       ? tokenBridgeEmitterCapSui
-      : tokenBridgeAddresses[env][chainName];
+      : tokenBridgeAddresses[env][vaa.emitterChain];
   if (!tokenBridgeLocalAddress) {
     return false;
   }
 
-  const emitterAddress = vaa.emitterAddress.toString("hex");
+  const emitterAddress = vaa.emitterAddress.toString();
   let tokenBridgeEmitterAddress = encodeEmitterAddress(
     chainId,
     tokenBridgeLocalAddress,
@@ -113,10 +107,10 @@ function isTokenBridgeVaa(env: Environment, vaa: ParsedVaa): boolean {
 }
 
 function tryToParseTokenTransferVaa(
-  vaaBytes: SignedVaa,
-): ParsedTokenTransferVaa | undefined {
+  vaaBytes: Uint8Array,
+): TokenBridge.TransferVAA | undefined {
   try {
-    return parseTokenTransferVaa(vaaBytes);
+    return deserialize(TokenBridge.getTransferDiscriminator(), vaaBytes);
   } catch (e) {
     // it may not be a token transfer vaa. TODO Maybe we want to do something to support attestations etc.
     return undefined;
@@ -124,7 +118,7 @@ function tryToParseTokenTransferVaa(
 }
 
 export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
-  let evmContracts: Partial<{ [k in EVMChainId]: ITokenBridge[] }>;
+  let evmContracts: Partial<{ [k in ChainId]: ITokenBridge[] }>;
   // Sui State
   let suiState: Record<any, any>;
 
@@ -137,11 +131,12 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     // User might or might not use sui, so a provider for sui
     // might not be present.
     if (suiState === undefined && ctx.providers.sui.length > 0) {
-      const fields = await getObjectFields(
-        ctx.providers.sui[0],
-        CONTRACTS[ctx.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET"].sui
-          .token_bridge,
-      );
+      const fields = null;
+      // TODO: ben
+      // await getObjectFields(
+      //   ctx.providers.sui[0],
+      //   contracts.tokenBridge.get(envToNetwork(ctx.env), "Sui")!,
+      // );
       if (fields === null) {
         throw new UnrecoverableError("Couldn't read Sui object field");
       }
@@ -167,23 +162,30 @@ export function tokenBridgeContracts(): Middleware<TokenBridgeContext> {
     if (isTokenBridgeVaa(ctx.env, ctx.vaa)) {
       parsedTokenTransferVaa = tryToParseTokenTransferVaa(ctx.vaaBytes);
       if (parsedTokenTransferVaa !== undefined) {
-        payload = {
-          payloadType: parsedTokenTransferVaa.payloadType,
-          amount: parsedTokenTransferVaa.amount,
-          tokenAddress: parsedTokenTransferVaa.tokenAddress,
-          tokenChain: parsedTokenTransferVaa.tokenChain,
-          to: parsedTokenTransferVaa.to,
-          toChain: parsedTokenTransferVaa.toChain,
-          fee: parsedTokenTransferVaa.fee,
-          fromAddress: parsedTokenTransferVaa.fromAddress,
-          tokenTransferPayload: parsedTokenTransferVaa.tokenTransferPayload,
-        };
+        const pl = parsedTokenTransferVaa.payload;
+        // TODO: ben
+        // payload = {
+        //   payloadType: parsedTokenTransferVaa.payloadName,
+        //   amount: pl.token.amount,
+        //   tokenAddress: pl.token.address.toString(),
+        //   tokenChain: pl.token.chain,
+        //   to: pl.to.address.toString(),
+        //   toChain: pl.to.chain,
+        //   fee: parsedTokenTransferVaa.fee,
+        // };
+
+        // if(parsedTokenTransferVaa.payloadName === "TransferWithPayload") {
+        //   //tokenTransferPayload: parsedTokenTransferVaa.tokenTransferPayload,
+        //   payload = {...payload, fromAddress: parsedTokenTransferVaa.payload.from.toString(), tokenTransferPayload: "", fee: parsedTokenTransferVaa.payload},
+        // }
       }
     }
 
     ctx.tokenBridge = {
       addresses: tokenBridgeAddresses[ctx.env],
-      contractConstructor: ITokenBridge__factory.connect,
+      // TODO: ben
+      // @ts-ignore
+      contractConstructor: EvmTokenBridgeContracts.Bridge__factory.connect,
       contracts: {
         read: {
           evm: evmContracts,

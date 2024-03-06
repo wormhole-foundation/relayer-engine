@@ -1,54 +1,69 @@
-import * as wormholeSdk from "@certusone/wormhole-sdk";
 import {
+  Chain,
   ChainId,
-  EVMChainId,
-  isChain,
-  isEVMChain,
-  parseVaa,
-  SignedVaa,
-} from "@certusone/wormhole-sdk";
-import { bech32 } from "bech32";
-import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole/index.js";
-import { zeroPad } from "ethers/lib/utils.js";
-import { ParsedVaaWithBytes } from "./application.js";
+  NativeAddress,
+  Network,
+  Wormhole,
+  WormholeMessageId,
+  chainToPlatform,
+  deserialize,
+  toChain,
+  toChainId,
+} from "@wormhole-foundation/sdk";
+import { ParsedVaaWithBytes, SerializableVaaId } from "./application.js";
 import { ethers } from "ethers";
 import { inspect } from "util";
+import { Environment } from "./environment.js";
 
 export type MakeOptional<T1, T2> = Omit<T1, keyof T2> &
   Partial<Omit<T1, keyof Omit<T1, keyof T2>>> &
   Partial<Omit<T2, keyof T1>>;
 
+export function toSerializableId(whm: WormholeMessageId): SerializableVaaId {
+  return {
+    emitterChain: toChainId(whm.chain),
+    emitterAddress: whm.emitter.toString(),
+    sequence: whm.sequence.toString(),
+  };
+}
+
+export function networkToEnv(network: Network): Environment {
+  switch (network) {
+    case "Mainnet":
+      return Environment.MAINNET;
+    case "Testnet":
+      return Environment.TESTNET;
+    case "Devnet":
+      return Environment.DEVNET;
+    default:
+      throw new Error(`Unknown network: ${network}`);
+  }
+}
+
+export function envToNetwork(env: Environment): Network {
+  switch (env) {
+    case Environment.MAINNET:
+      return "Mainnet";
+    case Environment.TESTNET:
+      return "Testnet";
+    case Environment.DEVNET:
+      return "Devnet";
+    default:
+      throw new Error(`Unknown environment: ${env}`);
+  }
+}
+
 export function encodeEmitterAddress(
-  chainId: wormholeSdk.ChainId,
+  chainId: ChainId,
   emitterAddressStr: string,
 ): string {
-  if (
-    chainId === wormholeSdk.CHAIN_ID_SOLANA ||
-    chainId === wormholeSdk.CHAIN_ID_PYTHNET
-  ) {
-    return deriveWormholeEmitterKey(emitterAddressStr)
-      .toBuffer()
-      .toString("hex");
-  }
-  if (wormholeSdk.isCosmWasmChain(chainId)) {
-    return Buffer.from(
-      zeroPad(bech32.fromWords(bech32.decode(emitterAddressStr).words), 32),
-    ).toString("hex");
-  }
-  if (wormholeSdk.isEVMChain(chainId)) {
-    return wormholeSdk.getEmitterAddressEth(emitterAddressStr);
-  }
-  if (wormholeSdk.CHAIN_ID_ALGORAND === chainId) {
-    return wormholeSdk.getEmitterAddressAlgorand(BigInt(emitterAddressStr));
-  }
-  if (wormholeSdk.CHAIN_ID_NEAR === chainId) {
-    return wormholeSdk.getEmitterAddressNear(emitterAddressStr);
-  }
-  if (wormholeSdk.CHAIN_ID_SUI === chainId) {
-    return strip0x(emitterAddressStr);
-  }
-
-  throw new Error(`Unrecognized wormhole chainId ${chainId}`);
+  const chain: Chain = toChain(chainId);
+  const parsed: NativeAddress<Chain> = Wormhole.parseAddress(
+    chain,
+    emitterAddressStr,
+  );
+  // @ts-ignore
+  return parsed.toUniversalAddress().toString();
 }
 
 export const strip0x = (str: string) =>
@@ -67,14 +82,14 @@ export function isObject<T>(item: T): item is T & ({} | null) {
   return item && typeof item === "object" && !Array.isArray(item);
 }
 
-export function parseVaaWithBytes(bytes: SignedVaa): ParsedVaaWithBytes {
-  const parsedVaa = parseVaa(bytes);
+export function parseVaaWithBytes(bytes: Uint8Array): ParsedVaaWithBytes {
+  const vaa = deserialize("Uint8Array", bytes);
   const id = {
-    emitterChain: parsedVaa.emitterChain as ChainId,
-    emitterAddress: parsedVaa.emitterAddress.toString("hex"),
-    sequence: parsedVaa.sequence.toString(),
+    emitterChain: toChainId(vaa.emitterChain),
+    emitterAddress: vaa.emitterAddress.toString(),
+    sequence: vaa.sequence.toString(),
   };
-  return { ...parsedVaa, bytes, id };
+  return { ...vaa, bytes, id };
 }
 
 /**
@@ -180,17 +195,19 @@ export function wormholeBytesToHex(address: Buffer | Uint8Array): string {
   return ethers.utils.hexlify(address).replace("0x", "");
 }
 
-export function assertEvmChainId(chainId: number): EVMChainId {
-  if (!isEVMChain(chainId as ChainId)) {
+export function assertEvmChainId(chainId: number) {
+  if (chainToPlatform(toChain(chainId)) !== "Evm") {
     throw new EngineError("Expected number to be valid EVM chainId", {
       chainId,
     });
   }
-  return chainId as EVMChainId;
+  return chainId;
 }
 
 export function assertChainId(chainId: number): ChainId {
-  if (!isChain(chainId)) {
+  try {
+    toChainId(chainId);
+  } catch (e) {
     throw new EngineError("Expected number to be valid chainId", { chainId });
   }
   return chainId as ChainId;

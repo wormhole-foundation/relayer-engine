@@ -11,7 +11,7 @@
     "testnet-spy": "docker run --platform=linux/amd64 -p 7073:7073 --entrypoint /guardiand ghcr.io/wormhole-foundation/guardiand:latest spy --nodeKey /node.key --spyRPC \"[::]:7073\" --network /wormhole/testnet/2/1 --bootstrap '/dns4/t-guardian-01.nodes.stable.io/udp/8999/quic/p2p/12D3KooWCW3LGUtkCVkHZmVSZHzL3C4WRKWfqAiJPz1NR7dT9Bxh,/dns4/t-guardian-02.nodes.stable.io/udp/8999/quic/p2p/12D3KooWJXA6goBCiWM8ucjzc4jVUBSqL9Rri6UpjHbkMPErz5zK'"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.9.11",
+    "@wormhole-foundation/sdk": "0.5.0-beta.3",
     "@mysten/sui.js": "^0.32.1",
     "@types/node": "^20.4.2",
     "@wormhole-foundation/relayer-engine": "file:../..",

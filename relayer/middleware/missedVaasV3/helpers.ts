@@ -1,14 +1,12 @@
-import { FailFastGrpcTransportFactory } from "../../rpc/fail-fast-grpc-transport.js";
 import {
-  ChainId,
-  coalesceChainName,
-  getSignedVAAWithRetry,
-} from "@certusone/wormhole-sdk";
-import { GetSignedVAAResponse } from "@certusone/wormhole-spydk/lib/cjs/proto/publicrpc/v1/publicrpc.js";
-
+  UniversalAddress,
+  WormholeMessageId,
+  api,
+  toChain,
+} from "@wormhole-foundation/sdk";
 import { SerializableVaaId } from "../../application.js";
-import { FilterIdentifier } from "./worker.js";
 import { MissedVaaMetrics } from "./metrics.js";
+import { FilterIdentifier } from "./worker.js";
 
 export type MissedVaaRunStats = {
   processed: string[];
@@ -118,7 +116,7 @@ export function updateMetrics(
   const vaasFound = missingSequences.length + lookAheadSequences.length;
 
   const labels = {
-    emitterChain: coalesceChainName(emitterChain as ChainId),
+    emitterChain: toChain(emitterChain),
     emitterAddress,
   };
 
@@ -151,19 +149,21 @@ export async function tryFetchVaa(
   vaaKey: SerializableVaaId,
   wormholeRpcs: string[],
   retries: number = 2,
-): Promise<GetSignedVAAResponse | null> {
+): Promise<Uint8Array | null> {
   let vaa;
   const stack = new Error().stack;
   try {
-    vaa = await getSignedVAAWithRetry(
-      wormholeRpcs,
-      vaaKey.emitterChain as ChainId,
-      vaaKey.emitterAddress,
-      vaaKey.sequence,
-      { transport: FailFastGrpcTransportFactory() },
-      100,
+    const whm: WormholeMessageId = {
+      chain: toChain(vaaKey.emitterChain),
+      emitter: new UniversalAddress(vaaKey.emitterAddress),
+      sequence: BigInt(vaaKey.sequence),
+    };
+    vaa = await api.getVaaBytesWithRetry(
+      wormholeRpcs[0],
+      whm,
       retries * wormholeRpcs.length,
     );
+    return vaa;
   } catch (error: any) {
     error.stack = new Error().stack;
     if (error.code === 5) {
@@ -171,5 +171,4 @@ export async function tryFetchVaa(
     }
     throw error;
   }
-  return vaa as GetSignedVAAResponse;
 }

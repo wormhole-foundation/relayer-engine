@@ -1,5 +1,4 @@
 import { Cluster, Redis } from "ioredis";
-import { ChainId } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { Pool } from "generic-pool";
 import {
@@ -21,6 +20,7 @@ import {
 } from "./storage.js";
 import { FilterIdentifier, MissedVaaOpts } from "./worker.js";
 import { Wormholescan } from "../../rpc/wormholescan-client.js";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 export type ProcessVaaFn = (x: Buffer) => Promise<void>;
 
@@ -120,7 +120,7 @@ export async function checkForMissedVaas(
         }
 
         try {
-          await processVaa(Buffer.from(vaaResponse.vaaBytes));
+          await processVaa(Buffer.from(vaaResponse));
           logger?.debug(`Recovered missing VAA ${seqString}`);
 
           processed.push(seqString);

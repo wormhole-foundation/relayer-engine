@@ -1,4 +1,3 @@
-import * as wh from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import { Providers } from "../providers.middleware.js";
@@ -11,6 +10,14 @@ import {
 } from "./wallet.middleware.js";
 import { Ed25519Keypair, RawSigner } from "@mysten/sui.js";
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
+import {
+  chainToPlatform,
+  toChainId,
+  toChain,
+  ChainId,
+  Chain,
+} from "@wormhole-foundation/sdk";
+import { EvmChains } from "@wormhole-foundation/sdk-evm";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;
@@ -22,13 +29,14 @@ export interface WalletToolBox<T extends Wallet> extends Providers {
 export async function createWalletToolbox(
   providers: Providers,
   privateKey: string,
-  chainId: wh.ChainId,
+  chainId: ChainId,
 ): Promise<WalletToolBox<any>> {
-  if (wh.isEVMChain(chainId)) {
+  const chain: Chain = toChain(chainId);
+  if (chainToPlatform(toChain(chainId)) === "Evm") {
     return createEVMWalletToolBox(providers, privateKey, chainId);
   }
-  switch (chainId) {
-    case wh.CHAIN_ID_SOLANA:
+  switch (chain) {
+    case "Solana":
       let secretKey;
       try {
         secretKey = ethers.utils.base58.decode(privateKey);
@@ -36,10 +44,10 @@ export async function createWalletToolbox(
         secretKey = new Uint8Array(JSON.parse(privateKey));
       }
       return createSolanaWalletToolBox(providers, secretKey);
-    case wh.CHAIN_ID_SUI:
+    case "Sui":
       const secret = Buffer.from(privateKey, "base64");
       return createSuiWalletToolBox(providers, secret);
-    case wh.CHAIN_ID_SEI:
+    case "Sei":
       const seiPkBuf = Buffer.from(privateKey, "hex");
       return createSeiWalletToolBox(providers, seiPkBuf);
   }
@@ -50,9 +58,10 @@ export async function createWalletToolbox(
 function createEVMWalletToolBox(
   providers: Providers,
   privateKey: string,
-  chainId: wh.EVMChainId,
+  chainId: ChainId,
 ): WalletToolBox<EVMWallet> {
-  const chainProviders = providers.evm[chainId];
+  const chain = toChain(chainId);
+  const chainProviders = providers.evm[chain as EvmChains];
   if (chainProviders === undefined || chainProviders.length === 0) {
     throw new Error(`No provider found for chain ${chainId}`);
   }

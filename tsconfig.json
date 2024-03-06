@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2023"],
     "declaration": true,
@@ -16,5 +17,6 @@
     "strict": true,
     "composite": true,
     "allowSyntheticDefaultImports": true
-  }
+  },
+  "exclude": ["lib", "jest.config.js", "examples"]
 }

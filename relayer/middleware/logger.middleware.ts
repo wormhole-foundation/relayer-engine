@@ -11,7 +11,7 @@ export function logging(logger: Logger): Middleware<LoggingContext> {
     ctx.logger = ctx.vaa
       ? logger.child({
           emitterChain: ctx.vaa.emitterChain,
-          emitterAddress: ctx.vaa.emitterAddress.toString("hex"),
+          emitterAddress: ctx.vaa.emitterAddress.toString(),
           sequence: ctx.vaa.sequence,
         })
       : logger;

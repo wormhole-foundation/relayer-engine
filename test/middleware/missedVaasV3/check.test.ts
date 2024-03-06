@@ -148,9 +148,9 @@ describe("MissedVaaV3.check", () => {
       const missingSequencesMock = [3n, 4n, 6n, 7n, 9n, 10n, 11n, 12n];
 
       missingSequencesMock.forEach(seq => {
-        tryFetchVaaMock.mockResolvedValueOnce({
-          vaaBytes: Buffer.from(seq.toString()),
-        });
+        tryFetchVaaMock.mockResolvedValueOnce(
+          new Uint8Array(Buffer.from(seq.toString())),
+        );
       });
 
       // look-ahead call
@@ -198,9 +198,9 @@ describe("MissedVaaV3.check", () => {
         throw new Error("foo");
       });
 
-      tryFetchVaaMock.mockResolvedValueOnce({
-        vaaBytes: Buffer.from("seq-4"),
-      });
+      tryFetchVaaMock.mockResolvedValueOnce(
+        new Uint8Array(Buffer.from("seq-4")),
+      );
 
       const { processed, failedToRecover } = await checkForMissedVaas(
         filter,
@@ -243,8 +243,12 @@ describe("MissedVaaV3.check", () => {
       // to have been processed anyway
       getAllProcessedSeqsInOrderMock.mockResolvedValue([1n, 3n, 5n]);
 
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("seq-2") });
-      tryFetchVaaMock.mockResolvedValueOnce({ vaaBytes: Buffer.from("seq-4") });
+      tryFetchVaaMock.mockResolvedValueOnce(
+        new Uint8Array(Buffer.from("seq-2")),
+      );
+      tryFetchVaaMock.mockResolvedValueOnce(
+        new Uint8Array(Buffer.from("seq-4")),
+      );
 
       // first call will fail (Sequence 2)
       processVaaMock.mockImplementationOnce(async (...args: any[]) => {

@@ -1,5 +1,4 @@
 import { Queue, Worker } from "bullmq";
-import { ParsedVaa, parseVaa } from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import {
   Cluster,
@@ -16,42 +15,26 @@ import Koa from "koa";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
+import { VAA, deserialize, encoding } from "@wormhole-foundation/sdk";
 
-function serializeVaa(vaa: ParsedVaa) {
+function serializeVaa(vaa: VAA<"Uint8Array">) {
   return {
     sequence: vaa.sequence.toString(),
-    hash: vaa.hash.toString("base64"),
+    hash: encoding.b64.encode(vaa.hash),
     emitterChain: vaa.emitterChain,
-    emitterAddress: vaa.emitterAddress.toString("hex"),
-    payload: vaa.payload.toString("base64"),
+    emitterAddress: vaa.emitterAddress.toString(),
+    payload: encoding.b64.encode(vaa.payload),
     nonce: vaa.nonce,
     timestamp: vaa.timestamp,
+    // TODO: ben
+    // @ts-ignore
     version: vaa.version,
-    guardianSignatures: vaa.guardianSignatures.map(sig => ({
-      signature: sig.signature.toString("base64"),
-      index: sig.index,
+    guardianSignatures: vaa.signatures.map(sig => ({
+      signature: encoding.b64.encode(sig.signature.encode()),
+      index: sig.guardianIndex,
     })),
     consistencyLevel: vaa.consistencyLevel,
-    guardianSetIndex: vaa.guardianSetIndex,
-  };
-}
-
-function deserializeVaa(vaa: Record<string, any>): ParsedVaa {
-  return {
-    sequence: BigInt(vaa.sequence),
-    hash: Buffer.from(vaa.hash, "base64"),
-    emitterChain: vaa.emitterChain,
-    emitterAddress: Buffer.from(vaa.emitterAddress, "hex"),
-    payload: Buffer.from(vaa.payload, "base64"),
-    nonce: vaa.nonce,
-    timestamp: vaa.timestamp,
-    version: vaa.version,
-    guardianSignatures: vaa.guardianSignatures.map((sig: any) => ({
-      signature: Buffer.from(sig.signature, "base64"),
-      index: sig.index,
-    })),
-    consistencyLevel: vaa.consistencyLevel,
-    guardianSetIndex: vaa.guardianSetIndex,
+    guardianSetIndex: vaa.guardianSet,
   };
 }
 
@@ -137,12 +120,12 @@ export class RedisStorage implements Storage {
 
   async addVaaToQueue(vaaBytes: Buffer): Promise<RelayJob> {
     const startTime = Date.now();
-    const parsedVaa = parseVaa(vaaBytes);
+    const parsedVaa = deserialize("Uint8Array", vaaBytes);
     const id = this.vaaId(parsedVaa);
     const idWithoutHash = id.substring(0, id.length - 6);
     this.logger?.debug(`Adding VAA to queue`, {
       emitterChain: parsedVaa.emitterChain,
-      emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+      emitterAddress: parsedVaa.emitterAddress.toString(),
       sequence: parsedVaa.sequence.toString(),
     });
     const retryStrategy = this.opts.exponentialBackoff
@@ -169,7 +152,7 @@ export class RedisStorage implements Storage {
 
     return {
       attempts: 0,
-      data: { vaaBytes, parsedVaa },
+      data: { vaaBytes, parsedVaa: parsedVaa },
       id: job.id!,
       name: job.name,
       log: job.log.bind(job),
@@ -227,7 +210,7 @@ export class RedisStorage implements Storage {
           attempts: job.attemptsMade,
           data: {
             vaaBytes,
-            parsedVaa: parseVaa(vaaBytes),
+            parsedVaa: deserialize("Uint8Array", vaaBytes),
           },
           id: job.id!,
           maxAttempts: this.opts.attempts,
@@ -279,9 +262,9 @@ export class RedisStorage implements Storage {
     return serverAdapter.registerPlugin();
   }
 
-  private vaaId(vaa: ParsedVaa): string {
-    const emitterAddress = vaa.emitterAddress.toString("hex");
-    const hash = vaa.hash.toString("base64").substring(0, 5);
+  private vaaId(vaa: VAA<"Uint8Array">): string {
+    const emitterAddress = vaa.emitterAddress.toString();
+    const hash = encoding.b64.encode(vaa.hash).substring(0, 5);
     let sequence = vaa.sequence.toString();
     return `${vaa.emitterChain}/${emitterAddress}/${sequence}/${hash}`;
   }

@@ -1,4 +1,3 @@
-import { ChainId } from "@certusone/wormhole-sdk";
 import {
   ChainConfigInfo,
   EngineInitFn,
@@ -19,6 +18,7 @@ import { StandardRelayerApp } from "../../application-standard.js";
 import { defaultLogger } from "../../logging.js";
 import { legacyPluginCompat } from "./legacy-plugin.middleware.js";
 import { Environment } from "../../environment.js";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 type RelayerEngineConfigs = {
   commonEnv: CommonEnv;
