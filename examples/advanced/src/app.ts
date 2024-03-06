@@ -22,7 +22,7 @@ import {
 import { rootLogger } from "./log.js";
 import { Controller } from "./controller.js";
 import { Logger } from "winston";
-import { toChainId } from "@wormhole-foundation/connect-sdk";
+import { toChainId } from "@wormhole-foundation/sdk";
 
 export class TestStorage extends RedisStorage {
   startWorker(cb: onJobHandler): void {

@@ -3,8 +3,8 @@ import * as solana from "@solana/web3.js";
 import * as sui from "@mysten/sui.js";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import * as winston from "winston";
-import { ChainId, VAA } from "@wormhole-foundation/connect-sdk";
-import { EvmChains } from "@wormhole-foundation/connect-sdk-evm";
+import { ChainId, VAA } from "@wormhole-foundation/sdk";
+import { EvmChains } from "@wormhole-foundation/sdk-evm";
 
 /*
  *  Config

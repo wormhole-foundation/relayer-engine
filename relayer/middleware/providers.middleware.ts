@@ -8,8 +8,8 @@ import {
   chainToPlatform,
   platformToChains,
   toChainId,
-} from "@wormhole-foundation/connect-sdk";
-import { EvmChain, EvmChains } from "@wormhole-foundation/connect-sdk-evm";
+} from "@wormhole-foundation/sdk";
+import { EvmChain, EvmChains } from "@wormhole-foundation/sdk-evm";
 import { ethers } from "ethers";
 import { Logger } from "winston";
 import { Middleware } from "../compose.middleware.js";

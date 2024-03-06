@@ -15,7 +15,7 @@ import {
   UniversalAddress,
   VAA,
   WormholeMessageId,
-} from "@wormhole-foundation/connect-sdk";
+} from "@wormhole-foundation/sdk";
 import { UnrecoverableError } from "bullmq";
 import { EventEmitter } from "events";
 import { LRUCache } from "lru-cache";

@@ -11,7 +11,7 @@ import { ParsedVaaWithBytes } from "../../relayer/application.js";
 import { Environment } from "../../relayer/environment.js";
 import { sleep } from "../../relayer/utils.js";
 import { VaaFactory } from "../vaa-factory.js";
-import { deserialize } from "@wormhole-foundation/connect-sdk";
+import { deserialize } from "@wormhole-foundation/sdk";
 
 type TestContext = StorageContext & { target?: string };
 

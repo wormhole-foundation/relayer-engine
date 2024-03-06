@@ -15,7 +15,7 @@ import Koa from "koa";
 import { KoaAdapter } from "@bull-board/koa";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter.js";
-import { VAA, deserialize, encoding } from "@wormhole-foundation/connect-sdk";
+import { VAA, deserialize, encoding } from "@wormhole-foundation/sdk";
 
 function serializeVaa(vaa: VAA<"Uint8Array">) {
   return {

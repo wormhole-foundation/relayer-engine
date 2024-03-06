@@ -16,8 +16,8 @@ import {
   toChain,
   ChainId,
   Chain,
-} from "@wormhole-foundation/connect-sdk";
-import { EvmChains } from "@wormhole-foundation/connect-sdk-evm";
+} from "@wormhole-foundation/sdk";
+import { EvmChains } from "@wormhole-foundation/sdk-evm";
 
 export interface WalletToolBox<T extends Wallet> extends Providers {
   wallet: T;

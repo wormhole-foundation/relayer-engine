@@ -6,7 +6,7 @@ import {
 } from "./application.js";
 import { Logger } from "winston";
 import { Environment } from "./environment.js";
-import { ChainId } from "@wormhole-foundation/connect-sdk";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 export type FetchVaaFn = (
   emitterChain: ChainId | string,

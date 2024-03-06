@@ -20,7 +20,7 @@ import {
 } from "./storage.js";
 import { FilterIdentifier, MissedVaaOpts } from "./worker.js";
 import { Wormholescan } from "../../rpc/wormholescan-client.js";
-import { ChainId } from "@wormhole-foundation/connect-sdk";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 export type ProcessVaaFn = (x: Buffer) => Promise<void>;
 

@@ -1,9 +1,6 @@
 import { Next } from "@wormhole-foundation/relayer-engine";
 import { MyRelayerContext } from "./app.js";
-import {
-  TokenBridge,
-  canonicalAddress,
-} from "@wormhole-foundation/connect-sdk";
+import { TokenBridge, canonicalAddress } from "@wormhole-foundation/sdk";
 
 export class Controller {
   redeemVaa = async (ctx: MyRelayerContext, next: Next) => {

@@ -1,4 +1,4 @@
-import { ChainId } from "@wormhole-foundation/connect-sdk";
+import { ChainId } from "@wormhole-foundation/sdk";
 import { RelayerApp, RelayerAppOpts, defaultOpts } from "./application.js";
 import {
   logging,

@@ -9,7 +9,7 @@ import {
   deserialize,
   toChain,
   toChainId,
-} from "@wormhole-foundation/connect-sdk";
+} from "@wormhole-foundation/sdk";
 import { ParsedVaaWithBytes, SerializableVaaId } from "./application.js";
 import { ethers } from "ethers";
 import { inspect } from "util";

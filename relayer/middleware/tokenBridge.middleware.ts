@@ -1,4 +1,4 @@
-import { ethers_contracts as EvmTokenBridgeContracts } from "@wormhole-foundation/connect-sdk-evm-tokenbridge";
+import { ethers_contracts as EvmTokenBridgeContracts } from "@wormhole-foundation/sdk-evm-tokenbridge";
 import {
   Chain,
   ChainId,
@@ -9,7 +9,7 @@ import {
   deserialize,
   toChain,
   toChainId,
-} from "@wormhole-foundation/connect-sdk";
+} from "@wormhole-foundation/sdk";
 import { UnrecoverableError } from "bullmq";
 import { Signer, ethers } from "ethers";
 import { Middleware } from "../compose.middleware.js";

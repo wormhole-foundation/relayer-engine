@@ -1,11 +1,7 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { JsonRpcProvider } from "@mysten/sui.js";
 import { Connection } from "@solana/web3.js";
-import {
-  ChainId,
-  chainToPlatform,
-  toChain,
-} from "@wormhole-foundation/connect-sdk";
+import { ChainId, chainToPlatform, toChain } from "@wormhole-foundation/sdk";
 import { RelayerApp } from "../../application.js";
 import { StorageContext } from "../../storage/storage.js";
 import { LoggingContext } from "../logger.middleware.js";

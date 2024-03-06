@@ -11,7 +11,7 @@ import { startWalletManagement, TokensByChain } from "./wallet-management.js";
 import { Registry } from "prom-client";
 import { Environment } from "../../environment.js";
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
-import { ChainId, toChain, toChainId } from "@wormhole-foundation/connect-sdk";
+import { ChainId, toChain, toChainId } from "@wormhole-foundation/sdk";
 
 export type EVMWallet = ethers.Wallet;
 export type SuiWallet = sui.RawSigner;

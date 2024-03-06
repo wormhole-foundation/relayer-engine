@@ -12,7 +12,7 @@ import {
   UniversalAddress,
   chainToPlatform,
   toChainId,
-} from "@wormhole-foundation/connect-sdk";
+} from "@wormhole-foundation/sdk";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;

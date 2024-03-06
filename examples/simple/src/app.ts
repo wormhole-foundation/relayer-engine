@@ -2,7 +2,7 @@ import {
   TokenBridge,
   canonicalAddress,
   toChainId,
-} from "@wormhole-foundation/connect-sdk";
+} from "@wormhole-foundation/sdk";
 import {
   Environment,
   StandardRelayerApp,

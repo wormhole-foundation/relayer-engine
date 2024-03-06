@@ -32,7 +32,7 @@ import {
   Wormholescan,
   WormholescanClient,
 } from "../../rpc/wormholescan-client.js";
-import { ChainId } from "@wormhole-foundation/connect-sdk";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 

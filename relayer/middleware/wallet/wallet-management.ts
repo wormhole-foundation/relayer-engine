@@ -1,8 +1,4 @@
-import {
-  ChainId,
-  chainToPlatform,
-  toChain,
-} from "@wormhole-foundation/connect-sdk";
+import { ChainId, chainToPlatform, toChain } from "@wormhole-foundation/sdk";
 import {
   buildWalletManager,
   IClientWalletManager,

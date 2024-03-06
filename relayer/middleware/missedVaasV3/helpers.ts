@@ -3,7 +3,7 @@ import {
   WormholeMessageId,
   api,
   toChain,
-} from "@wormhole-foundation/connect-sdk";
+} from "@wormhole-foundation/sdk";
 import { SerializableVaaId } from "../../application.js";
 import { MissedVaaMetrics } from "./metrics.js";
 import { FilterIdentifier } from "./worker.js";

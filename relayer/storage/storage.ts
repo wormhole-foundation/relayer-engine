@@ -1,4 +1,4 @@
-import { VAA } from "@wormhole-foundation/connect-sdk";
+import { VAA } from "@wormhole-foundation/sdk";
 import { Context } from "../context.js";
 
 export interface StorageContext extends Context {

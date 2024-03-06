@@ -1,4 +1,4 @@
-import { VAA, encoding } from "@wormhole-foundation/connect-sdk";
+import { VAA, encoding } from "@wormhole-foundation/sdk";
 import { ParsedVaaWithBytes } from "./application.js";
 import { FetchVaaFn } from "./context.js";
 import {
