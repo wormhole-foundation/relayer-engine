@@ -10,6 +10,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_MOONBEAM,
   CHAIN_ID_SEI,
+  CHAIN_ID_SEPOLIA,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   ChainId,
@@ -106,6 +107,11 @@ const defaultSupportedChains = {
     [CHAIN_ID_ETH]: {
       endpoints: [
         "https://eth-goerli.g.alchemy.com/v2/mvFFcUhFfHujAOewWU8kH5D1R2bgFgLt",
+      ],
+    },
+    [CHAIN_ID_SEPOLIA]: {
+      endpoints: [
+        "https://eth-sepolia.g.alchemy.com/v2/mvFFcUhFfHujAOewWU8kH5D1R2bgFgLt",
       ],
     },
     [CHAIN_ID_BSC]: {
