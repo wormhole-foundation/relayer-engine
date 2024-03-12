@@ -21,11 +21,15 @@ import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
 import {
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_ARBITRUM_SEPOLIA,
   CHAIN_ID_AVAX,
+  CHAIN_ID_BASE_SEPOLIA,
   CHAIN_ID_FANTOM,
   CHAIN_ID_KLAYTN,
   CHAIN_ID_OPTIMISM,
+  CHAIN_ID_OPTIMISM_SEPOLIA,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_SEPOLIA,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
 import * as sui from "@mysten/sui.js";
 import { Environment } from "../environment.js";
@@ -104,9 +108,10 @@ const defaultSupportedChains = {
       endpoints: ["https://api.devnet.solana.com"],
     },
     [CHAIN_ID_ETH]: {
-      endpoints: [
-        "https://eth-goerli.g.alchemy.com/v2/mvFFcUhFfHujAOewWU8kH5D1R2bgFgLt",
-      ],
+      endpoints: ["https://ethereum-goerli-rpc.publicnode.com"],
+    },
+    [CHAIN_ID_SEPOLIA]: {
+      endpoints: ["https://endpoints.omniatech.io/v1/eth/sepolia/public"],
     },
     [CHAIN_ID_BSC]: {
       endpoints: ["https://data-seed-prebsc-1-s3.binance.org:8545"],
@@ -141,14 +146,23 @@ const defaultSupportedChains = {
     [CHAIN_ID_OPTIMISM]: {
       endpoints: ["https://goerli.optimism.io"],
     },
+    [CHAIN_ID_OPTIMISM_SEPOLIA]: {
+      endpoints: ["https://sepolia.optimism.io"],
+    },
     [CHAIN_ID_ARBITRUM]: {
       endpoints: [
         "https://arbitrum-goerli.public.blastapi.io",
         "https://arbitrum-goerli.publicnode.com",
       ],
     },
+    [CHAIN_ID_ARBITRUM_SEPOLIA]: {
+      endpoints: ["https://sepolia-rollup.arbitrum.io/rpc"],
+    },
     [CHAIN_ID_BASE]: {
       endpoints: ["https://goerli.base.org"],
+    },
+    [CHAIN_ID_BASE_SEPOLIA]: {
+      endpoints: ["https://sepolia.base.org"],
     },
   },
   [Environment.DEVNET]: {
