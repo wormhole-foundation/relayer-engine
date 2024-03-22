@@ -41,7 +41,14 @@ export class HttpClient {
     }
 
     if (!response.ok) {
-      throw new HttpClientError(undefined, response, await response.json());
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (e: unknown) {
+        data = response.statusText;
+      }
+
+      throw new HttpClientError(undefined, response, data);
     }
 
     return await response.json();

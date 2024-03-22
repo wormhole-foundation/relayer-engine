@@ -2,7 +2,6 @@ import { beforeEach, beforeAll, afterAll, describe, test } from "@jest/globals";
 import { WormholescanClient } from "../../relayer/rpc/wormholescan-client.js";
 import { WormholeMock } from "../infrastructure/mock-wormscan-api.js";
 import { HttpClientError } from "../../relayer/rpc/http-client.js";
-import tassert from "typed-assert";
 
 let client: WormholescanClient;
 let timeout: number = 100; // 100ms
@@ -133,5 +132,20 @@ describe("wormholescan-client", () => {
       "Expected a 'too many requests' error.",
     );
     expect((vaasResponse.error as HttpClientError).status).toBe(429);
+  });
+
+  test("should honor retry when non json body present", async () => {
+    server.respondWith(429, "Too many requests", {
+      "retry-after": "1",
+      "content-type": "text/plain; charset=utf-8",
+    });
+
+    const vaasResponse = await client.listVaas(1, "1", {
+      retries: 1,
+      maxDelay: 1_500,
+    });
+
+    assertPropertyIsDefined(vaasResponse, "data", "Expected a valid response.");
+    expect(vaasResponse.data?.length).toBeGreaterThan(0);
   });
 });
