@@ -35,7 +35,7 @@
   "dependencies": {
     "@bull-board/api": "^5.8.1",
     "@bull-board/koa": "^5.8.1",
-    "@wormhole-foundation/sdk": "0.5.0",
+    "@wormhole-foundation/sdk": "0.5.2",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@datastructures-js/queue": "^4.2.3",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
