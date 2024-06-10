@@ -1,42 +1,24 @@
-import { Middleware } from "../compose.middleware.js";
-import { Context } from "../context.js";
-import {
-  CHAIN_ID_ACALA,
-  CHAIN_ID_ALGORAND,
-  CHAIN_ID_APTOS,
-  CHAIN_ID_BASE,
-  CHAIN_ID_BSC,
-  CHAIN_ID_CELO,
-  CHAIN_ID_ETH,
-  CHAIN_ID_MOONBEAM,
-  CHAIN_ID_SEI,
-  CHAIN_ID_SEPOLIA,
-  CHAIN_ID_SOLANA,
-  CHAIN_ID_SUI,
-  ChainId,
-  CHAINS,
-  EVMChainId,
-  EVMChainNames,
-} from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
+import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import * as sui from "@mysten/sui.js";
+import { getCosmWasmClient } from "@sei-js/core";
 import * as solana from "@solana/web3.js";
 import {
-  CHAIN_ID_ARBITRUM,
-  CHAIN_ID_AVAX,
-  CHAIN_ID_FANTOM,
-  CHAIN_ID_KLAYTN,
-  CHAIN_ID_OPTIMISM,
-  CHAIN_ID_POLYGON,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts.js";
-import * as sui from "@mysten/sui.js";
-import { Environment } from "../environment.js";
-import { getCosmWasmClient } from "@sei-js/core";
-import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+  Chain,
+  ChainId,
+  chainToPlatform,
+  platformToChains,
+  toChainId,
+} from "@wormhole-foundation/sdk";
+import { EvmChain, EvmChains } from "@wormhole-foundation/sdk-evm";
 import { Logger } from "winston";
+import { Middleware } from "../compose.middleware.js";
+import { Context } from "../context.js";
+import { Environment } from "../environment.js";
 import { printError } from "../utils.js";
 
 export interface Providers {
-  evm: Partial<Record<EVMChainId, ethers.providers.JsonRpcProvider[]>>;
+  evm: Partial<Record<EvmChains, ethers.providers.JsonRpcProvider[]>>;
   solana: solana.Connection[];
   untyped: Partial<Record<ChainId, UntypedProvider[]>>;
   sui: sui.JsonRpcProvider[];
@@ -52,7 +34,7 @@ export interface ProviderContext extends Context {
 }
 
 export type ChainConfigInfo = {
-  [k in ChainId]: {
+  [k in Chain]: {
     endpoints: string[];
     faucets?: string[];
     websockets?: string[];
@@ -65,103 +47,103 @@ export interface ProvidersOpts {
 
 const defaultSupportedChains = {
   [Environment.MAINNET]: {
-    [CHAIN_ID_SOLANA]: { endpoints: ["https://api.mainnet-beta.solana.com"] },
-    [CHAIN_ID_ETH]: { endpoints: ["https://rpc.ankr.com/eth"] },
-    [CHAIN_ID_BSC]: { endpoints: ["https://bsc-dataseed1.binance.org/"] },
-    [CHAIN_ID_POLYGON]: { endpoints: ["https://rpc.ankr.com/polygon"] },
-    [CHAIN_ID_AVAX]: { endpoints: ["https://api.avax.network/ext/bc/C/rpc"] },
-    [CHAIN_ID_FANTOM]: { endpoints: ["https://rpc.ftm.tools"] },
-    [CHAIN_ID_CELO]: { endpoints: ["https://forno.celo.org"] },
-    [CHAIN_ID_MOONBEAM]: { endpoints: ["https://rpc.api.moonbeam.network"] },
-    [CHAIN_ID_ACALA]: { endpoints: ["https://eth-rpc-acala.aca-api.network"] },
-    [CHAIN_ID_ALGORAND]: { endpoints: ["https://node.algoexplorerapi.io/"] },
-    [CHAIN_ID_ARBITRUM]: {
+    ["Solana"]: { endpoints: ["https://api.mainnet-beta.solana.com"] },
+    ["Ethereum"]: { endpoints: ["https://rpc.ankr.com/eth"] },
+    ["Bsc"]: { endpoints: ["https://bsc-dataseed1.binance.org/"] },
+    ["Polygon"]: { endpoints: ["https://rpc.ankr.com/polygon"] },
+    ["Avalanche"]: { endpoints: ["https://api.avax.network/ext/bc/C/rpc"] },
+    ["Fantom"]: { endpoints: ["https://rpc.ftm.tools"] },
+    ["Celo"]: { endpoints: ["https://forno.celo.org"] },
+    ["Moonbeam"]: { endpoints: ["https://rpc.api.moonbeam.network"] },
+    ["Acala"]: { endpoints: ["https://eth-rpc-acala.aca-api.network"] },
+    ["Algorand"]: { endpoints: ["https://node.algoexplorerapi.io/"] },
+    ["Arbitrum"]: {
       endpoints: [
         "https://arbitrum-one.publicnode.com",
         "https://rpc.ankr.com/arbitrum",
       ],
     },
-    [CHAIN_ID_APTOS]: {
+    ["Aptos"]: {
       endpoints: ["https://fullnode.mainnet.aptoslabs.com/v1"],
     },
-    [CHAIN_ID_SUI]: {
+    ["Sui"]: {
       endpoints: ["https://rpc.mainnet.sui.io:443"],
       faucets: [""],
       websockets: [""],
     },
-    [CHAIN_ID_KLAYTN]: {
+    ["Klaytn"]: {
       endpoints: ["https://public-node-api.klaytnapi.com/v1/cypress"],
     },
-    [CHAIN_ID_OPTIMISM]: {
+    ["Optimism"]: {
       endpoints: ["https://optimism.api.onfinality.io/public"],
     },
-    [CHAIN_ID_BASE]: {
+    ["Base"]: {
       endpoints: ["https://developer-access-mainnet.base.org"],
     },
   },
   [Environment.TESTNET]: {
     // [CHAIN_ID_ALGORAND]: { endpoints: ["node.testnet.algoexplorerapi.io/"] },
-    [CHAIN_ID_SOLANA]: {
+    ["Solana"]: {
       endpoints: ["https://api.devnet.solana.com"],
     },
-    [CHAIN_ID_ETH]: {
+    ["Ethereum"]: {
       endpoints: [
         "https://eth-goerli.g.alchemy.com/v2/mvFFcUhFfHujAOewWU8kH5D1R2bgFgLt",
       ],
     },
-    [CHAIN_ID_SEPOLIA]: {
+    ["Sepolia"]: {
       endpoints: [
         "https://eth-sepolia.g.alchemy.com/v2/mvFFcUhFfHujAOewWU8kH5D1R2bgFgLt",
       ],
     },
-    [CHAIN_ID_BSC]: {
+    ["Bsc"]: {
       endpoints: ["https://data-seed-prebsc-1-s3.binance.org:8545"],
     },
-    [CHAIN_ID_POLYGON]: {
+    ["Polygon"]: {
       endpoints: ["https://matic-mumbai.chainstacklabs.com"],
     },
-    [CHAIN_ID_AVAX]: {
+    ["Avalanche"]: {
       endpoints: ["https://api.avax-test.network/ext/bc/C/rpc"],
     },
-    [CHAIN_ID_FANTOM]: { endpoints: ["https://rpc.ankr.com/fantom_testnet"] },
-    [CHAIN_ID_CELO]: {
+    ["Fantom"]: { endpoints: ["https://rpc.ankr.com/fantom_testnet"] },
+    ["Celo"]: {
       endpoints: ["https://alfajores-forno.celo-testnet.org"],
     },
-    [CHAIN_ID_MOONBEAM]: {
+    ["Moonbeam"]: {
       endpoints: ["https://rpc.testnet.moonbeam.network"],
     },
-    [CHAIN_ID_APTOS]: {
+    ["Aptos"]: {
       endpoints: ["https://fullnode.devnet.aptoslabs.com/v1"],
     },
-    [CHAIN_ID_SUI]: {
+    ["Sui"]: {
       endpoints: [sui.testnetConnection.fullnode],
       faucets: [sui.testnetConnection.faucet],
       websockets: [sui.testnetConnection.websocket],
     },
-    [CHAIN_ID_SEI]: {
+    ["Sei"]: {
       endpoints: ["https://sei-testnet-2-rpc.brocha.in"],
     },
-    [CHAIN_ID_KLAYTN]: {
+    ["Klaytn"]: {
       endpoints: ["https://public-en-cypress.klaytn.net"],
     },
-    [CHAIN_ID_OPTIMISM]: {
+    ["Optimism"]: {
       endpoints: ["https://goerli.optimism.io"],
     },
-    [CHAIN_ID_ARBITRUM]: {
+    ["Arbitrum"]: {
       endpoints: [
         "https://arbitrum-goerli.public.blastapi.io",
         "https://arbitrum-goerli.publicnode.com",
       ],
     },
-    [CHAIN_ID_BASE]: {
+    ["Base"]: {
       endpoints: ["https://goerli.base.org"],
     },
   },
   [Environment.DEVNET]: {
-    [CHAIN_ID_ETH]: {
+    ["Ethereum"]: {
       endpoints: ["http://localhost:8545/"],
     },
-    [CHAIN_ID_BSC]: {
+    ["Bsc"]: {
       endpoints: ["http://localhost:8546/"],
     },
   },
@@ -222,10 +204,6 @@ export function providers(
   };
 }
 
-const evmChainIds = EVMChainNames.map(n => CHAINS[n]);
-const isEvmChainId = Object.fromEntries(evmChainIds.map(id => [id, true]));
-const isEVMChain = (chainId: ChainId) => isEvmChainId[chainId] ?? false;
-
 async function buildProviders(
   supportedChains: Partial<ChainConfigInfo>,
   logger?: Logger,
@@ -237,18 +215,22 @@ async function buildProviders(
     sei: [],
     untyped: {},
   };
-  for (const [chainIdStr, chainCfg] of Object.entries(supportedChains)) {
-    const chainId = Number(chainIdStr) as ChainId;
+  for (const [chainStr, chainCfg] of Object.entries(supportedChains)) {
+    const chain = chainStr as Chain;
+    const chainId = toChainId(chain);
+
     const { endpoints, faucets, websockets } = chainCfg;
 
     try {
-      if (isEVMChain(chainId)) {
-        providers.evm[chainId as EVMChainId] = endpoints.map(
+      if (chainToPlatform(chain) === "Evm") {
+        // TODO: ben
+        // @ts-ignore
+        providers.evm[chain] = endpoints.map(
           url => new ethers.providers.JsonRpcProvider(url),
         );
-      } else if (chainId === CHAIN_ID_SOLANA) {
+      } else if (chain === "Solana") {
         providers.solana = endpoints.map(url => new solana.Connection(url));
-      } else if (chainId === CHAIN_ID_SUI) {
+      } else if (chain === "Sui") {
         providers.sui = endpoints.map((url, i) => {
           let conn = new sui.Connection({
             fullnode: url,
@@ -257,7 +239,7 @@ async function buildProviders(
           });
           return new sui.JsonRpcProvider(conn);
         });
-      } else if (chainId === CHAIN_ID_SEI) {
+      } else if (chain === "Sei") {
         const seiProviderPromises = endpoints.map(url =>
           getCosmWasmClient(url),
         );
@@ -271,7 +253,7 @@ async function buildProviders(
         Error.captureStackTrace(error);
       }
       logger?.error(
-        `Failed to initialize provider for chain: ${chainIdStr} - endpoints: ${maskRPCEndpoints(
+        `Failed to initialize provider for chain: ${chain} - endpoints: ${maskRPCEndpoints(
           endpoints,
         )}. Error: ${printError(error)}`,
       );
@@ -295,8 +277,9 @@ function maskRPCEndpoints(endpoints: string[]) {
 
 function maskRPCProviders(chains: Partial<ChainConfigInfo>) {
   const maskedChains: Partial<ChainConfigInfo> = {};
-  for (const [chainId, chainConfig] of Object.entries(chains)) {
-    maskedChains[chainId as unknown as ChainId] = {
+  for (const [chainStr, chainConfig] of Object.entries(chains)) {
+    const chain = chainStr as Chain;
+    maskedChains[chain] = {
       endpoints: maskRPCEndpoints(chainConfig.endpoints),
     };
   }

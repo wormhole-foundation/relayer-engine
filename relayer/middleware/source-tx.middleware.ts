@@ -1,18 +1,18 @@
 /// <reference lib="dom" />
 import { Middleware } from "../compose.middleware.js";
 import { Context } from "../context.js";
-import {
-  CHAIN_ID_BSC,
-  CHAIN_ID_SOLANA,
-  ChainId,
-  isEVMChain,
-} from "@certusone/wormhole-sdk";
 import { Logger } from "winston";
 import { Environment } from "../environment.js";
 import { LRUCache } from "lru-cache";
 import { ParsedVaaWithBytes, defaultWormscanUrl } from "../application.js";
 import { WormholescanClient } from "../rpc/wormholescan-client.js";
 import { printError } from "../utils.js";
+import {
+  Chain,
+  UniversalAddress,
+  chainToPlatform,
+  toChainId,
+} from "@wormhole-foundation/sdk";
 
 export interface SourceTxOpts {
   wormscanEndpoint: string;
@@ -52,9 +52,9 @@ const defaultOptsByEnv = {
 
 function ifVAAFinalized(vaa: ParsedVaaWithBytes) {
   const { consistencyLevel, emitterChain } = vaa;
-  if (emitterChain === CHAIN_ID_SOLANA) {
+  if (emitterChain === "Solana") {
     return consistencyLevel === 32;
-  } else if (emitterChain === CHAIN_ID_BSC) {
+  } else if (emitterChain === "Bsc") {
     return consistencyLevel > 15;
   }
   return consistencyLevel !== 200 && consistencyLevel !== 201;
@@ -120,8 +120,8 @@ export function sourceTx(
 }
 
 export async function fetchVaaHash(
-  emitterChain: number,
-  emitterAddress: Buffer,
+  emitterChain: Chain,
+  emitterAddress: UniversalAddress,
   sequence: bigint,
   env: Environment,
   logger?: Logger,
@@ -138,8 +138,8 @@ export async function fetchVaaHash(
   }
 
   const response = await wormholescan.getVaa(
-    emitterChain,
-    emitterAddress.toString("hex"),
+    toChainId(emitterChain),
+    emitterAddress.toString(),
     sequence,
   );
 
@@ -151,7 +151,7 @@ export async function fetchVaaHash(
   let txHash = response.data.txHash || "";
 
   if (
-    isEVMChain(emitterChain as ChainId) &&
+    chainToPlatform(emitterChain) === "Evm" &&
     txHash &&
     !txHash.startsWith("0x")
   ) {

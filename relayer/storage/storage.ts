@@ -1,5 +1,5 @@
+import { VAA } from "@wormhole-foundation/sdk";
 import { Context } from "../context.js";
-import { ParsedVaa, SignedVaa } from "@certusone/wormhole-sdk";
 
 export interface StorageContext extends Context {
   storage: {
@@ -11,8 +11,8 @@ export interface RelayJob {
   id: string;
   name: string;
   data: {
-    vaaBytes: Buffer;
-    parsedVaa: ParsedVaa;
+    vaaBytes: Uint8Array;
+    parsedVaa: VAA<"Uint8Array">;
   };
   attempts: number;
   maxAttempts: number;
@@ -26,7 +26,7 @@ export interface RelayJob {
 export type onJobHandler = (job: RelayJob) => Promise<any>;
 
 export interface Storage {
-  addVaaToQueue(vaa: SignedVaa): Promise<RelayJob>;
+  addVaaToQueue(vaa: Uint8Array): Promise<RelayJob>;
 
   startWorker(cb: onJobHandler): void;
 

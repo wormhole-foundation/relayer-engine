@@ -1,36 +1,41 @@
 import { Next } from "@wormhole-foundation/relayer-engine";
-import { TokenBridgePayload } from "@certusone/wormhole-sdk";
 import { MyRelayerContext } from "./app.js";
+import { TokenBridge, canonicalAddress } from "@wormhole-foundation/sdk";
 
 export class Controller {
   redeemVaa = async (ctx: MyRelayerContext, next: Next) => {
     let seq = ctx.vaa!.sequence.toString();
     ctx.logger.info(`chain middleware - ${seq} - ${ctx.sourceTxHash}`);
 
-    const { payload } = ctx.tokenBridge;
+    const { vaa } = ctx.tokenBridge;
 
     // only care about transfers
-    switch (payload?.payloadType) {
-      case TokenBridgePayload.Transfer:
+    switch (vaa.payloadLiteral) {
+      case "TokenBridge:Transfer":
         ctx.logger.info(
           `Transfer processing for: \n` +
-            `\tToken: ${payload.tokenChain}:${payload.tokenAddress.toString(
-              "hex"
+            `\tToken: ${vaa.payload.token.chain}:${canonicalAddress(
+              vaa.payload.token
             )}\n` +
-            `\tAmount: ${payload.amount}\n` +
-            `\tReceiver: ${payload.toChain}:${payload.to.toString("hex")}\n`
+            `\tAmount: ${vaa.payload.token.amount}\n` +
+            `\tReceiver: ${vaa.payload.to.chain}:${canonicalAddress(
+              vaa.payload.to
+            )}\n`
         );
         break;
-      case TokenBridgePayload.TransferWithPayload:
+      case "TokenBridge:TransferWithPayload":
+        const { payload } = vaa as TokenBridge.VAA<"TransferWithPayload">;
         ctx.logger.info(
           `Transfer processing for: \n` +
-            `\tToken: ${payload.tokenChain}:${payload.tokenAddress.toString(
-              "hex"
+            `\tToken: ${payload.token.chain}:${canonicalAddress(
+              payload.token
             )}\n` +
-            `\tAmount: ${payload.amount}\n` +
-            `\tSender ${payload.fromAddress?.toString("hex")}\n` +
-            `\tReceiver: ${payload.toChain}:${payload.to.toString("hex")}\n` +
-            `\tPayload: ${payload.tokenTransferPayload.toString("hex")}\n`
+            `\tAmount: ${payload.token.amount}\n` +
+            `\tSender ${payload.from.toString()}\n` +
+            `\tReceiver: ${payload.to.chain}:${canonicalAddress(
+              payload.to
+            )}\n` +
+            `\tPayload: ${payload.payload}\n`
         );
         break;
     }

@@ -6,12 +6,12 @@ import {
   MetricsOpts,
 } from "../../relayer/middleware/metrics.middleware.js";
 import { Middleware, Next } from "../../relayer/compose.middleware.js";
-import { parseVaa } from "@certusone/wormhole-sdk";
 import { StorageContext } from "../../relayer/storage/storage.js";
 import { ParsedVaaWithBytes } from "../../relayer/application.js";
 import { Environment } from "../../relayer/environment.js";
 import { sleep } from "../../relayer/utils.js";
 import { VaaFactory } from "../vaa-factory.js";
+import { deserialize } from "@wormhole-foundation/sdk";
 
 type TestContext = StorageContext & { target?: string };
 
@@ -199,7 +199,7 @@ const createRelayJob = () => ({
   name: "name",
   data: {
     vaaBytes: vaa,
-    parsedVaa: parseVaa(vaa),
+    parsedVaa: deserialize("Uint8Array", vaa),
   },
   attempts: 1,
   maxAttempts: 1,

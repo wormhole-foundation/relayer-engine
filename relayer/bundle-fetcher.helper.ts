@@ -1,4 +1,5 @@
-import { ChainId, ParsedVaa } from "@certusone/wormhole-sdk";
+import { VAA, encoding } from "@wormhole-foundation/sdk";
+import { ParsedVaaWithBytes } from "./application.js";
 import { FetchVaaFn } from "./context.js";
 import {
   EngineError,
@@ -6,12 +7,8 @@ import {
   parseVaaWithBytes,
   sleep,
 } from "./utils.js";
-import { ParsedVaaWithBytes } from "./application.js";
 
-export type VaaId = Pick<
-  ParsedVaa,
-  "emitterChain" | "emitterAddress" | "sequence"
->;
+export type VaaId = Pick<VAA, "emitterChain" | "emitterAddress" | "sequence">;
 
 export type SerializedBatchFetcher = {
   vaaBytes: string[];
@@ -85,7 +82,7 @@ export class VaaBundleFetcher {
   serialize(): SerializedBatchFetcher {
     return {
       vaaBytes: Object.values(this.fetchedVaas).map(parsedVaas =>
-        parsedVaas.bytes.toString("base64"),
+        encoding.b64.encode(parsedVaas.bytes),
       ),
       vaaIds: this.opts.vaaIds,
     };
@@ -110,9 +107,9 @@ export class VaaBundleFetcher {
   }
 
   private idToKey = (id: VaaId) =>
-    `${id.emitterChain}/${id.emitterAddress.toString(
-      "hex",
-    )}/${id.sequence.toString()}`;
+    `${
+      id.emitterChain
+    }/${id.emitterAddress.toString()}/${id.sequence.toString()}`;
 
   // returns true if all remaining vaas have been fetched, false otherwise
   private async fetchPending(): Promise<boolean> {
@@ -123,8 +120,8 @@ export class VaaBundleFetcher {
       Object.values(this.pendingVaas).map(async id => {
         try {
           return await this.fetchVaa(
-            id.emitterChain as ChainId,
-            id.emitterAddress,
+            id.emitterChain,
+            id.emitterAddress.toString(),
             id.sequence,
           );
         } catch (e) {

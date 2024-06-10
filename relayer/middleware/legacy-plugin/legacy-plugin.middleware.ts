@@ -1,19 +1,12 @@
-import {
-  CHAIN_ID_SOLANA,
-  ChainId,
-  EVMChainId,
-  isEVMChain,
-} from "@certusone/wormhole-sdk";
-import { ParsedVaaWithBytes, RelayerApp } from "../../application.js";
-import * as legacy from "./legacy-plugin-definition.js";
-import {
-  Plugin,
-  Providers as LegacyProviders,
-} from "./legacy-plugin-definition.js";
+import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { JsonRpcProvider } from "@mysten/sui.js";
+import { Connection } from "@solana/web3.js";
+import { ChainId, chainToPlatform, toChain } from "@wormhole-foundation/sdk";
+import { RelayerApp } from "../../application.js";
 import { StorageContext } from "../../storage/storage.js";
 import { LoggingContext } from "../logger.middleware.js";
-import { StagingAreaContext } from "../staging-area.middleware.js";
 import { ProviderContext, Providers } from "../providers.middleware.js";
+import { StagingAreaContext } from "../staging-area.middleware.js";
 import {
   EVMWallet,
   SolanaWallet,
@@ -21,9 +14,11 @@ import {
   WalletContext,
   WalletToolBox,
 } from "../wallet/index.js";
-import { Connection } from "@solana/web3.js";
-import { JsonRpcProvider } from "@mysten/sui.js";
-import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import * as legacy from "./legacy-plugin-definition.js";
+import {
+  Providers as LegacyProviders,
+  Plugin,
+} from "./legacy-plugin-definition.js";
 
 export type PluginContext<Ext> = LoggingContext &
   StorageContext &
@@ -50,7 +45,10 @@ export function legacyPluginCompat<Ext>(
 
   app.multiple(multiple, async (ctx: PluginContext<Ext>, next) => {
     const { kv, vaa, vaaBytes, logger } = ctx;
-    const vaaWithBytes = vaa as ParsedVaaWithBytes;
+    const vaaWithBytes = vaa;
+
+    if (!vaaWithBytes) return next();
+
     vaaWithBytes.bytes = vaaBytes!;
     const providers = providersShimToLegacy(ctx.providers);
 
@@ -82,14 +80,17 @@ function makeExecuteWrapper(ctx: PluginContext<any>): {
   const execute = async <T, W extends legacy.Wallet>(
     action: legacy.Action<T, W>,
   ) => {
-    if (isEVMChain(action.chainId)) {
+    const chain = toChain(action.chainId);
+    if (chainToPlatform(chain) === "Evm") {
       ctx.wallets.onEVM(
         action.chainId,
         (wallet: WalletToolBox<any>, chainId: ChainId) => {
+          // TODO: ben
+          // @ts-ignore
           return action.f(walletShimToLegacy(wallet), chainId);
         },
       );
-    } else if (action.chainId === CHAIN_ID_SOLANA) {
+    } else if (toChain(action.chainId) === "Solana") {
       return ctx.wallets.onSolana((wallet: WalletToolBox<SolanaWallet>) =>
         (action.f as legacy.ActionFunc<T, SolanaWallet>)(
           walletShimToLegacy<SolanaWallet>(wallet),
@@ -102,7 +103,7 @@ function makeExecuteWrapper(ctx: PluginContext<any>): {
     action: legacy.Action<T, legacy.EVMWallet>,
   ): Promise<T> => {
     return ctx.wallets.onEVM(
-      action.chainId as EVMChainId,
+      action.chainId,
       (wallet: WalletToolBox<EVMWallet>) =>
         action.f(walletShimToLegacy(wallet), action.chainId),
     );

@@ -1,4 +1,3 @@
-import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
 import {
   FetchaVaasOpts,
   ListenerFn,
@@ -7,10 +6,11 @@ import {
 } from "./application.js";
 import { Logger } from "winston";
 import { Environment } from "./environment.js";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 export type FetchVaaFn = (
   emitterChain: ChainId | string,
-  emitterAddress: Buffer | string,
+  emitterAddress: Uint8Array | string,
   sequence: bigint | string,
   opts?: { retryTimeout?: number; retries?: number },
 ) => Promise<ParsedVaaWithBytes>;
@@ -21,7 +21,7 @@ export type FetchVaasFn = (
 
 export interface Context {
   vaa?: ParsedVaaWithBytes;
-  vaaBytes?: SignedVaa;
+  vaaBytes?: Uint8Array;
   locals: Record<any, any>;
   fetchVaa: FetchVaaFn;
   fetchVaas: FetchVaasFn;
