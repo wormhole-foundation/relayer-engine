@@ -1,13 +1,5 @@
 import { ethers } from "ethers";
 import * as solana from "@solana/web3.js";
-import {
-  CHAIN_ID_SEI,
-  CHAIN_ID_SOLANA,
-  CHAIN_ID_SUI,
-  CHAIN_ID_TO_NAME,
-  ChainId,
-  EVMChainId,
-} from "@certusone/wormhole-sdk";
 import * as sui from "@mysten/sui.js";
 import { WalletToolBox } from "./walletToolBox.js";
 import { Middleware } from "../../compose.middleware.js";
@@ -19,6 +11,7 @@ import { startWalletManagement, TokensByChain } from "./wallet-management.js";
 import { Registry } from "prom-client";
 import { Environment } from "../../environment.js";
 import { DirectSecp256k1Wallet } from "@cosmjs/proto-signing";
+import { ChainId, toChain, toChainId } from "@wormhole-foundation/sdk";
 
 export type EVMWallet = ethers.Wallet;
 export type SuiWallet = sui.RawSigner;
@@ -69,7 +62,7 @@ export interface ActionExecutor {
 
   onSolana<T>(f: ActionFunc<T, SolanaWallet>): Promise<T>;
 
-  onEVM<T>(chainId: EVMChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
+  onEVM<T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>): Promise<T>;
 
   onSei<T>(f: ActionFunc<T, SeiWallet>): Promise<T>;
 
@@ -103,9 +96,9 @@ function makeExecuteFunc(
     });
   };
   func.onSolana = <T>(f: ActionFunc<T, SolanaWallet>) =>
-    func(CHAIN_ID_SOLANA, f);
-  func.onSui = <T>(f: ActionFunc<T, SuiWallet>) => func(CHAIN_ID_SUI, f);
-  func.onSei = <T>(f: ActionFunc<T, SeiWallet>) => func(CHAIN_ID_SEI, f);
+    func(toChainId("Solana"), f);
+  func.onSui = <T>(f: ActionFunc<T, SuiWallet>) => func(toChainId("Sui"), f);
+  func.onSei = <T>(f: ActionFunc<T, SeiWallet>) => func(toChainId("Sei"), f);
   func.onEVM = <T>(chainId: ChainId, f: ActionFunc<T, EVMWallet>) =>
     func(chainId, f);
   return func;
@@ -139,7 +132,7 @@ export function wallets(
       const workerInfos = keys.map((key, id) => ({
         id,
         targetChainId: chainId,
-        targetChainName: CHAIN_ID_TO_NAME[chainId],
+        targetChainName: toChain(chainId),
         walletPrivateKey: key,
       }));
       return [chainId, workerInfos];

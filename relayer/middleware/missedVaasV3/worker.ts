@@ -1,6 +1,5 @@
 import { Cluster, Redis } from "ioredis";
 import { Registry } from "prom-client";
-import { ChainId } from "@certusone/wormhole-sdk";
 import { createPool, Pool } from "generic-pool";
 import { Logger } from "winston";
 
@@ -33,6 +32,7 @@ import {
   Wormholescan,
   WormholescanClient,
 } from "../../rpc/wormholescan-client.js";
+import { ChainId } from "@wormhole-foundation/sdk";
 
 const DEFAULT_PREFIX = "MissedVaaWorkerV3";
 

@@ -1,15 +1,28 @@
-import { EventEmitter } from "events";
 import {
-  CHAIN_ID_SUI,
+  createSpyRPCServiceClient,
+  subscribeSignedVAA,
+} from "@certusone/wormhole-spydk";
+import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy.js";
+import {
+  api,
+  Chain,
   ChainId,
-  ChainName,
-  coalesceChainId,
-  coalesceChainName,
-  CONTRACTS,
-  getSignedVAAWithRetry,
-  ParsedVaa,
-  SignedVaa,
-} from "@certusone/wormhole-sdk";
+  contracts,
+  Network,
+  serialize,
+  toChain,
+  toChainId,
+  UniversalAddress,
+  VAA,
+  WormholeMessageId,
+} from "@wormhole-foundation/sdk";
+import { UnrecoverableError } from "bullmq";
+import { EventEmitter } from "events";
+import { LRUCache } from "lru-cache";
+import { Registry } from "prom-client";
+import { Logger } from "winston";
+import { createRelayerMetrics, RelayerMetrics } from "./application.metrics.js";
+import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper.js";
 import {
   compose,
   composeError,
@@ -18,25 +31,17 @@ import {
   Middleware,
   Next,
 } from "./compose.middleware.js";
-import { Context } from "./context.js";
-import { Logger } from "winston";
-import {
-  createSpyRPCServiceClient,
-  subscribeSignedVAA,
-} from "@certusone/wormhole-spydk";
-import { UnrecoverableError } from "bullmq";
-import { encodeEmitterAddress, mergeDeep, parseVaaWithBytes } from "./utils.js";
-import { FailFastGrpcTransportFactory } from "./rpc/fail-fast-grpc-transport.js";
-import { defaultLogger } from "./logging.js";
-import { VaaBundleFetcher, VaaId } from "./bundle-fetcher.helper.js";
-import { RelayJob, Storage } from "./storage/storage.js";
 import { emitterCapByEnv } from "./configs/sui.js";
-import { LRUCache } from "lru-cache";
+import { Context, FetchVaaFn } from "./context.js";
 import { Environment } from "./environment.js";
-import { SpyRPCServiceClient } from "@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy.js";
-import { Registry } from "prom-client";
-import { createRelayerMetrics, RelayerMetrics } from "./application.metrics.js";
-import { FetchVaaFn } from "./context.js";
+import { defaultLogger } from "./logging.js";
+import { RelayJob, Storage } from "./storage/storage.js";
+import {
+  encodeEmitterAddress,
+  mergeDeep,
+  parseVaaWithBytes,
+  toSerializableId,
+} from "./utils.js";
 
 export { UnrecoverableError };
 
@@ -75,9 +80,9 @@ export interface SerializableVaaId {
   sequence: string;
 }
 
-export interface ParsedVaaWithBytes extends ParsedVaa {
+export interface ParsedVaaWithBytes extends VAA {
   id: SerializableVaaId;
-  bytes: SignedVaa;
+  bytes: Uint8Array;
 }
 
 export type FilterFN = (
@@ -276,17 +281,21 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       retries: 2,
     },
   ): Promise<ParsedVaaWithBytes> {
-    const res = await getSignedVAAWithRetry(
-      this.opts.wormholeRpcs,
-      Number(chain) as ChainId,
-      emitterAddress.toString("hex"),
-      sequence.toString(),
-      { transport: FailFastGrpcTransportFactory() },
-      retryTimeout,
-      retries,
-    );
+    const whm: WormholeMessageId = {
+      chain: toChain(chain),
+      emitter: new UniversalAddress(emitterAddress),
+      sequence: BigInt(sequence),
+    };
 
-    return parseVaaWithBytes(res.vaaBytes);
+    const vaa = await api.getVaaWithRetry(
+      this.opts.wormholeRpcs[0],
+      whm,
+      "Uint8Array",
+      retryTimeout * retries,
+    );
+    if (!vaa) throw new Error("VAA not found");
+
+    return { id: toSerializableId(whm), bytes: serialize(vaa), ...vaa };
   };
 
   /**
@@ -300,7 +309,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
     if (!(await this.shouldProcessVaa(parsedVaa)) && !opts.force) {
       this.rootLogger?.debug("VAA did not pass filters. Skipping...", {
         emitterChain: parsedVaa.emitterChain,
-        emitterAddress: parsedVaa.emitterAddress.toString("hex"),
+        emitterAddress: parsedVaa.emitterAddress.toString(),
         sequence: parsedVaa.sequence.toString(),
       });
       this.emit(RelayerEvents.Skipped, parsedVaa);
@@ -323,7 +332,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param opts
    */
   private async pushVaaThroughPipeline(
-    vaa: SignedVaa,
+    vaa: Uint8Array,
     opts: any,
   ): Promise<void> {
     const parsedVaa = parseVaaWithBytes(vaa);
@@ -381,20 +390,21 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
    * @param handlers
    */
   tokenBridge(
-    chainsOrChain: ChainId[] | ChainName[] | ChainId | ChainName,
+    chainsOrChain: ChainId[] | Chain[] | ChainId | Chain,
     ...handlers: Middleware<ContextT>[]
   ) {
     const chains = Array.isArray(chainsOrChain)
       ? chainsOrChain
       : [chainsOrChain];
+
     for (const chainIdOrName of chains) {
-      const chainName = coalesceChainName(chainIdOrName);
-      const chainId = coalesceChainId(chainIdOrName);
-      const env = this.env.toUpperCase() as "MAINNET" | "TESTNET" | "DEVNET";
+      const chainName = toChain(chainIdOrName);
+      const chainId = toChainId(chainIdOrName);
+      const env = this.env.toUpperCase() as Network;
       const address =
-        chainId === CHAIN_ID_SUI
+        chainName === "Sui"
           ? emitterCapByEnv[this.env] // sui is different from evm in that you can't use the package id or state id, you have to use the emitter cap
-          : CONTRACTS[env][chainName].token_bridge;
+          : contracts.tokenBridge.get(env, chainName);
 
       if (address === undefined) {
         throw new Error("Could not find token bridge address.");
@@ -469,7 +479,7 @@ export class RelayerApp<ContextT extends Context> extends EventEmitter {
       if (ctx.vaa === undefined) {
         throw new Error("No VAA in context.");
       }
-      const router = this.chainRouters[ctx.vaa.emitterChain as ChainId];
+      const router = this.chainRouters[toChainId(ctx.vaa.emitterChain)];
       if (!router) {
         this.rootLogger?.error(
           "received a vaa but we don't have a router for it",
@@ -594,7 +604,7 @@ class ChainRouter<ContextT extends Context> {
   }
 
   async process(ctx: ContextT, next: Next): Promise<void> {
-    let addr = ctx.vaa!.emitterAddress.toString("hex");
+    let addr = ctx.vaa!.emitterAddress.toString();
     let handler = this._addressHandlers[addr];
     if (!handler) {
       throw new Error("route undefined");

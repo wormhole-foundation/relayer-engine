@@ -19,10 +19,10 @@ import {
   onJobHandler,
   RedisStorage,
 } from "@wormhole-foundation/relayer-engine";
-import { CHAIN_ID_SOLANA, SignedVaa } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log.js";
 import { Controller } from "./controller.js";
 import { Logger } from "winston";
+import { toChainId } from "@wormhole-foundation/sdk";
 
 export class TestStorage extends RedisStorage {
   startWorker(cb: onJobHandler): void {
@@ -33,7 +33,7 @@ export class TestStorage extends RedisStorage {
   async stopWorker(): Promise<void> {
     return;
   }
-  async addVaaToQueue(vaa: SignedVaa): Promise<RelayJob> {
+  async addVaaToQueue(vaa: Uint8Array): Promise<RelayJob> {
     console.log("adding vaa to queue: ", vaa);
     return {} as RelayJob;
   }
@@ -67,7 +67,7 @@ async function main(namespace: string) {
   app.use(sourceTx());
 
   app
-    .chain(CHAIN_ID_SOLANA)
+    .chain(toChainId("Solana"))
     .address(
       "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe",
       fundsCtrl.redeemVaa

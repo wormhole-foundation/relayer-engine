@@ -1,3 +1,4 @@
+import { ChainId } from "@wormhole-foundation/sdk";
 import { RelayerApp, RelayerAppOpts, defaultOpts } from "./application.js";
 import {
   logging,
@@ -20,7 +21,6 @@ import {
   ExponentialBackoffOpts,
   RedisStorage,
 } from "./storage/redis-storage.js";
-import { ChainId } from "@certusone/wormhole-sdk";
 import { ClusterNode, ClusterOptions, RedisOptions } from "ioredis";
 import { MakeOptional, mergeDeep } from "./utils.js";
 import { defaultLogger } from "./logging.js";

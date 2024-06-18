@@ -2,13 +2,9 @@ import * as ethers from "ethers";
 import * as solana from "@solana/web3.js";
 import * as sui from "@mysten/sui.js";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import {
-  ChainId,
-  EVMChainId,
-  ParsedVaa,
-  SignedVaa,
-} from "@certusone/wormhole-sdk";
 import * as winston from "winston";
+import { ChainId, VAA } from "@wormhole-foundation/sdk";
+import { EvmChains } from "@wormhole-foundation/sdk-evm";
 
 /*
  *  Config
@@ -92,14 +88,10 @@ export interface WalletToolBox<T extends Wallet> extends Providers {
 
 export interface Providers {
   untyped: Partial<Record<ChainId, UntypedProvider>>;
-  evm: Partial<Record<EVMChainId, ethers.providers.Provider>>;
+  evm: Partial<Record<EvmChains, ethers.providers.Provider>>;
   solana: solana.Connection;
   sui: sui.JsonRpcProvider;
   sei: CosmWasmClient;
-}
-
-export interface ParsedVaaWithBytes extends ParsedVaa {
-  bytes: SignedVaa;
 }
 
 /*
@@ -131,7 +123,7 @@ export interface Plugin<WorkflowData = any> {
 
   getFilters(): ContractFilter[]; // List of emitter addresses and emiiter chain ID to filter for
   consumeEvent( // Function to be defined in plug-in that takes as input a VAA outputs a list of actions
-    vaa: ParsedVaaWithBytes,
+    vaa: VAA,
     stagingArea: StagingAreaKeyLock,
     providers: Providers,
     extraData?: any[],
@@ -151,7 +143,7 @@ export interface Plugin<WorkflowData = any> {
 }
 
 export type EventSource = (
-  event: SignedVaa,
+  event: Uint8Array,
   extraData?: any[],
 ) => Promise<void>;
 
