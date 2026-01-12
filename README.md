@@ -1,4 +1,4 @@
-# Notice of deprecation
+# ⚠️ Notice of deprecation
 The Relayer Engine and the associated Wormhole Relayer system has been deprecated. Interested integrators should check and migrate to the new and more flexible Executor framework: https://wormhole.com/docs/protocol/infrastructure/relayers/executor-framework/ 
 
 # Relayer Engine
